@@ -8,8 +8,10 @@ export async function loadExercisesDB(): Promise<ExercisesDB> {
   if (exercisesCache) return exercisesCache;
 
   try {
-    const res = await fetch('/exercises.json');
-    if (!res.ok) throw new Error('Failed to load exercises.json');
+    // Путь ОТНОСИТЕЛЬНЫЙ: приложение может лежать в подпапке
+    // (https://user.github.io/repo/) — абсолютный '/exercises.json' даёт 404.
+    const res = await fetch(`${import.meta.env.BASE_URL}exercises.json`);
+    if (!res.ok) throw new Error(`exercises.json: HTTP ${res.status}`);
     exercisesCache = await res.json();
     return exercisesCache!;
   } catch (e) {

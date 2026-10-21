@@ -8,8 +8,9 @@ let haystackCache: string[] = [];
 export async function loadKnowledge(): Promise<KnowledgeChapter[]> {
   if (chaptersCache) return chaptersCache;
   try {
-    const res = await fetch('/knowledge.md');
-    if (!res.ok) throw new Error('knowledge.md not found');
+    // Путь ОТНОСИТЕЛЬНЫЙ — приложение может лежать в подпапке (GitHub Pages).
+    const res = await fetch(`${import.meta.env.BASE_URL}knowledge.md`);
+    if (!res.ok) throw new Error(`knowledge.md: HTTP ${res.status}`);
     const text = await res.text();
     chaptersCache = parseKnowledge(text);
     haystackCache = chaptersCache.map(ch => ((ch.title || '') + ' ' + (ch.content || '')).toLowerCase());

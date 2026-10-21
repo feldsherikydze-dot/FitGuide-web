@@ -53,7 +53,8 @@ export function usePicker() {
 
   useEffect(() => {
     let alive = true;
-    fetch('/picker.json')
+    // Путь ОТНОСИТЕЛЬНЫЙ: приложение может лежать в подпапке (GitHub Pages /repo/).
+    fetch(`${import.meta.env.BASE_URL}picker.json`)
       .then(r => (r.ok ? r.json() : null))
       .then((data: PickerDB | null) => { if (alive) setPicker(data); })
       .catch(() => { if (alive) setPicker(null); });
