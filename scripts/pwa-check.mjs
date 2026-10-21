@@ -258,6 +258,39 @@ console.log('url:', man.result?.url);
 console.log('errors:', JSON.stringify(man.result?.errors || []));
 console.log('data:', (man.result?.data || '').slice(0, 400));
 
+// Функциональная проверка: открываем раздел упражнений и считаем карточки
+await evaluate(`(async () => { location.hash = '#/exercises'; await new Promise(r => setTimeout(r, 1500)); })()`);
+await sleep(3500);
+const app = await evaluate(`(() => {
+  const text = document.body.innerText;
+  const m = text.match(/(\\d+)\\s+упражнений/);
+  const cards = document.querySelectorAll('button, div').length;
+  return {
+    hash: location.hash,
+    headerFound: m ? m[0] : null,
+    exercisesCount: m ? parseInt(m[1], 10) : null,
+    hasRendered: text.includes('База упражнений'),
+    textLen: text.length,
+  };
+})()`);
+console.log('\n=== ПРИЛОЖЕНИЕ (раздел «Упражнения») ===');
+console.log(JSON.stringify(app, null, 2));
+
+// И раздел «Знания» — вторая база
+await evaluate(`(async () => { location.hash = '#/knowledge'; await new Promise(r => setTimeout(r, 1500)); })()`);
+await sleep(3500);
+const kb = await evaluate(`(() => {
+  const text = document.body.innerText;
+  const m = text.match(/(\\d+)\\s+глав/);
+  return {
+    hash: location.hash,
+    chaptersFound: m ? m[0] : null,
+    hasRendered: text.includes('База знаний'),
+  };
+})()`);
+console.log('\n=== ПРИЛОЖЕНИЕ (раздел «Знания») ===');
+console.log(JSON.stringify(kb, null, 2));
+
 // Пробуем зарегистрировать SW вручную — смотрим точную ошибку
 const manual = await evaluate(`(async () => {
   try {

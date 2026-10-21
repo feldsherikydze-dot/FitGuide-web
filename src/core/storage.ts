@@ -66,6 +66,10 @@ export const KEYS = {
   ONE_RM: 'one_rm_manual',
   JOURNAL: 'journal_entries',
   BODYLOG: 'body_log',
+  PALETTE: 'palette',
+  SPLASH_BG: 'splash_bg',
+  SPLASH_QUOTE: 'splash_quote',
+  TOOL_ORDER: 'tool_order',
   CACHE_EXERCISES: 'cache_exercises',
   CACHE_PICKER: 'cache_picker',
 } as const;
