@@ -10,8 +10,9 @@ const CACHE_NAME = 'fitguide-v1.13';
 const STATIC_ASSETS = [
   './',
   './index.html',
-  './manifest.json',
-  './favicon.svg',
+  './manifest.webmanifest',
+  './icon.svg',
+  './icon-180.png',
   './icon-192.png',
   './icon-512.png',
   './icon-maskable-512.png',

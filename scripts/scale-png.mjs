@@ -187,11 +187,37 @@ export function resize(src, targetW, targetH) {
 // ---------- CLI ----------
 
 if (process.argv[1] && process.argv[1].endsWith('scale-png.mjs')) {
-  const [, , input, output, sizeArg] = process.argv;
+  const [, , input, output, sizeArg, padArg] = process.argv;
   const size = parseInt(sizeArg || '512', 10);
+  // pad — доля размера, занимаемая рисунком (0.8 = картинка на 80%, остальное поля)
+  const pad = padArg !== undefined ? parseFloat(padArg) : 1;
+
   const img = decodePNG(readFileSync(input));
   console.log(`Источник: ${img.width}x${img.height}`);
-  const out = resize(img, size, size);
+
+  let out;
+  if (pad >= 1) {
+    out = resize(img, size, size);
+  } else {
+    // Рисунок вписывается в size*pad и центрируется на белом фоне (maskable-безопасная зона)
+    const inner = Math.round(size * pad);
+    const scaled = resize(img, inner, inner);
+    out = Buffer.alloc(size * size * 4);
+    for (let i = 0; i < size * size; i++) { out[i * 4] = 255; out[i * 4 + 1] = 255; out[i * 4 + 2] = 255; out[i * 4 + 3] = 255; }
+    const off = Math.round((size - inner) / 2);
+    for (let y = 0; y < inner; y++) {
+      for (let x = 0; x < inner; x++) {
+        const si = (y * inner + x) * 4;
+        const di = ((y + off) * size + (x + off)) * 4;
+        const a = scaled[si + 3] / 255;
+        out[di] = Math.round(scaled[si] * a + 255 * (1 - a));
+        out[di + 1] = Math.round(scaled[si + 1] * a + 255 * (1 - a));
+        out[di + 2] = Math.round(scaled[si + 2] * a + 255 * (1 - a));
+        out[di + 3] = 255;
+      }
+    }
+  }
+
   writeFileSync(output, encodePNG(size, size, out));
-  console.log(`OK: ${output} — ${size}x${size}`);
+  console.log(`OK: ${output} — ${size}x${size}${pad < 1 ? ` (рисунок ${Math.round(pad * 100)}%)` : ''}`);
 }

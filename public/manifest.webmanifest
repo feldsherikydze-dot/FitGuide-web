@@ -2,14 +2,12 @@
   "name": "FitGuide — Карманный тренер",
   "short_name": "FitGuide",
   "description": "Твой карманный тренер для силовых тренировок. Программы, прогресс, таймер, музыка.",
-  "start_url": "./",
+  "start_url": "./index.html",
   "scope": "./",
-  "id": "./",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui", "browser"],
   "orientation": "portrait-primary",
   "background_color": "#ffffff",
-  "theme_color": "#0ea5e9",
+  "theme_color": "#ffffff",
   "lang": "ru",
   "dir": "ltr",
   "categories": ["health", "fitness", "sports"],
@@ -27,10 +25,10 @@
       "purpose": "any"
     },
     {
-      "src": "icon-maskable-512.png",
-      "sizes": "512x512",
+      "src": "icon-180.png",
+      "sizes": "180x180",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any"
     }
   ],
   "shortcuts": [
@@ -38,14 +36,14 @@
       "name": "Тренировка",
       "short_name": "Тренировка",
       "description": "Начать тренировку",
-      "url": "./#/workout",
+      "url": "./index.html#/workout",
       "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Программы",
       "short_name": "Программы",
       "description": "Мои программы",
-      "url": "./#/programs",
+      "url": "./index.html#/programs",
       "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
     }
   ]
