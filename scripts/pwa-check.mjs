@@ -28,7 +28,9 @@ const chrome = findChrome();
 if (!chrome) { console.error('Chrome не найден'); process.exit(2); }
 console.log('Chrome:', chrome);
 
-const profileDir = 'C:\\Users\\ikydz\\AppData\\Local\\Temp\\opencode\\pwa-profile';
+// Каждый запуск — чистый профиль: иначе старый Service Worker отдаёт старый бандл
+// и результаты проверки будут враньём.
+const profileDir = `C:\\Users\\ikydz\\AppData\\Local\\Temp\\opencode\\pwa-profile-${Date.now()}`;
 const proc = spawn(chrome, [
   '--headless=new',
   `--remote-debugging-port=${PORT}`,
@@ -157,8 +159,95 @@ const report = await evaluate(`(async () => {
   return out;
 })()`);
 
+// Диагностика кэширования: каждый файл по отдельности, с замером
+const diag = await evaluate(`(async () => {
+  const assets = ['./','./index.html','./manifest.webmanifest','./icon-180.png','./icon-192.png',
+    './icon-512.png','./icon-maskable-512.png','./knowledge.md','./exercises.json','./picker.json'];
+  const c = await caches.open('diag-test');
+  const out = [];
+  for (const u of assets) {
+    const t0 = performance.now();
+    try {
+      const r = await fetch(u, { cache: 'no-store' });
+      out.push(u + ' -> HTTP ' + r.status + ' (' + Math.round(performance.now() - t0) + 'ms)');
+    } catch (e) {
+      out.push(u + ' -> ОШИБКА ' + e + ' (' + Math.round(performance.now() - t0) + 'ms)');
+    }
+  }
+  await caches.delete('diag-test');
+  return out;
+})()`);
+console.log('\n=== ДОСТУПНОСТЬ ФАЙЛОВ ===');
+(diag || []).forEach(l => console.log('  ' + l));
+
+// Следим за состоянием Service Worker 30 секунд
+console.log('\n=== СОСТОЯНИЕ SW (опрос 30 с) ===');
+for (let i = 0; i < 6; i++) {
+  const st = await evaluate(`(async () => {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    const r = regs[0];
+    return {
+      n: regs.length,
+      installing: r?.installing?.state || null,
+      waiting: r?.waiting?.state || null,
+      active: r?.active?.state || null,
+      controller: !!navigator.serviceWorker.controller,
+    };
+  })()`);
+  console.log(`  [${i * 5}s] ${JSON.stringify(st)}`);
+  if (st.active === 'activated' && st.controller) break;
+  await sleep(5000);
+}
+
+// Диагностика: повторяем ровно то, что делает SW при установке, но с таймаутом
+const diag2 = await evaluate(`(async () => {
+  const assets = ['./','./index.html','./manifest.webmanifest','./icon.svg','./icon-180.png',
+    './icon-192.png','./icon-512.png','./icon-maskable-512.png','./knowledge.md',
+    './exercises.json','./picker.json'];
+  const c = await caches.open('fitguide-v1.13');
+  const out = [];
+  for (const u of assets) {
+    const t0 = performance.now();
+    const race = await Promise.race([
+      c.add(u).then(() => 'ok').catch(e => 'ERR ' + e),
+      new Promise(res => setTimeout(() => res('HANG (>4s)'), 4000)),
+    ]);
+    out.push(u.padEnd(28) + race + '  ' + Math.round(performance.now() - t0) + 'ms');
+  }
+  return out;
+})()`);
+console.log('\n=== cache.add() ПО ФАЙЛАМ (как в SW) ===');
+(diag2 || []).forEach(l => console.log('  ' + l));
+
 console.log('\n=== PWA-ПРОВЕРКА ===');
 console.log(JSON.stringify(report, null, 2));
+
+// Второй визит: перезагружаем и смотрим, стал ли SW контроллером страницы.
+// Только после этого Chrome считает приложение устанавливаемым и показывает
+// иконку установки в адресной строке.
+await send('Page.enable');
+await send('Page.reload', { ignoreCache: false });
+await sleep(6000);
+
+const after = await evaluate(`(async () => {
+  const regs = await navigator.serviceWorker.getRegistrations();
+  return {
+    swController: !!navigator.serviceWorker.controller,
+    swActive: regs[0]?.active?.state || null,
+    rootHtml: document.getElementById('root')?.children.length > 0,
+    exercises: (await fetch('exercises.json')).status,
+    knowledge: (await fetch('knowledge.md')).status,
+  };
+})()`);
+console.log('\n=== ПОСЛЕ ПЕРЕЗАГРУЗКИ (второй визит) ===');
+console.log(JSON.stringify(after, null, 2));
+
+// Манифест: как его видит Chrome
+const man = await send('Page.getAppManifest');
+console.log('\n=== МАНИФЕСТ (Chrome) ===');
+console.log('url:', man.result?.url);
+console.log('errors:', JSON.stringify(man.result?.errors || []));
+console.log('data:', (man.result?.data || '').slice(0, 400));
 
 // Пробуем зарегистрировать SW вручную — смотрим точную ошибку
 const manual = await evaluate(`(async () => {

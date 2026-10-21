@@ -11,7 +11,6 @@ const STATIC_ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './icon.svg',
   './icon-180.png',
   './icon-192.png',
   './icon-512.png',
@@ -28,10 +27,16 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME).then(async (cache) => {
       await Promise.all(
         STATIC_ASSETS.map(url =>
-          cache.add(url).catch(err => console.warn('[sw] не закэширован', url, err))
+          cache.add(url).catch(err => console.warn('[sw] ne zKeshiрован', url, err))
         )
       );
-      await self.skipWaiting();
+      // ВАЖНО: skipWaiting() НЕ await-им. Он резолвится, когда новый воркер
+      // вступит в силу, а это происходит только ПОСЛЕ установки. Если ждать
+      // его внутри install — дедлок: install не кончится, пока skipWaiting не
+      // разблокируется, а он не разблокируется, пока install не кончится.
+      // Воркер навсегда остаётся в состоянии installing, а браузер не считает
+      // приложение устанавливаемым.
+      self.skipWaiting();
     })
   );
 });
@@ -43,8 +48,10 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
       );
-    }).then(() => self.clients.claim())
+    })
   );
+  // claim тоже не ждём — по той же причине, что и skipWaiting
+  self.clients.claim();
 });
 
 // Fetch — Stale While Revalidate: отдаём кэш сразу, обновляем в фоне.
