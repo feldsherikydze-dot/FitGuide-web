@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProfileStore } from '../core/store';
 import { getJSON, setJSON, KEYS } from '../core/storage';
-import { usePaletteVars, AnalogClock } from '../components/ui';
+import { usePaletteVars, AnalogClock, asset } from '../components/ui';
 import { slotColor, contrastOn } from '../core/palette';
 
 const WISHES = [
@@ -97,10 +97,10 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
   const userName = profile?.name || '';
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-black">
-      {/* Фон */}
+    <div className="fixed inset-0 z-50 overflow-hidden bg-black">
+      {/* Фон — относительный путь, приложение может лежать в подпапке */}
       <img
-        src={`/splash/splash_${bgIndex}.jpg`}
+        src={`${import.meta.env.BASE_URL}splash/splash_${bgIndex}.jpg`}
         alt=""
         className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000"
         style={{ opacity: loaded ? 1 : 0 }}
@@ -132,7 +132,7 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
             if (onStart) { onStart(); return; }
             navigate(profile ? '/' : '/onboarding', { replace: true });
           }}
-          className="absolute bottom-10 left-1/2 -translate-x-1/2 w-[220px] h-[54px] rounded-[27px] text-[18px] font-bold transition-all duration-500"
+          className="absolute bottom-10 left-1/2 w-[220px] h-[54px] rounded-[27px] text-[18px] font-bold transition-all duration-500"
           style={{
             background: btnColor,
             color: contrastOn(btnColor),
@@ -153,7 +153,7 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
             />
           </div>
           <img
-            src="/icons/runner_run.svg"
+            src={asset('icons/runner_run.svg')}
             alt=""
             className="absolute bottom-[124px] left-12 w-[26px] h-[26px] brightness-0 invert"
             style={{ transform: `translateX(${(progress / 100) * (window.innerWidth - 96 - 26)}px)` }}

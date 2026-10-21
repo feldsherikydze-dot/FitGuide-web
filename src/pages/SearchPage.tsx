@@ -7,7 +7,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, Dumbbell, BookOpen, Pill, Calendar, ArrowRight } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useExercises, useKnowledge } from '../hooks/useExercises';
-import { usePaletteVars, TopBar, TopBarButton, SearchField } from '../components/ui';
+import { usePaletteVars, TopBar, TopBarButton, SearchField, asset } from '../components/ui';
 import { useProgramsStore } from '../core/store';
 import { additivesForProfile } from '../core/additives';
 import { GOAL_LABELS, normalizeGoal } from '../core/goals';
@@ -85,7 +85,7 @@ export function SearchPage() {
       <TopBar
         title="Поиск"
         subtitle="Упражнения, мышцы, база знаний, спортпит, программы"
-        right={<TopBarButton onClick={() => navigate(-1)} icon="/icons/ic_close.svg" label="Закрыть" />}
+        right={<TopBarButton onClick={() => navigate(-1)} icon={asset('icons/ic_close.svg')} label="Закрыть" />}
       />
 
       <SearchField value={query} onChange={setQuery} placeholder="Мышца, пучок, упражнение…" />

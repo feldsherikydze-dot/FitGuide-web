@@ -11,6 +11,16 @@ import {
 
 // ---------------------------------------------------------------- палитра
 
+/**
+ * Путь к файлу в public — относительный.
+ * Приложение может лежать в подпапке (GitHub Pages /repo/): абсолютный
+ * asset('icons/x.svg') ушёл бы в корень домена и дал 404.
+ */
+export function asset(path: string): string {
+  const base = import.meta.env.BASE_URL || './';
+  return base.endsWith('/') ? `${base}${path}` : `${base}/${path}`;
+}
+
 /** Подставляет цвета палитры в CSS-переменные. */
 export function usePaletteVars() {
   const [, force] = useState(0);
@@ -118,7 +128,7 @@ export function MiniPlayer({ state }: { state: MiniPlayerState }) {
       <div className="fg-miniplayer flex items-center gap-2 py-1.5 pl-4 pr-2">
         <div className="w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0"
           style={{ background: 'var(--color-surface-variant)' }}>
-          <img src="/icons/ic_music.svg" alt="" className="w-6 h-6 opacity-60" />
+          <img src={asset('icons/ic_music.svg')} alt="" className="w-6 h-6 opacity-60" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-[15px] font-bold truncate" style={{ color: 'var(--color-text-main)' }}>
@@ -129,17 +139,17 @@ export function MiniPlayer({ state }: { state: MiniPlayerState }) {
           </div>
         </div>
         <button onClick={state.onPrev} aria-label="Предыдущий" className="p-2.5">
-          <img src="/icons/ic_skip_prev.svg" alt="" className="w-6 h-6" style={{ filter: 'invert(1)' }} />
+          <img src={asset('icons/ic_skip_prev.svg')} alt="" className="w-6 h-6" style={{ filter: 'invert(1)' }} />
         </button>
         <button onClick={state.onToggle} aria-label="Играть/пауза" className="p-3">
-          <img src={state.playing ? '/icons/ic_pause.svg' : '/icons/ic_play.svg'} alt="" className="w-6 h-6"
+          <img src={state.playing ? asset('icons/ic_pause.svg') : asset('icons/ic_play.svg')} alt="" className="w-6 h-6"
             style={{ filter: 'invert(1)' }} />
         </button>
         <button onClick={state.onNext} aria-label="Следующий" className="p-2.5">
-          <img src="/icons/ic_skip_next.svg" alt="" className="w-6 h-6" style={{ filter: 'invert(1)' }} />
+          <img src={asset('icons/ic_skip_next.svg')} alt="" className="w-6 h-6" style={{ filter: 'invert(1)' }} />
         </button>
         <button onClick={state.onClose} aria-label="Закрыть" className="p-2.5">
-          <img src="/icons/ic_close.svg" alt="" className="w-6 h-6" style={{ filter: 'invert(1)' }} />
+          <img src={asset('icons/ic_close.svg')} alt="" className="w-6 h-6" style={{ filter: 'invert(1)' }} />
         </button>
       </div>
     </div>
@@ -168,7 +178,7 @@ export function SearchField({ value, onChange, placeholder, onFocus }: {
             aria-label="Очистить"
             className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full"
           >
-            <img src="/icons/ic_close.svg" alt="" className="w-4 h-4 opacity-50" />
+            <img src={asset('icons/ic_close.svg')} alt="" className="w-4 h-4 opacity-50" />
           </button>
         )}
       </div>

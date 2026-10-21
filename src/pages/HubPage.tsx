@@ -8,23 +8,23 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { useProfileStore, useProgramsStore, useCoachStore } from '../core/store';
-import { usePaletteVars, TopBar, TopBarButton, ToolTile, MiniPlayer, SearchField, type ToolDef } from '../components/ui';
+import { usePaletteVars, TopBar, TopBarButton, ToolTile, MiniPlayer, SearchField, type ToolDef, asset } from '../components/ui';
 import { getJSON, setJSON, KEYS } from '../core/storage';
 import { usePlayer } from '../core/player';
 import { useWeather } from '../core/weather';
 
 // Порядок ярлыков — как buildTools() в MainActivity
 const TOOLS: ToolDef[] = [
-  { key: 'workout', title: 'Карманный тренер', subtitle: 'Подсказки, прогрессия и старт тренировки', icon: '/icons/ic_tool_coach.svg', to: '/' },
-  { key: 'music', title: 'Музыка', subtitle: 'Плеер: своя музыка, радио, онлайн', icon: '/icons/ic_tool_music.svg', to: '/music' },
-  { key: 'myprogress', title: 'Мой прогресс', subtitle: 'Тренировки, рекорды и тело', icon: '/icons/ic_tool_progress.svg', to: '/progress' },
-  { key: 'programs', title: 'Программы', subtitle: 'Лучшие программы, генератор и база', icon: '/icons/ic_tool_program.svg', to: '/programs' },
-  { key: 'search', title: 'Поиск', subtitle: 'Поиск по всей базе упражнений', icon: '/icons/ic_search.svg', to: '/search' },
-  { key: 'nutrition', title: 'Питание', subtitle: 'Калории, БЖУ и спортпит', icon: '/icons/ic_tool_kbju.svg', to: '/nutrition' },
-  { key: 'timer', title: 'Таймер', subtitle: 'Часы, секундомер, таймер отдыха', icon: '/icons/ic_tool_timer.svg', to: '/timer' },
-  { key: 'profile', title: 'Профиль', subtitle: 'Анкета, цель и немного о себе', icon: '/icons/ic_tool_profile.svg', to: '/profile' },
-  { key: 'knowledge', title: 'Библиотека', subtitle: 'Энциклопедия: тренинг, питание, наука', icon: '/icons/ic_knowledge.svg', to: '/knowledge' },
-  { key: 'settings', title: 'Настройки', subtitle: 'Темы, музыка, общие настройки', icon: '/icons/ic_settings.svg', to: '/settings' },
+  { key: 'workout', title: 'Карманный тренер', subtitle: 'Подсказки, прогрессия и старт тренировки', icon: asset('icons/ic_tool_coach.svg'), to: '/' },
+  { key: 'music', title: 'Музыка', subtitle: 'Плеер: своя музыка, радио, онлайн', icon: asset('icons/ic_tool_music.svg'), to: '/music' },
+  { key: 'myprogress', title: 'Мой прогресс', subtitle: 'Тренировки, рекорды и тело', icon: asset('icons/ic_tool_progress.svg'), to: '/progress' },
+  { key: 'programs', title: 'Программы', subtitle: 'Лучшие программы, генератор и база', icon: asset('icons/ic_tool_program.svg'), to: '/programs' },
+  { key: 'search', title: 'Поиск', subtitle: 'Поиск по всей базе упражнений', icon: asset('icons/ic_search.svg'), to: '/search' },
+  { key: 'nutrition', title: 'Питание', subtitle: 'Калории, БЖУ и спортпит', icon: asset('icons/ic_tool_kbju.svg'), to: '/nutrition' },
+  { key: 'timer', title: 'Таймер', subtitle: 'Часы, секундомер, таймер отдыха', icon: asset('icons/ic_tool_timer.svg'), to: '/timer' },
+  { key: 'profile', title: 'Профиль', subtitle: 'Анкета, цель и немного о себе', icon: asset('icons/ic_tool_profile.svg'), to: '/profile' },
+  { key: 'knowledge', title: 'Библиотека', subtitle: 'Энциклопедия: тренинг, питание, наука', icon: asset('icons/ic_knowledge.svg'), to: '/knowledge' },
+  { key: 'settings', title: 'Настройки', subtitle: 'Темы, музыка, общие настройки', icon: asset('icons/ic_settings.svg'), to: '/settings' },
 ];
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -96,8 +96,8 @@ export function HubPage() {
         subtitle="Создай лучшую версию себя"
         right={
           <>
-            <TopBarButton onClick={() => navigate('/profile')} icon="/icons/ic_tool_profile.svg" label="Профиль" />
-            <TopBarButton onClick={() => navigate('/settings')} icon="/icons/ic_settings.svg" label="Настройки" />
+            <TopBarButton onClick={() => navigate('/profile')} icon={asset('icons/ic_tool_profile.svg')} label="Профиль" />
+            <TopBarButton onClick={() => navigate('/settings')} icon={asset('icons/ic_settings.svg')} label="Настройки" />
           </>
         }
       />

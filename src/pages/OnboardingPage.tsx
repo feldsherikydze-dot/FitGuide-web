@@ -2,7 +2,7 @@
 
 import { useNavigate } from 'react-router-dom';
 import { Zap, Dumbbell, ArrowRight } from 'lucide-react';
-import { usePaletteVars } from '../components/ui';
+import { usePaletteVars, asset } from '../components/ui';
 import { slotColor, contrastOn, circleGradient } from '../core/palette';
 
 export function OnboardingPage() {
