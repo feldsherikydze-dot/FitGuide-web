@@ -8,6 +8,10 @@ dist/
 dist-ssr/
 *.local
 
+# Локальная папка для ручной выкладки (собирается в CI)
+web/
+pages-config.json
+
 # Логи
 logs
 *.log

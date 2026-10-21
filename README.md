@@ -1,5 +1,9 @@
 # FitGuide Web
 
+[![Deploy to GitHub Pages](https://github.com/feldsherikydze-dot/FitGuide-web/actions/workflows/deploy.yml/badge.svg)](https://github.com/feldsherikydze-dot/FitGuide-web/actions/workflows/deploy.yml)
+
+🌐 **Живая версия:** https://feldsherikydze-dot.github.io/FitGuide-web/
+
 Веб-версия (PWA) приложения **FitGuide** — карманный тренер для силовых тренировок.
 Работает в любом браузере на любой платформе: Android, iOS, десктоп.
 

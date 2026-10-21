@@ -9,7 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "icons": "node scripts/generate-icons.mjs",
-    "deploy": "npm run build && node scripts/copy-to-web.mjs && git add web && git commit -m \"Обновление веб-сборки\" && git push"
+    "deploy": "git add -A && git commit -m \"Обновление FitGuide Web\" || echo \"Нет изменений\" && git push"
   },
   "dependencies": {
     "clsx": "^2.1.1",
