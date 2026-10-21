@@ -46,6 +46,15 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
   const [bgIndex, setBgIndex] = useState(0);
   const [quote, setQuote] = useState(WISHES[0]);
   const [now, setNow] = useState(new Date());
+  const [runnerFrame, setRunnerFrame] = useState(1);
+
+  // Бегущий человечек: три кадра по 130 мс (как animation-list в Android)
+  useEffect(() => {
+    const t = setInterval(() => {
+      setRunnerFrame(f => (f % 3) + 1);
+    }, 130);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
@@ -153,7 +162,7 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
             />
           </div>
           <img
-            src={asset('icons/runner_run.svg')}
+            src={asset(`icons/ic_runner_${runnerFrame}.svg`)}
             alt=""
             className="absolute bottom-[124px] left-12 w-[26px] h-[26px] brightness-0 invert"
             style={{ transform: `translateX(${(progress / 100) * (window.innerWidth - 96 - 26)}px)` }}
