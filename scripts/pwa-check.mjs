@@ -201,7 +201,7 @@ for (let i = 0; i < 6; i++) {
 
 // Диагностика: повторяем ровно то, что делает SW при установке, но с таймаутом
 const diag2 = await evaluate(`(async () => {
-  const assets = ['./','./index.html','./manifest.webmanifest','./icon.svg','./icon-180.png',
+  const assets = ['./','./index.html','./manifest.webmanifest','./icon-180.png',
     './icon-192.png','./icon-512.png','./icon-maskable-512.png','./knowledge.md',
     './exercises.json','./picker.json'];
   const c = await caches.open('fitguide-v1.13');
@@ -227,18 +227,27 @@ console.log(JSON.stringify(report, null, 2));
 // иконку установки в адресной строке.
 await send('Page.enable');
 await send('Page.reload', { ignoreCache: false });
-await sleep(6000);
+await sleep(4000);
 
-const after = await evaluate(`(async () => {
-  const regs = await navigator.serviceWorker.getRegistrations();
-  return {
-    swController: !!navigator.serviceWorker.controller,
-    swActive: regs[0]?.active?.state || null,
-    rootHtml: document.getElementById('root')?.children.length > 0,
-    exercises: (await fetch('exercises.json')).status,
-    knowledge: (await fetch('knowledge.md')).status,
-  };
-})()`);
+// После перезагрузки ждём, пока SW возьмёт контроль над страницей
+let after = null;
+for (let i = 0; i < 6; i++) {
+  after = await evaluate(`(async () => {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    const r = regs[0];
+    return {
+      regs: regs.length,
+      installing: r?.installing?.state || null,
+      active: r?.active?.state || null,
+      controller: !!navigator.serviceWorker.controller,
+      rootHtml: document.getElementById('root')?.children.length > 0,
+      exercises: (await fetch('exercises.json')).status,
+      knowledge: (await fetch('knowledge.md')).status,
+    };
+  })()`);
+  if (after.controller) break;
+  await sleep(4000);
+}
 console.log('\n=== ПОСЛЕ ПЕРЕЗАГРУЗКИ (второй визит) ===');
 console.log(JSON.stringify(after, null, 2));
 
