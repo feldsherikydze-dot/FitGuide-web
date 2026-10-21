@@ -3,15 +3,19 @@
 import { useEffect } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { Dumbbell, Menu, X, User, Settings, BookOpen, Timer, Music, Zap, HeartPulse } from 'lucide-react';
+import { Dumbbell, Menu, X, User, Settings, BookOpen, Timer, Music, Zap, HeartPulse, Apple, Calendar, Ruler } from 'lucide-react';
 import { useUIStore } from '../core/store';
 
 const NAV_ITEMS = [
   { path: '/', label: 'Тренер', icon: Zap },
-  { path: '/programs', label: 'Программы', icon: BookOpen },
   { path: '/workout', label: 'Тренировка', icon: Dumbbell },
+  { path: '/programs', label: 'Программы', icon: BookOpen },
   { path: '/progress', label: 'Прогресс', icon: HeartPulse },
   { path: '/exercises', label: 'Упражнения', icon: Dumbbell },
+  { path: '/assessment', label: 'Замеры', icon: Ruler },
+  { path: '/diary', label: 'Дневник', icon: Calendar },
+  { path: '/nutrition', label: 'Питание', icon: Apple },
+  { path: '/knowledge', label: 'Знания', icon: BookOpen },
   { path: '/timer', label: 'Таймер', icon: Timer },
   { path: '/music', label: 'Музыка', icon: Music },
   { path: '/profile', label: 'Профиль', icon: User },

@@ -62,6 +62,10 @@ export const KEYS = {
   COACH: 'coach_state',
   PROFILE: 'user_profile',
   SETTINGS: 'settings',
+  ASSESSMENTS: 'assessments',
+  ONE_RM: 'one_rm_manual',
+  JOURNAL: 'journal_entries',
+  BODYLOG: 'body_log',
   CACHE_EXERCISES: 'cache_exercises',
   CACHE_PICKER: 'cache_picker',
 } as const;

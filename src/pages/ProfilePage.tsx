@@ -1,500 +1,522 @@
-// FitGuide Web — страница профиля
+// FitGuide Web — профиль (порт ProfileActivity.java)
+//
+// Поля ровно как в Android: имя, пол, возраст, рост, вес, активность, цель,
+// направление, % жира, тренировок в неделю, био, страна/город, уровень,
+// оборудование зала, место тренировок.
 
-import { useState } from 'react';
-import { User, Dumbbell, Target, Calendar, Settings, Camera, Edit2, Save, X, Trash2, AlertCircle, CheckCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
+import {
+  User, Target, Calendar, Camera, Edit2, Save, X, Trash2, AlertCircle,
+  Dumbbell, MapPin, Flag, ChevronRight, Ruler, Scale, Zap,
+} from 'lucide-react';
 import { useProfileStore, useCoachStore, useProgramsStore } from '../core/store';
+import { GOALS, GOALS_ALL, GOAL_LABELS, GOAL_DESCRIPTIONS, recommendDays, recommendPerWeek, caloriesFor, proteinPerKg, fatsPerKg } from '../core/goals';
+import { COMP_PHASE } from '../data/types';
+import { COMP_PHASE_ORDER, COMP_PHASE_LABELS, stageWeightKg, offseasonWeightKg } from '../core/seasonPlan';
 import type { UserProfile } from '../data/types';
 
 const ACTIVITY_LEVELS = [
-  { value: 'sedentary', label: 'Сидячий', desc: 'Мало движения, офисная работа' },
-  { value: 'light', label: 'Лёгкий', desc: 'Лёгкие тренировки 1-3 раза в неделю' },
-  { value: 'moderate', label: 'Умеренный', desc: 'Тренировки 3-5 раз в неделю' },
-  { value: 'active', label: 'Активный', desc: 'Интенсивные тренировки 6-7 раз в неделю' },
-  { value: 'very_active', label: 'Очень активный', desc: 'Ежедневные тяжёлые тренировки + физическая работа' },
-] as const;
+  { value: 'sedentary', label: 'Сидячий', desc: 'Мало движения, офисная работа', factor: 1.2 },
+  { value: 'light', label: 'Лёгкий', desc: 'Лёгкие тренировки 1–3 раза в неделю', factor: 1.375 },
+  { value: 'moderate', label: 'Умеренный', desc: 'Тренировки 3–5 раз в неделю', factor: 1.55 },
+  { value: 'high', label: 'Высокий', desc: 'Интенсивные тренировки 6–7 раз в неделю', factor: 1.725 },
+  { value: 'athlete', label: 'Спортсмен', desc: 'Ежедневные тяжёлые тренировки + физическая работа', factor: 1.9 },
+];
 
-const GOALS = [
-  { value: 'maintain', label: 'Поддержать вес', desc: 'Каллорийность на уровне расхода' },
-  { value: 'lose', label: 'Похудеть', desc: 'Дефицит 300-500 ккал' },
-  { value: 'gain', label: 'Набрать массу', desc: 'Профицит 300-500 ккал' },
-] as const;
+const LEVELS = [
+  { value: 'beginner', label: 'Новичок', desc: '0–1 год регулярных тренировок' },
+  { value: 'intermediate', label: 'Средний', desc: '1–3 года' },
+  { value: 'advanced', label: 'Продвинутый', desc: '3+ года' },
+];
+
+const STYLES = [
+  { value: 'any', label: 'Любое', desc: 'Базовые и изолирующие упражнения' },
+  { value: 'bb', label: 'Бодибилдинг', desc: 'Всё, что растёт мышцы' },
+  { value: 'pl', label: 'Пауэрлифтинг', desc: 'Только базовые многосуставные' },
+];
+
+const PLACES = [
+  { value: 'gym', label: 'Зал', icon: Dumbbell, desc: 'Полное оборудование' },
+  { value: 'home', label: 'Дом', icon: MapPin, desc: 'Гантели, резинки, турник' },
+];
+
+const EQUIPMENT = [
+  { id: 'barbell', label: 'Штанга' },
+  { id: 'dumbbell', label: 'Гантели' },
+  { id: 'cable', label: 'Блоки' },
+  { id: 'smith', label: 'Смит' },
+  { id: 'machine', label: 'Тренажёры' },
+];
+
+const CATEGORIES = [
+  { id: '60', label: 'До 60 кг' },
+  { id: '70', label: 'До 70 кг' },
+  { id: '80', label: 'До 80 кг' },
+  { id: '90', label: 'До 90 кг' },
+  { id: '100', label: 'До 100 кг' },
+  { id: '110+', label: '110+ кг' },
+];
+
+const DEFAULT_PROFILE: UserProfile = {
+  name: '', gender: 'male', age: 0, heightCm: 0, weightKg: 0,
+  activityLevel: 'moderate', goal: GOALS.MASS, trainStyle: 'any',
+  bodyFatPercent: 0, workoutsPerWeek: 0, bio: '', country: '', city: '',
+  level: 'intermediate', equipment: [], place: 'gym',
+};
 
 export function ProfilePage() {
+  const navigate = useNavigate();
   const { profile, setProfile, clearProfile } = useProfileStore();
-  const { resetCoach } = useCoachStore();
+  const coach = useCoachStore();
   const { programs, remove } = useProgramsStore();
 
-  const [editMode, setEditMode] = useState(false);
-  const [formData, setFormData] = useState<UserProfile>({
-    name: '',
-    gender: 'male',
-    birthDate: '',
-    height: 0,
-    weight: 0,
-    activityLevel: 'moderate',
-    goal: 'maintain',
-    equipment: [],
-    location: 'gym',
-  });
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [edit, setEdit] = useState(false);
+  const [form, setForm] = useState<UserProfile>(profile || DEFAULT_PROFILE);
+  const [showDelete, setShowDelete] = useState(false);
 
-  const handleEdit = () => {
-    if (profile) {
-      setFormData({ ...profile });
-      setEditMode(true);
-    }
+  useEffect(() => {
+    if (profile) setForm(profile);
+  }, [profile]);
+
+  const set = <K extends keyof UserProfile>(k: K, v: UserProfile[K]) =>
+    setForm(f => ({ ...f, [k]: v }));
+
+  const bmr = computeBmr(form);
+  const tdee = bmr ? Math.round(bmr * (ACTIVITY_LEVELS.find(a => a.value === form.activityLevel)?.factor || 1.2)) : 0;
+  const calories = caloriesFor(tdee, form.goal, form.gender);
+  const protein = Math.round(form.weightKg * proteinPerKg(form.goal));
+  const fats = Math.round(form.weightKg * fatsPerKg(form.goal));
+  const carbs = Math.max(0, Math.round((calories - protein * 4 - fats * 9) / 4));
+
+  const save = () => {
+    setProfile(form);
+    setEdit(false);
   };
 
-  const handleSave = () => {
-    setProfile(formData);
-    setEditMode(false);
+  const doDelete = () => {
+    if (!confirm('Удалить профиль и все данные? Действие необратимо.')) return;
+    clearProfile();
+    coach.resetCoach();
+    programs.forEach(p => remove(p.id));
+    setShowDelete(false);
+    navigate('/');
   };
-
-  const handleCancel = () => {
-    if (profile) setFormData({ ...profile });
-    setEditMode(false);
-    setAvatarPreview(null);
-  };
-
-  const handleDeleteProfile = () => {
-    if (confirm('Удалить профиль? Все данные будут потеряны.')) {
-      clearProfile();
-      resetCoach();
-      programs.forEach(p => remove(p.id));
-      setShowDeleteConfirm(false);
-    }
-  };
-
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => setAvatarPreview(reader.result as string);
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const calculateBMI = () => {
-    if (!formData.height || !formData.weight) return null;
-    const h = formData.height / 100;
-    return (formData.weight / (h * h)).toFixed(1);
-  };
-
-  const calculateBMR = () => {
-    if (!formData.height || !formData.weight || !formData.birthDate || !formData.gender) return null;
-    const age = Math.floor((Date.now() - new Date(formData.birthDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-    const { weight, height, gender } = formData;
-    const bmr = gender === 'male'
-      ? 10 * weight + 6.25 * height - 5 * age + 5
-      : 10 * weight + 6.25 * height - 5 * age - 161;
-    return Math.round(bmr);
-  };
-
-  const activityMultipliers: Record<string, number> = {
-    sedentary: 1.2,
-    light: 1.375,
-    moderate: 1.55,
-    active: 1.725,
-    very_active: 1.9,
-  };
-
-  const tdee = calculateBMR() ? Math.round(calculateBMR()! * activityMultipliers[formData.activityLevel]) : null;
-  const targetCalories = tdee ? (
-    formData.goal === 'lose' ? tdee - 400 :
-    formData.goal === 'gain' ? tdee + 400 :
-    tdee
-  ) : null;
-
-  if (!profile && !editMode) {
-    return (
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="bg-gradient-to-br from-primary-600 to-primary-800 text-white rounded-2xl p-8 text-center">
-          <div className="w-24 h-24 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4">
-            <User className="w-12 h-12" />
-          </div>
-          <h1 className="text-2xl font-bold mb-2">Профиль не создан</h1>
-          <p className="text-primary-100 mb-6">Заполни данные, чтобы тренер мог подбирать программы и каллорийность</p>
-          <button
-            onClick={() => setEditMode(true)}
-            className="px-6 py-3 bg-white text-primary-700 font-semibold rounded-xl hover:bg-primary-50 transition-colors"
-          >
-            Создать профиль
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      {/* Header */}
+    <div className="max-w-2xl mx-auto space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Профиль</h1>
-          <p className="text-slate-500 dark:text-slate-400">Настройки твоего аккаунта и параметров</p>
+          <p className="text-slate-500 dark:text-slate-400 text-sm">
+            {profile ? 'Данные тратнера для программ и калорий' : 'Профиль не создан'}
+          </p>
         </div>
-        {editMode ? (
+        {profile && !edit && (
+          <button onClick={() => setEdit(true)}
+            className="px-3 py-2 bg-slate-100 dark:bg-dark-border text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-dark-border/50 flex items-center gap-1.5">
+            <Edit2 className="w-4 h-4" /> Изменить
+          </button>
+        )}
+        {edit && (
           <div className="flex gap-2">
-            <button onClick={handleCancel} className="px-3 py-2 border border-slate-200 dark:border-dark-border rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-dark-border">
-              <X className="w-4 h-4 inline mr-1" />
-              Отмена
+            <button onClick={() => { setForm(profile || DEFAULT_PROFILE); setEdit(false); }}
+              className="px-3 py-2 border border-slate-200 dark:border-dark-border rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-dark-border flex items-center gap-1.5">
+              <X className="w-4 h-4" />
             </button>
-            <button onClick={handleSave} className="px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
-              <Save className="w-4 h-4 inline mr-1" />
-              Сохранить
+            <button onClick={save} className="px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 flex items-center gap-1.5">
+              <Save className="w-4 h-4" /> Сохранить
             </button>
           </div>
-        ) : (
-          <button onClick={handleEdit} className="px-3 py-2 bg-slate-100 dark:bg-dark-border text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-dark-border/50 flex items-center gap-1">
-            <Edit2 className="w-4 h-4" />
-            Редактировать
-          </button>
         )}
       </div>
 
-      {/* Avatar & Basic Info */}
-      <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border p-6">
-        <div className="flex flex-col sm:flex-row items-center gap-6">
-          <div className="relative">
-            <div className="w-32 h-32 rounded-full bg-slate-100 dark:bg-dark-border flex items-center justify-center overflow-hidden">
-              {avatarPreview ? (
-                <img src={avatarPreview} alt="" className="w-full h-full object-cover" />
-              ) : profile?.name ? (
-                <span className="text-4xl font-bold text-primary-600 dark:text-primary-400">
-                  {profile.name.charAt(0).toUpperCase()}
-                </span>
-              ) : (
-                <User className="w-16 h-16 text-slate-400" />
-              )}
+      {/* Основное */}
+      <Section icon={User} title="Кто ты">
+        <div className="space-y-3">
+          {edit ? (
+            <>
+              <Input label="Имя" value={form.name} onChange={v => set('name', v)} placeholder="Как к тебе обращаться" />
+              <div>
+                <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1.5">Пол</label>
+                <div className="flex gap-2">
+                  {[{ v: 'male', l: 'Мужской' }, { v: 'female', l: 'Женский' }].map(o => (
+                    <button key={o.v} onClick={() => set('gender', o.v)}
+                      className={clsx('flex-1 py-2 rounded-lg text-sm font-medium transition-colors',
+                        form.gender === o.v ? 'bg-primary-600 text-white' : 'bg-slate-100 dark:bg-dark-border text-slate-600 dark:text-slate-400')}>
+                      {o.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <Input label="Возраст" value={form.age} onChange={v => set('age', v)} type="number" />
+                <Input label="Рост, см" value={form.heightCm} onChange={v => set('heightCm', v)} type="number" />
+                <Input label="Вес, кг" value={form.weightKg} onChange={v => set('weightKg', v)} type="number" step="0.1" />
+              </div>
+            </>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <Stat label="Имя" value={profile?.name || '—'} />
+              <Stat label="Возраст" value={profile?.age ? `${profile.age} лет` : '—'} />
+              <Stat label="Рост" value={profile?.heightCm ? `${profile.heightCm} см` : '—'} />
+              <Stat label="Вес" value={profile?.weightKg ? `${profile.weightKg} кг` : '—'} />
             </div>
-            {editMode && (
-              <label className="absolute bottom-0 right-0 p-2 bg-primary-600 text-white rounded-full cursor-pointer hover:bg-primary-700">
-                <Camera className="w-5 h-5" />
-                <input type="file" accept="image/*" onChange={handleAvatarChange} className="sr-only" />
+          )}
+        </div>
+      </Section>
+
+      {/* Цель */}
+      <Section icon={Target} title="Цель">
+        {edit ? (
+          <div className="space-y-2">
+            {GOALS_ALL.map(g => (
+              <button key={g} onClick={() => set('goal', g)}
+                className={clsx('w-full p-3 rounded-lg border text-left transition-colors',
+                  form.goal === g ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30' : 'border-slate-200 dark:border-dark-border hover:border-primary-300')}>
+                <div className="font-medium text-slate-900 dark:text-white">{GOAL_LABELS[g]}</div>
+                <div className="text-sm text-slate-500 dark:text-slate-400">{GOAL_DESCRIPTIONS[g]}</div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-slate-900 dark:text-white">{GOAL_LABELS[profile?.goal || GOALS.MASS]}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{GOAL_DESCRIPTIONS[profile?.goal || GOALS.MASS]}</p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-slate-400" />
+          </div>
+        )}
+      </Section>
+
+      {/* Уровень и стиль */}
+      <Section icon={Dumbbell} title="Уровень и направление">
+        {edit ? (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1.5">Уровень</label>
+              <div className="space-y-2">
+                {LEVELS.map(l => (
+                  <button key={l.value} onClick={() => set('level', l.value)}
+                    className={clsx('w-full p-3 rounded-lg border text-left transition-colors',
+                      form.level === l.value ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30' : 'border-slate-200 dark:border-dark-border hover:border-primary-300')}>
+                    <div className="font-medium text-slate-900 dark:text-white">{l.label}</div>
+                    <div className="text-sm text-slate-500 dark:text-slate-400">{l.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1.5">Направление</label>
+              <div className="space-y-2">
+                {STYLES.map(l => (
+                  <button key={l.value} onClick={() => set('trainStyle', l.value)}
+                    className={clsx('w-full p-3 rounded-lg border text-left transition-colors',
+                      form.trainStyle === l.value ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30' : 'border-slate-200 dark:border-dark-border hover:border-primary-300')}>
+                    <div className="font-medium text-slate-900 dark:text-white">{l.label}</div>
+                    <div className="text-sm text-slate-500 dark:text-slate-400">{l.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1.5">
+                Тренировок в неделю: {form.workoutsPerWeek || recommendDays(form.level, form.goal)} (рекомендуется)
               </label>
+              <input
+                type="number" min="0" max="7"
+                value={form.workoutsPerWeek || recommendDays(form.level, form.goal)}
+                onChange={e => set('workoutsPerWeek', parseInt(e.target.value) || 0)}
+                className="w-full px-3 py-2 border border-slate-200 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-slate-900 dark:text-white text-center"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <Stat label="Уровень" value={LEVELS.find(l => l.value === profile?.level)?.label || '—'} />
+            <Stat label="Направление" value={STYLES.find(s => s.value === profile?.trainStyle)?.label || '—'} />
+            <Stat label="Дней в неделю" value={String(profile?.workoutsPerWeek || recommendDays(profile?.level || 'intermediate', profile?.goal || GOALS.MASS))} />
+            <Stat label="Рекомендуется" value={`до ${recommendPerWeek(profile?.level || 'intermediate', profile?.goal || GOALS.MASS)}`} />
+          </div>
+        )}
+      </Section>
+
+      {/* Место и оборудование */}
+      <Section icon={MapPin} title="Зал и оборудование">
+        {edit ? (
+          <div className="space-y-4">
+            <div className="flex gap-3">
+              {PLACES.map(p => (
+                <button key={p.value} onClick={() => set('place', p.value)}
+                  className={clsx('flex-1 p-3 rounded-lg border text-left transition-colors',
+                    form.place === p.value ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30' : 'border-slate-200 dark:border-dark-border hover:border-primary-300')}>
+                  <p.icon className="w-5 h-5 text-primary-600 dark:text-primary-400 mb-1.5" />
+                  <div className="font-medium text-slate-900 dark:text-white">{p.label}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">{p.desc}</div>
+                </button>
+              ))}
+            </div>
+            {form.place === 'gym' && (
+              <div>
+                <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1.5">Что есть в зале</label>
+                <div className="flex flex-wrap gap-2">
+                  {EQUIPMENT.map(e => (
+                    <button key={e.id} onClick={() => set('equipment',
+                      form.equipment.includes(e.id) ? form.equipment.filter(x => x !== e.id) : [...form.equipment, e.id])}
+                      className={clsx('px-3 py-1.5 rounded-lg border text-sm transition-colors',
+                        form.equipment.includes(e.id)
+                          ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                          : 'border-slate-200 dark:border-dark-border text-slate-600 dark:text-slate-400')}>
+                      {e.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5">
+                  Пусто = доступно всё. Отмеченное ограничит подбор упражнений.
+                </p>
+              </div>
             )}
           </div>
-          <div className="flex-1 text-center sm:text-left space-y-3">
-            {editMode ? (
-              <div className="space-y-3">
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={e => setFormData(f => ({ ...f, name: e.target.value }))}
-                  placeholder="Имя"
-                  className="w-full px-3 py-2 border border-slate-200 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-slate-900 dark:text-white text-center text-xl font-semibold focus:ring-2 focus:ring-primary-500"
-                />
-                <select
-                  value={formData.gender}
-                  onChange={e => setFormData(f => ({ ...f, gender: e.target.value as any }))}
-                  className="w-full px-3 py-2 border border-slate-200 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-slate-900 dark:text-white text-center focus:ring-2 focus:ring-primary-500"
-                >
-                  <option value="male">Мужской</option>
-                  <option value="female">Женский</option>
-                </select>
-                <input
-                  type="date"
-                  value={formData.birthDate}
-                  onChange={e => setFormData(f => ({ ...f, birthDate: e.target.value }))}
-                  className="w-full px-3 py-2 border border-slate-200 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-slate-900 dark:text-white text-center focus:ring-2 focus:ring-primary-500"
-                  max={new Date().toISOString().split('T')[0]}
-                />
+        ) : (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-500 dark:text-slate-400">Место</span>
+              <span className="font-medium text-slate-900 dark:text-white">
+                {PLACES.find(p => p.value === profile?.place)?.label || 'Зал'}
+              </span>
+            </div>
+            {profile?.place !== 'home' && (
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-sm text-slate-500 dark:text-slate-400">Оборудование</span>
+                <div className="flex flex-wrap gap-1 justify-end">
+                  {profile?.equipment?.length
+                    ? profile.equipment.map(e => (
+                        <span key={e} className="px-2 py-0.5 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 rounded text-xs">
+                          {EQUIPMENT.find(x => x.id === e)?.label || e}
+                        </span>
+                      ))
+                    : <span className="text-sm text-slate-400 dark:text-slate-500">всё</span>}
+                </div>
               </div>
-            ) : (
+            )}
+          </div>
+        )}
+      </Section>
+
+      {/* Калории */}
+      <Section icon={Zap} title="Калории и макросы">
+        {tdee > 0 ? (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+              <Stat label="BMR" value={`${bmr} ккал`} />
+              <Stat label="TDEE" value={`${tdee} ккал`} />
+              <Stat label="Цель" value={`${calories} ккал`} accent />
+              <Stat label="ИМТ" value={bmi(form) || '—'} />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <Macro label="Белок" value={`${protein} г`} hint={`${proteinPerKg(form.goal)} г/кг`} />
+              <Macro label="Жиры" value={`${fats} г`} hint={`${fatsPerKg(form.goal)} г/кг`} />
+              <Macro label="Углеводы" value={`${carbs} г`} hint="остаток" />
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Заполни возраст, рост и вес — посчитаем калорийность.
+          </p>
+        )}
+      </Section>
+
+      {/* Сезон */}
+      <Section icon={Flag} title="Соревновательный план">
+        {edit ? (
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1.5">Фаза сезона</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {COMP_PHASE_ORDER.map(p => (
+                  <button key={p} onClick={() => set('compDate', form.compDate || Date.now())}
+                    onContextMenu={() => {}}
+                    className={clsx('p-2.5 rounded-lg border text-sm transition-colors',
+                      form.compDate ? 'border-slate-200 dark:border-dark-border' : 'border-slate-200 dark:border-dark-border')}>
+                    {COMP_PHASE_LABELS[p]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1.5">Категория (вес на сцене)</label>
+              <div className="flex flex-wrap gap-2">
+                {CATEGORIES.map(c => (
+                  <button key={c.id} onClick={() => set('compCategory', c.id)}
+                    className={clsx('px-3 py-1.5 rounded-lg border text-sm transition-colors',
+                      form.compCategory === c.id
+                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                        : 'border-slate-200 dark:border-dark-border text-slate-600 dark:text-slate-400')}>
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1.5">Дата старта</label>
+              <input
+                type="date"
+                value={form.compDate ? new Date(form.compDate).toISOString().split('T')[0] : ''}
+                onChange={e => set('compDate', e.target.value ? new Date(e.target.value).getTime() : undefined)}
+                className="w-full px-3 py-2 border border-slate-200 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-slate-900 dark:text-white"
+              />
+            </div>
+          </div>
+        ) : profile?.compDate ? (
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-sm text-slate-500 dark:text-slate-400">Дата старта</span>
+              <span className="font-medium text-slate-900 dark:text-white">
+                {new Date(profile.compDate).toLocaleDateString('ru-RU')}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-slate-500 dark:text-slate-400">Категория</span>
+              <span className="font-medium text-slate-900 dark:text-white">
+                {CATEGORIES.find(c => c.id === profile.compCategory)?.label || '—'}
+              </span>
+            </div>
+            {profile.compCategory && (
               <>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{profile?.name || 'Без имени'}</h2>
-                <div className="flex items-center justify-center sm:justify-start gap-4 text-sm text-slate-500 dark:text-slate-400">
-                  <span>{profile?.gender === 'male' ? '♂' : '♀'} {profile?.gender === 'male' ? 'Мужской' : 'Женский'}</span>
-                  {profile?.birthDate && (
-                    <span>
-                      {new Date(profile.birthDate).toLocaleDateString('ru-RU', { year: 'numeric', month: 'long', day: 'numeric' })}
-                      {(() => {
-                        const age = Math.floor((Date.now() - new Date(profile.birthDate!).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-                        return ` (${age} лет)`;
-                      })()}
-                    </span>
-                  )}
+                <div className="flex justify-between">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Ориентир на сцене</span>
+                  <span className="font-medium text-slate-900 dark:text-white">
+                    {stageWeightKg(profile.heightCm, profile.compCategory)} кг
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Ориентир межсезонья</span>
+                  <span className="font-medium text-slate-900 dark:text-white">
+                    {offseasonWeightKg(profile.heightCm, profile.compCategory, profile.weightKg)} кг
+                  </span>
                 </div>
               </>
             )}
           </div>
-        </div>
-      </div>
+        ) : (
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Не задан. Сезонный план нужен только тем, кто готовится к соревнованию.
+          </p>
+        )}
+      </Section>
 
-      {/* Body Metrics */}
-      <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border p-6">
-        <h3 className="font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-          <Target className="w-5 h-5 text-primary-600" />
-          Антропометрия и каллорийность
-        </h3>
-
-        {editMode ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Рост (см)</label>
-              <input
-                type="number"
-                min="100"
-                max="250"
-                value={formData.height}
-                onChange={e => setFormData(f => ({ ...f, height: parseInt(e.target.value) || 0 }))}
-                className="w-full px-3 py-2 border border-slate-200 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Вес (кг)</label>
-              <input
-                type="number"
-                min="30"
-                max="300"
-                step="0.1"
-                value={formData.weight}
-                onChange={e => setFormData(f => ({ ...f, weight: parseFloat(e.target.value) || 0 }))}
-                className="w-full px-3 py-2 border border-slate-200 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
+      {/* Прочее */}
+      <Section icon={Calendar} title="Город и страна">
+        {edit ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Input label="Страна" value={form.country} onChange={v => set('country', v)} />
+            <Input label="Город" value={form.city} onChange={v => set('city', v)} />
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="bg-slate-50 dark:bg-dark-bg/50 rounded-lg p-4">
-              <p className="text-sm text-slate-500 dark:text-slate-400">Рост</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-white">{profile?.height || 0} см</p>
-            </div>
-            <div className="bg-slate-50 dark:bg-dark-bg/50 rounded-lg p-4">
-              <p className="text-sm text-slate-500 dark:text-slate-400">Вес</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-white">{profile?.weight || 0} кг</p>
-            </div>
-            <div className="bg-slate-50 dark:bg-dark-bg/50 rounded-lg p-4">
-              <p className="text-sm text-slate-500 dark:text-slate-400">ИМТ</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-white">{calculateBMI() || '—'}</p>
-            </div>
-            <div className="bg-slate-50 dark:bg-dark-bg/50 rounded-lg p-4">
-              <p className="text-sm text-slate-500 dark:text-slate-400">BMR</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-white">{calculateBMR() || '—'} ккал</p>
-            </div>
+          <div className="text-sm text-slate-600 dark:text-slate-400">
+            {profile?.city || '—'}{profile?.city && profile?.country ? ', ' : ''}{profile?.country || ''}
+            {!profile?.city && !profile?.country && 'Не задан'}
           </div>
         )}
+      </Section>
 
-        {!editMode && tdee && (
-          <div className="mt-4 p-4 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg">
-            <h4 className="font-medium text-primary-800 dark:text-primary-300 mb-2">Рекомендуемая каллорийность</h4>
-            <div className="grid gap-2 sm:grid-cols-3">
-              <div className="text-center p-2 bg-white dark:bg-dark-bg rounded">
-                <p className="text-sm text-slate-500 dark:text-slate-400">BMR (базовый)</p>
-                <p className="font-bold text-slate-900 dark:text-white">{calculateBMR()} ккал</p>
-              </div>
-              <div className="text-center p-2 bg-white dark:bg-dark-bg rounded">
-                <p className="text-sm text-slate-500 dark:text-slate-400">TDEE (с активностью)</p>
-                <p className="font-bold text-slate-900 dark:text-white">{tdee} ккал</p>
-              </div>
-              <div className="text-center p-2 bg-primary-100 dark:bg-primary-900/30 rounded">
-                <p className="text-sm text-primary-800 dark:text-primary-300">Цель: {GOALS.find(g => g.value === profile?.goal)?.label}</p>
-                <p className="font-bold text-primary-700 dark:text-primary-400">{targetCalories} ккал</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {!editMode && (profile?.goal === 'lose' || profile?.goal === 'gain') && targetCalories && (
-          <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-            <h4 className="font-medium text-amber-800 dark:text-amber-300 mb-2 flex items-center gap-1">
-              <AlertCircle className="w-4 h-4" />
-              Макронутриенты (примерно)
-            </h4>
-            <div className="grid gap-2 sm:grid-cols-3 text-sm">
-              <div className="p-2 bg-white dark:bg-dark-bg rounded">Белки: <span className="font-bold">{(targetCalories * 0.3 / 4).toFixed(0)}г</span></div>
-              <div className="p-2 bg-white dark:bg-dark-bg rounded">Жиры: <span className="font-bold">{(targetCalories * 0.25 / 9).toFixed(0)}г</span></div>
-              <div className="p-2 bg-white dark:bg-dark-bg rounded">Углеводы: <span className="font-bold">{(targetCalories * 0.45 / 4).toFixed(0)}г</span></div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Activity & Goal */}
-      <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border p-6">
-        <h3 className="font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-          <Dumbbell className="w-5 h-5 text-primary-600" />
-          Активность и цель
-        </h3>
-
-        {editMode ? (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Уровень активности</label>
-              <div className="space-y-2">
-                {ACTIVITY_LEVELS.map(level => (
-                  <label key={level.value} className={clsx(
-                    'p-3 rounded-lg border cursor-pointer transition-colors',
-                    formData.activityLevel === level.value
-                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
-                      : 'border-slate-200 dark:border-dark-border hover:border-primary-300'
-                  )}>
-                    <input
-                      type="radio"
-                      name="activity"
-                      value={level.value}
-                      checked={formData.activityLevel === level.value}
-                      onChange={e => setFormData(f => ({ ...f, activityLevel: e.target.value as any }))}
-                      className="sr-only"
-                    />
-                    <div className="font-medium text-slate-900 dark:text-white">{level.label}</div>
-                    <div className="text-sm text-slate-500 dark:text-slate-400">{level.desc}</div>
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Цель</label>
-              <div className="space-y-2">
-                {GOALS.map(goal => (
-                  <label key={goal.value} className={clsx(
-                    'p-3 rounded-lg border cursor-pointer transition-colors',
-                    formData.goal === goal.value
-                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
-                      : 'border-slate-200 dark:border-dark-border hover:border-primary-300'
-                  )}>
-                    <input
-                      type="radio"
-                      name="goal"
-                      value={goal.value}
-                      checked={formData.goal === goal.value}
-                      onChange={e => setFormData(f => ({ ...f, goal: e.target.value as any }))}
-                      className="sr-only"
-                    />
-                    <div className="font-medium text-slate-900 dark:text-white">{goal.label}</div>
-                    <div className="text-sm text-slate-500 dark:text-slate-400">{goal.desc}</div>
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Место тренировок</label>
-              <div className="flex gap-4">
-                {['gym', 'home'].map(loc => (
-                  <label key={loc} className={clsx(
-                    'flex-1 p-3 rounded-lg border cursor-pointer transition-colors text-center',
-                    formData.location === loc
-                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
-                      : 'border-slate-200 dark:border-dark-border hover:border-primary-300'
-                  )}>
-                    <input
-                      type="radio"
-                      name="location"
-                      value={loc}
-                      checked={formData.location === loc}
-                      onChange={e => setFormData(f => ({ ...f, location: e.target.value as any }))}
-                      className="sr-only"
-                    />
-                    <div className="font-medium text-slate-900 dark:text-white">{loc === 'gym' ? '🏋️ Зал' : '🏠 Дом'}</div>
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Доступное оборудование</label>
-              <div className="flex flex-wrap gap-2">
-                {['barbell', 'dumbbell', 'cable', 'smith', 'machine'].map(eq => (
-                  <label key={eq} className={clsx(
-                    'px-3 py-1.5 rounded-lg border text-sm cursor-pointer transition-colors',
-                    formData.equipment?.includes(eq)
-                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
-                      : 'border-slate-200 dark:border-dark-border hover:border-primary-300'
-                  )}>
-                    <input
-                      type="checkbox"
-                      checked={formData.equipment?.includes(eq)}
-                      onChange={e => setFormData(f => ({
-                        ...f,
-                        equipment: e.target.checked
-                          ? [...(f.equipment || []), eq]
-                          : (f.equipment || []).filter(x => x !== eq)
-                      }))}
-                      className="sr-only"
-                    />
-                    {eq.charAt(0).toUpperCase() + eq.slice(1)}
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="p-4 bg-slate-50 dark:bg-dark-bg/50 rounded-lg">
-              <p className="text-sm text-slate-500 dark:text-slate-400">Уровень активности</p>
-              <p className="font-medium text-slate-900 dark:text-white">
-                {ACTIVITY_LEVELS.find(l => l.value === profile?.activityLevel)?.label}
-              </p>
-            </div>
-            <div className="p-4 bg-slate-50 dark:bg-dark-bg/50 rounded-lg">
-              <p className="text-sm text-slate-500 dark:text-slate-400">Цель</p>
-              <p className="font-medium text-slate-900 dark:text-white">
-                {GOALS.find(g => g.value === profile?.goal)?.label}
-              </p>
-            </div>
-            <div className="p-4 bg-slate-50 dark:bg-dark-bg/50 rounded-lg">
-              <p className="text-sm text-slate-500 dark:text-slate-400">Место тренировок</p>
-              <p className="font-medium text-slate-900 dark:text-white">
-                {profile?.location === 'gym' ? '🏋️ Зал' : '🏠 Дом'}
-              </p>
-            </div>
-            <div className="p-4 bg-slate-50 dark:bg-dark-bg/50 rounded-lg">
-              <p className="text-sm text-slate-500 dark:text-slate-400">Оборудование</p>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {profile?.equipment?.map(eq => (
-                  <span key={eq} className="px-2 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 rounded text-xs">
-                    {eq.charAt(0).toUpperCase() + eq.slice(1)}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Stats */}
-      <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border p-6">
-        <h3 className="font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-          <Dumbbell className="w-5 h-5 text-primary-600" />
-          Статистика тренировок
-        </h3>
-        <div className="grid gap-4 sm:grid-cols-4">
-          <div className="text-center p-4 bg-slate-50 dark:bg-dark-bg/50 rounded-lg">
-            <p className="text-3xl font-bold text-slate-900 dark:text-white">{programs.length}</p>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Программ</p>
-          </div>
-          <div className="text-center p-4 bg-slate-50 dark:bg-dark-bg/50 rounded-lg">
-            <p className="text-3xl font-bold text-slate-900 dark:text-white">—</p>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Тренировок всего</p>
-          </div>
-          <div className="text-center p-4 bg-slate-50 dark:bg-dark-bg/50 rounded-lg">
-            <p className="text-3xl font-bold text-slate-900 dark:text-white">—</p>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Недель подряд</p>
-          </div>
-          <div className="text-center p-4 bg-slate-50 dark:bg-dark-bg/50 rounded-lg">
-            <p className="text-3xl font-bold text-slate-900 dark:text-white">—</p>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Рекордов</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Danger Zone */}
-      <div className="bg-white dark:bg-dark-card rounded-xl border border-red-200 dark:border-red-800 p-6">
-        <h3 className="font-semibold text-red-700 dark:text-red-400 mb-4 flex items-center gap-2">
-          <Trash2 className="w-5 h-5" />
-          Опасная зона
-        </h3>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-          Эти действия необратимы. Используй с осторожностью.
-        </p>
-        <div className="flex flex-wrap gap-3">
-          <button onClick={() => setShowDeleteConfirm(true)} className="px-4 py-2 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
-            <Trash2 className="w-4 h-4 inline mr-1" />
-            Удалить профиль и все данные
+      {/* Опасная зона */}
+      {profile && (
+        <div className="bg-white dark:bg-dark-card rounded-xl border border-red-200 dark:border-red-800 p-5">
+          <h3 className="font-semibold text-red-700 dark:text-red-400 mb-2 flex items-center gap-2">
+            <Trash2 className="w-5 h-5" /> Опасная зона
+          </h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+            Удаление профиля стирает профиль, программы и всю историю тренировок.
+          </p>
+          <button onClick={() => setShowDelete(true)}
+            className="px-4 py-2 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
+            Удалить профиль и данные
           </button>
         </div>
-      </div>
+      )}
+
+      {showDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white dark:bg-dark-card rounded-2xl p-6 max-w-md w-full">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">Удалить всё?</h3>
+            <p className="text-slate-500 dark:text-slate-400 mb-6">
+              Профиль, {programs.length} программ и вся история тренировок будут стёрты. Отменить нельзя.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowDelete(false)}
+                className="flex-1 py-2 border border-slate-200 dark:border-dark-border rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-dark-border">
+                Отмена
+              </button>
+              <button onClick={doDelete}
+                className="flex-1 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700">
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function computeBmr(p: UserProfile): number {
+  if (!p.age || !p.heightCm || !p.weightKg) return 0;
+  const bmr = 10 * p.weightKg + 6.25 * p.heightCm - 5 * p.age + (p.gender === 'male' ? 5 : -161);
+  return Math.max(0, Math.round(bmr));
+}
+
+function bmi(p: UserProfile): string {
+  if (!p.heightCm || !p.weightKg) return '';
+  const h = p.heightCm / 100;
+  return (p.weightKg / (h * h)).toFixed(1);
+}
+
+function Section({ icon: Icon, title, children }: { icon: any; title: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border p-5">
+      <h2 className="font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+        <Icon className="w-5 h-5 text-primary-600" /> {title}
+      </h2>
+      {children}
+    </div>
+  );
+}
+
+function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="p-3 bg-slate-50 dark:bg-dark-bg/50 rounded-lg text-center">
+      <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
+      <p className={clsx('font-bold', accent ? 'text-primary-600 dark:text-primary-400' : 'text-slate-900 dark:text-white')}>{value}</p>
+    </div>
+  );
+}
+
+function Macro({ label, value, hint }: { label: string; value: string; hint: string }) {
+  return (
+    <div className="p-3 bg-slate-50 dark:bg-dark-bg/50 rounded-lg text-center">
+      <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="font-bold text-slate-900 dark:text-white">{value}</p>
+      <p className="text-[10px] text-slate-400 dark:text-slate-500">{hint}</p>
+    </div>
+  );
+}
+
+function Input({ label, value, onChange, type = 'text', step, placeholder }: {
+  label: string; value: string | number; onChange: (v: any) => void;
+  type?: string; step?: string; placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1">{label}</label>
+      <input
+        type={type} step={step} placeholder={placeholder}
+        value={value === 0 && type === 'number' ? '' : value}
+        onChange={e => onChange(type === 'number' ? (parseFloat(e.target.value) || 0) : e.target.value)}
+        className="w-full px-3 py-2 border border-slate-200 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-slate-900 dark:text-white text-center"
+      />
     </div>
   );
 }

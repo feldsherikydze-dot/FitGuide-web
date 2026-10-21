@@ -1,5 +1,11 @@
-// Генератор PWA-иконок FitGuide (PNG, без внешних зависимостей)
+// FitGuide Web — генератор PWA-иконок FitGuide (настоящий PNG, без зависимостей)
 // Запуск: node scripts/generate-icons.mjs
+//
+// Рисуем гантель: центральный гриф + две пары блинов (внешние крупнее).
+// Два варианта:
+//   icon-192/512.png      — обычная иконка (any)
+//   icon-maskable-512.png — с безопасной зоной (maskable: рисунок в центральных 80%)
+
 import { deflateSync } from 'node:zlib';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -8,7 +14,8 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const outDir = join(__dirname, '..', 'public');
 
-// --- Минимальный PNG-энкодер (RGBA, 8 бит) ---
+// ---------- PNG-энкодер ----------
+
 function crc32(buf) {
   let c, crc = 0xffffffff;
   for (let n = 0; n < buf.length; n++) {
@@ -34,12 +41,11 @@ function encodePNG(width, height, rgba) {
   ihdr.writeUInt32BE(width, 0);
   ihdr.writeUInt32BE(height, 4);
   ihdr[8] = 8;   // bit depth
-  ihdr[9] = 6;   // color type RGBA
-  ihdr[10] = 0;  // compression
-  ihdr[11] = 0;  // filter
-  ihdr[12] = 0;  // interlace
+  ihdr[9] = 6;   // RGBA
+  ihdr[10] = 0;
+  ihdr[11] = 0;
+  ihdr[12] = 0;
 
-  // Каждой строке предшествует байт фильтра (0 = None)
   const raw = Buffer.alloc((width * 4 + 1) * height);
   for (let y = 0; y < height; y++) {
     raw[y * (width * 4 + 1)] = 0;
@@ -54,65 +60,85 @@ function encodePNG(width, height, rgba) {
   ]);
 }
 
-// --- Рисуем иконку: скруглённый градиент + гантель ---
-function drawIcon(size) {
-  const px = Buffer.alloc(size * size * 4);
-  const r = size * 0.22; // радиус скругления
-  const s = size / 100;   // масштаб от базовых 100x100
+// ---------- Геометрия ----------
 
-  // Параметры гантели (в базовых координатах 100x100)
-  const bar = {
-    x1: 27, x2: 73, y1: 26, y2: 74,      // центральный брус
-    plate1x: 22, plate2x: 78,             // внешние блины
-    plateTop: 20, plateBot: 80,
-    innerTop: 32, innerBot: 68,
-  };
+/** Скруглённый прямоугольник: покрытие точки с учётом радиуса углов. */
+function insideRoundRect(x, y, x0, y0, x1, y1, r) {
+  if (x < x0 || x > x1 || y < y0 || y > y1) return false;
+  // углы
+  const cx = Math.min(Math.max(x, x0 + r), x1 - r);
+  const cy = Math.min(Math.max(y, y0 + r), y1 - r);
+  const dx = x - cx, dy = y - cy;
+  if (dx === 0 && dy === 0) return true;
+  return dx * dx + dy * dy <= r * r;
+}
+
+/**
+ * Гантель в координатах 0..100.
+ *   гриф    — горизонтальный брус по центру
+ *   блины   — две вертикальные стойки с каждой стороны (внешние выше)
+ */
+function insideDumbbell(x, y) {
+  // гриф
+  if (insideRoundRect(x, y, 24, 44, 76, 56, 5)) return true;
+  // внутренние блины
+  if (insideRoundRect(x, y, 30, 30, 40, 70, 4)) return true;
+  if (insideRoundRect(x, y, 60, 30, 70, 70, 4)) return true;
+  // внешние блины (крупнее)
+  if (insideRoundRect(x, y, 18, 20, 28, 80, 4)) return true;
+  if (insideRoundRect(x, y, 72, 20, 82, 80, 4)) return true;
+  return false;
+}
+
+/**
+ * size      — сторона иконки в пикселях
+ * scale     — 1 = рисунок занимает весь холст; <1 = запас для maskable
+ * radiusPct — радиус скругления фона (в долях размера)
+ */
+function drawIcon(size, scale, radiusPct) {
+  const px = Buffer.alloc(size * size * 4);
+  const S = size / 100;              // пикселей в единице координат
+  const offset = (size - size * scale) / 2; // сдвиг для maskable-запаса
+  const radius = size * radiusPct;
 
   const inRounded = (x, y) => {
-    // попадание в скруглённый прямоугольник
-    const cx = Math.min(Math.max(x, r), size - r);
-    const cy = Math.min(Math.max(y, r), size - r);
+    const cx = Math.min(Math.max(x, radius), size - radius);
+    const cy = Math.min(Math.max(y, radius), size - radius);
     const dx = x - cx, dy = y - cy;
-    return dx * dx + dy * dy <= r * r || (x >= r && x <= size - r) || (y >= r && y <= size - r);
+    if (dx * dx + dy * dy > radius * radius) {
+      // вне скруглённого угла — но внутри прямых полос может быть ещё пиксель
+      const insideX = x >= radius && x <= size - radius;
+      const insideY = y >= radius && y <= size - radius;
+      if (!(insideX || insideY)) return false;
+    }
+    return true;
   };
 
-  const inDumbbell = (x, y) => {
-    const bx = x / s, by = y / s;
-    // центральный брус
-    if (bx >= bar.x1 && bx <= bar.x2 && by >= bar.y1 && by <= bar.y2) return true;
-    // внешние блины (верхние и нижние)
-    for (const px0 of [bar.plate1x, bar.plate2x]) {
-      const dir = px0 < 40 ? 1 : -1;
-      const x0 = px0, x1 = px0 + dir * 8;
-      if (bx >= Math.min(x0, x1) && bx <= Math.max(x0, x1) && by >= bar.plateTop && by <= bar.plateBot) return true;
-    }
-    // средние блины (перед центральным брусом)
-    for (const px0 of [bar.x1 - 6, bar.x2 + 6]) {
-      const dir = px0 < 40 ? 1 : -1;
-      const x0 = px0, x1 = px0 + dir * 5;
-      if (bx >= Math.min(x0, x1) && bx <= Math.max(x0, x1) && by >= bar.innerTop && by <= bar.innerBot) return true;
-    }
-    return false;
-  };
+  for (let py = 0; py < size; py++) {
+    for (let pxi = 0; pxi < size; pxi++) {
+      const i = (py * size + pxi) * 4;
+      const x = pxi + 0.5;
+      const y = py + 0.5;
 
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const i = (y * size + x) * 4;
-      if (!inRounded(x + 0.5, y + 0.5)) {
+      if (!inRounded(x, y)) {
         px[i] = 0; px[i + 1] = 0; px[i + 2] = 0; px[i + 3] = 0;
         continue;
       }
-      // Градиент #0ea5e9 -> #0369a1 по диагонали
-      const t = (x / size + y / size) / 2;
-      const rr = Math.round(0x0e + (0x03 - 0x0e) * t);
-      const gg = Math.round(0xa5 + (0x69 - 0xa5) * t);
-      const bb = Math.round(0xe9 + (0xa1 - 0xe9) * t);
 
-      if (inDumbbell(x + 0.5, y + 0.5)) {
-        // Гантель белым
+      // Фон: диагональный градиент #0ea5e9 → #0369a1
+      const t = (pxi / size + py / size) / 2;
+      const r = Math.round(0x0e + (0x03 - 0x0e) * t);
+      const g = Math.round(0xa5 + (0x69 - 0xa5) * t);
+      const b = Math.round(0xe9 + (0xa1 - 0xe9) * t);
+
+      // Гантель в системе координат 0..100 с учётом масштаба и сдвига
+      const ux = (x - offset) / (size * scale) * 100;
+      const uy = (y - offset) / (size * scale) * 100;
+
+      if (insideDumbbell(ux, uy)) {
         px[i] = 255; px[i + 1] = 255; px[i + 2] = 255; px[i + 3] = 255;
       } else {
-        px[i] = rr; px[i + 1] = gg; px[i + 2] = bb; px[i + 3] = 255;
+        px[i] = r; px[i + 1] = g; px[i + 2] = b; px[i + 3] = 255;
       }
     }
   }
@@ -120,9 +146,17 @@ function drawIcon(size) {
 }
 
 mkdirSync(outDir, { recursive: true });
-for (const size of [192, 512]) {
-  const png = encodePNG(size, size, drawIcon(size));
-  const file = join(outDir, `icon-${size}.png`);
+
+const targets = [
+  { file: 'icon-192.png', size: 192, scale: 1.0, radius: 0.22 },
+  { file: 'icon-512.png', size: 512, scale: 1.0, radius: 0.22 },
+  // maskable: рисунок в центральных 80%, фон на всю площадь
+  { file: 'icon-maskable-512.png', size: 512, scale: 0.62, radius: 0 },
+];
+
+for (const t of targets) {
+  const png = encodePNG(t.size, t.size, drawIcon(t.size, t.scale, t.radius));
+  const file = join(outDir, t.file);
   writeFileSync(file, png);
-  console.log(`OK: ${file} (${png.length} байт, ${size}x${size})`);
+  console.log(`OK: ${t.file} — ${png.length} байт, ${t.size}x${t.size}`);
 }

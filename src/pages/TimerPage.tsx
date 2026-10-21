@@ -1,4 +1,4 @@
-// FitGuide Web — страница таймера
+﻿// FitGuide Web — страница таймера
 
 import { useState, useEffect, useCallback } from 'react';
 import { Play, Pause, RotateCcw, Plus, Minus, X, Bell, BellOff, Settings, SkipForward, SkipBack, Dumbbell } from 'lucide-react';
@@ -30,7 +30,7 @@ export function TimerPage() {
   // Auto-set rest timer from active workout
   useEffect(() => {
     if (activeProgramId) {
-      const activeSession = sessions.find(s => s.programId === activeProgramId && !s.finishedAt);
+      const activeSession = sessions.find(s => s.programId === activeProgramId && !s.ts);
       if (activeSession) {
         // Could auto-detect rest time from current exercise
       }

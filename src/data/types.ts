@@ -1,5 +1,32 @@
 // FitGuide Web — типы данных (порт с Android-версии)
 
+// --- Цели (Goals.java) ---
+export const GOAL = {
+  LOSE: 'lose',
+  MAINTAIN: 'maintain',
+  GAIN: 'gain',       // старый ключ → нормализуется в MASS
+  STRENGTH: 'strength',
+  MASS: 'mass',
+  CUT: 'cut',
+  ENDURANCE: 'endurance',
+  RECOMP: 'recomp',
+} as const;
+
+export type Goal = typeof GOAL[keyof typeof GOAL];
+
+export const ACTIVITY = {
+  SEDENTARY: 'sedentary',
+  LIGHT: 'light',
+  MODERATE: 'moderate',
+  HIGH: 'high',
+  ATHLETE: 'athlete',
+} as const;
+
+export const STYLE = { ANY: 'any', BB: 'bb', PL: 'pl' } as const;
+export const PLACE = { GYM: 'gym', HOME: 'home' } as const;
+export const LEVEL = { BEGINNER: 'beginner', INTERMEDIATE: 'intermediate', ADVANCED: 'advanced' } as const;
+export const GENDER = { MALE: 'male', FEMALE: 'female' } as const;
+
 // --- База упражнений ---
 export interface Exercise {
   id: string;
@@ -25,6 +52,12 @@ export interface Exercise {
   mistakes: string[];
   tips: string[];
 }
+
+// --- Picker (picker.json) ---
+export interface PickerHead { id: string; name: string }
+export interface PickerMuscle { id: string; name: string; heads: PickerHead[] }
+export interface PickerRegion { id: string; name: string; icon: string; muscles: PickerMuscle[] }
+export interface PickerDB { regions: PickerRegion[]; map: Record<string, string[]> }
 
 // --- Структура программы ---
 export interface Slot {
@@ -57,7 +90,7 @@ export interface Program {
   id: string;
   name: string;
   goal: string;
-  level: 'beginner' | 'intermediate' | 'advanced';
+  level: string;
   daysPerWeek: number;
   weeks: number;
   createdAt: number;
@@ -65,74 +98,149 @@ export interface Program {
   phases: Phase[];
 }
 
-// --- Состояние тренера ---
+// --- Состояние тренера (CoachStore.java) ---
+export interface SessionItem {
+  exercise: string;
+  weightKg: number;
+  reps: number;
+  sets: number;          // реально выполнено подходов
+  targetSets: number;    // план по программе (0 = не задано)
+  feel?: 1 | 2 | 3;      // 1=тяжело, 2=в самый раз, 3=легко
+}
+
 export interface Session {
   id: string;
   programId: string;
   week: number;
   dayTitle: string;
-  startedAt: number;
-  finishedAt?: number;
+  ts: number;                    // время начала
+  feel?: 1 | 2 | 3;              // оценка всей сессии
+  /** Веса скорректированы (разгрузка / низкая готовность) — показатель силы не считается. */
+  adjusted?: boolean;
   items: SessionItem[];
 }
 
-export interface SessionItem {
-  exercise: string;
-  weightKg: number;
-  reps: number;
-  sets: number;
-  feel?: 1 | 2 | 3; // 1=тяжело, 2=в самый раз, 3=легко
-}
-
+/** Утренняя отметка самочувствия: сон / забитость / энергия, каждая 1..3. */
 export interface Checkin {
-  id: string;
-  ts: number;
-  sleep: number;        // 1-9
-  fatigue: number;      // 1-9
-  soreness: number;     // 1-9
-  mood: number;         // 1-9
-  stress: number;       // 1-9
-  note?: string;
+  day: string;       // ключ дня «yyyyMMdd» — отметка одна на день
+  sleep: number;     // 1 плохо, 2 норма, 3 отлично
+  sore: number;      // 1 сильная забитость, 2 средняя, 3 нет
+  energy: number;    // 1 нет, 2 есть, 3 полна
 }
 
-export interface Assessment {
-  id: string;
-  date: number;
-  weight: number;
-  height: number;
-  age: number;
-  gender: 'male' | 'female';
-  bodyFat?: number;
-  measurements: Record<string, number>; // waist, chest, arm, thigh, calf
-  skinfolds: Record<string, number>;
-  movements: number[];    // 0-2 per movement
-  tests: TestResult[];
-  amrap: number[];
-  pain: number;
-  mmc: number;
-  tech: number;
-  e1rm: Record<string, number>;
-}
-
+// --- Оценка (Assessment.java) ---
 export interface TestResult {
   exercise: string;
   weight: number;
   reps: number;
 }
 
+/** Ключевые движения калибровки (AssessmentFormulas.MOV_*) */
+export const MOV = {
+  SQUAT: 0,
+  BENCH: 1,
+  DEAD: 2,
+  OHP: 3,
+  ROW: 4,
+  PULLUP: 5,
+  LEGPRESS: 6,
+  HIP: 7,
+  COUNT: 8,
+} as const;
+
+export interface Assessment {
+  id: string;
+  timestamp: number;
+  weightKg: number;
+  heightCm: number;
+  age: number;
+  female: boolean;
+  bodyFatPct: number;
+  leanMassKg: number;
+  ffmi: number;
+  // обхваты, см
+  neckCm: number;
+  chestCm: number;
+  waistCm: number;
+  hipsCm: number;
+  armCm: number;
+  thighCm: number;
+  calfCm: number;
+  // складки, мм
+  skinfoldChest: number;
+  skinfoldMidaxillary: number;
+  skinfoldTriceps: number;
+  skinfoldSubscapular: number;
+  skinfoldAbdominal: number;
+  skinfoldSuprailiac: number;
+  skinfoldThigh: number;
+  // e1RM по 8 движениям
+  e1rmSquat: number;
+  e1rmBench: number;
+  e1rmDeadlift: number;
+  e1rmOHP: number;
+  e1rmRow: number;
+  e1rmPullup: number;
+  e1rmLegPress: number;
+  e1rmHipThrust: number;
+  // стартовые веса (85% e1RM, вниз до 2,5)
+  startSquat: number;
+  startBench: number;
+  startDeadlift: number;
+  startOHP: number;
+  startRow: number;
+  startLegPress: number;
+  startHipThrust: number;
+  // тесты
+  movementScores: number[];   // 0-2 на каждое движение
+  testWeights: number[];
+  testReps: number[];
+  amrap: number[];
+  pain: number;
+  mmc: number;
+  tech: number;
+}
+
+// --- Профиль (Profile.java) ---
+export interface UserProfile {
+  name: string;
+  gender: string;
+  age: number;
+  heightCm: number;
+  weightKg: number;
+  activityLevel: string;
+  goal: string;
+  trainStyle: string;
+  bodyFatPercent: number;
+  workoutsPerWeek: number;
+  bio: string;
+  country: string;
+  city: string;
+  level: string;
+  equipment: string[];       // доступное оборудование в зале
+  place: string;             // gym | home
+  compDate?: number;         // дата старта (для сезонного плана)
+  compCategory?: string;
+}
+
+// --- Тренер (CoachStore) ---
 export interface CoachState {
   activeProgramId: string | null;
+  prevProgramId: string | null;
   activeSince: number | null;
   coachPath: 'own' | 'coach';
   coachProgramId: string | null;
+  programPhase: string;
+  programType: string;
   sessions: Session[];
   checkins: Checkin[];
-  feels: Record<string, number>; // sessionId -> 1|2|3
-  banned: string[]; // exercise ids
+  feels: Record<string, number>;
+  banned: string[];
   limits: Record<string, { weight: number; reps: number }>;
   programUpdated: boolean;
   programUpdatedNote: string;
   resetAt: number | null;
+  compPhase: string | null;
 }
 
 // --- Генератор программ ---
@@ -140,17 +248,34 @@ export type ProgramType = 'auto' | 'fullbody' | 'split' | 'circuit';
 export type Periodization = 'none' | 'linear' | 'wave';
 
 export interface GeneratorInput {
-  goals: string[];           // ['strength', 'hypertrophy', 'endurance', 'fat_loss']
-  level: 'beginner' | 'intermediate' | 'advanced';
-  direction: 'powerlifting' | 'bodybuilding' | 'any';
+  goals: string[];
+  level: string;
+  direction: string;     // powerlifting | bodybuilding | any
   type: ProgramType;
-  daysPerWeek: 2 | 3 | 4 | 5 | 6;
+  daysPerWeek: number;
   weeks: number;
   periodization: Periodization;
-  location: 'gym' | 'home';
+  location: string;      // gym | home
   age?: number;
-  gender?: 'male' | 'female';
-  equipment?: string[];      // available equipment categories
+  gender?: string;
+  equipment?: string[];
+}
+
+// --- Знания (knowledge.md) ---
+export interface KnowledgeChapter {
+  id: string;
+  number: string;
+  title: string;
+  content: string;
+  isSection: boolean;
+}
+
+// --- Группа мышц и база упражнений ---
+export interface Subgroup {
+  id: string;
+  name: string;
+  muscles: string;
+  order: number;
 }
 
 export interface MuscleGroup {
@@ -160,28 +285,67 @@ export interface MuscleGroup {
   subgroups: Subgroup[];
 }
 
-export interface Subgroup {
-  id: string;
-  name: string;
-  muscles: string;
-  order: number;
-}
-
 export interface ExercisesDB {
   version: number;
   muscleGroups: MuscleGroup[];
   exercises: Exercise[];
 }
 
-// --- Настройки ---
-export interface UserProfile {
+// --- Дневник ---
+export interface JournalEntry {
+  id: string;
+  date: number;
+  title: string;
+  text: string;
+  mood?: number;
+  items: { exercise: string; weightKg: number; reps: number }[];
+}
+
+// --- Замеры тела ---
+export interface BodyLogEntry {
+  id: string;
+  date: number;
+  weightKg: number;
+  bodyFatPct?: number;
+  waistCm?: number;
+  chestCm?: number;
+  armCm?: number;
+  thighCm?: number;
+  calfCm?: number;
+}
+
+// --- Сезонный план ---
+export const COMP_PHASE = {
+  OFFSEASON: 'offseason',
+  BUILD: 'build',
+  CUT: 'cut',
+  PEAK: 'peak',
+  DAY: 'day',
+  RECOVERY: 'recovery',
+} as const;
+
+export interface SeasonBlock {
+  phase: string;
   name: string;
-  gender: 'male' | 'female';
-  birthDate: string;        // ISO date
-  height: number;
-  weight: number;
-  activityLevel: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
-  goal: 'maintain' | 'lose' | 'gain';
-  equipment: string[];
-  location: 'gym' | 'home';
+  goal: string;
+  style: string;
+  weeks: number;
+  period: number;   // ProgramGenerator.PERIOD_*
+  type: string;
+}
+
+// --- План дня (DailyCoach) ---
+export type PlanKind = 'train' | 'rest' | 'nocheckin' | 'checkpoint';
+
+export interface DailyPlan {
+  kind: PlanKind;
+  title: string;
+  loadLine: string;
+  restLine: string;
+  deload: boolean;
+  light: boolean;
+  canStart: boolean;
+  dayTitle: string;
+  week: number;
+  cycle: number;
 }

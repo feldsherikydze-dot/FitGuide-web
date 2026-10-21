@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "icons": "node scripts/generate-icons.mjs",
+    "selftest": "node scripts/selftest.mjs",
     "deploy": "git add -A && git commit -m \"Обновление FitGuide Web\" || echo \"Нет изменений\" && git push"
   },
   "dependencies": {

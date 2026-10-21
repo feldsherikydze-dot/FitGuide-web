@@ -1,4 +1,4 @@
-// FitGuide Web — страница прогресса
+﻿// FitGuide Web — страница прогресса
 
 import { useState, useMemo } from 'react';
 import { Dumbbell, TrendingUp, Target, Calendar, BarChart3, Trophy, RotateCcw } from 'lucide-react';
@@ -33,7 +33,7 @@ export function ProgressPage() {
       all: Infinity,
     };
     const cutoff = now - ranges[timeRange];
-    return sessions.filter(s => s.startedAt >= cutoff);
+    return sessions.filter(s => s.ts >= cutoff);
   }, [sessions, timeRange]);
 
   // Calculate e1RM progression for selected exercise
@@ -44,7 +44,7 @@ export function ProgressPage() {
       s.items.forEach(item => {
         if (item.exercise === selectedExercise && item.weightKg > 0 && item.reps > 0) {
           data.push({
-            date: s.startedAt,
+            date: s.ts,
             e1rm: calculate1RM(item.weightKg, item.reps),
             weight: item.weightKg,
             reps: item.reps,

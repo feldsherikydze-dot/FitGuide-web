@@ -1,23 +1,38 @@
-// FitGuide Web — Service Worker для офлайн работы
+// FitGuide Web — Service Worker (офлайн-работа PWA)
+//
+// ВАЖНО: все пути относительные. Приложение может лежать в подпапке
+// (https://user.github.io/repo/) — абсолютный '/index.html' даёт 404,
+// cache.addAll падает целиком, SW не устанавливается, и браузер
+// не считает приложение устанавливаемым (ярлык открывается во вкладке).
 
 const CACHE_NAME = 'fitguide-v1.13';
+
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/favicon.svg',
-  '/icon-192.png',
-  '/icon-512.png',
+  './',
+  './index.html',
+  './manifest.json',
+  './favicon.svg',
+  './icon-192.png',
+  './icon-512.png',
+  './icon-maskable-512.png',
+  './knowledge.md',
+  './exercises.json',
+  './picker.json',
 ];
 
-// Установка — кэшируем статику
+// Установка — кэшируем статику. Каждый файл отдельно: одна ошибка
+// не должна обрушить всю установку.
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
+    caches.open(CACHE_NAME).then(async (cache) => {
+      await Promise.all(
+        STATIC_ASSETS.map(url =>
+          cache.add(url).catch(err => console.warn('[sw] не закэширован', url, err))
+        )
+      );
+      await self.skipWaiting();
     })
   );
-  self.skipWaiting();
 });
 
 // Активация — чистим старые кэши
@@ -25,45 +40,38 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
       );
-    })
+    }).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-// Fetch — стратегия Stale While Revalidate
+// Fetch — Stale While Revalidate: отдаём кэш сразу, обновляем в фоне.
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  const url = new URL(request.url);
-
-  // Только GET запросы
   if (request.method !== 'GET') return;
 
-  // Игнорируем chrome-extension и другие схемы
-  if (!url.protocol.startsWith('http')) return;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
 
   event.respondWith(
     caches.open(CACHE_NAME).then(async (cache) => {
-      const cachedResponse = await cache.match(request);
+      const cached = await cache.match(request);
 
-      // Пытаемся обновить в фоне
-      const fetchPromise = fetch(request).then((networkResponse) => {
-        if (networkResponse.ok) {
-          cache.put(request, networkResponse.clone());
-        }
-        return networkResponse;
-      }).catch(() => cachedResponse);
+      const network = fetch(request)
+        .then((response) => {
+          if (response && response.ok && response.type === 'basic') {
+            cache.put(request, response.clone());
+          }
+          return response;
+        })
+        .catch(() => cached);
 
-      // Возвращаем кэш сразу, если есть
-      return cachedResponse || fetchPromise;
+      return cached || network;
     })
   );
 });
 
-// Обработка сообщений от клиента
 self.addEventListener('message', (event) => {
-  if (event.data === 'skipWaiting') {
-    self.skipWaiting();
-  }
+  if (event.data === 'skipWaiting') self.skipWaiting();
 });

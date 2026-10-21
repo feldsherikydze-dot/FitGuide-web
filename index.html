@@ -2,16 +2,23 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0ea5e9" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>FitGuide — Карманный тренер</title>
     <meta name="description" content="FitGuide — твой карманный тренер для силовых тренировок. Программы, прогресс, таймер, музыка." />
+
+    <!-- PWA: относительные пути — приложение может лежать в подпапке (GitHub Pages /repo/) -->
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />
+    <link rel="apple-touch-icon" href="./icon-192.png" />
+
+    <!-- Режим приложения на iOS: без адресной строки -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="FitGuide" />
-    <link rel="apple-touch-icon" href="/icon-192.png" />
-    <link rel="manifest" href="/manifest.json" />
-    <title>FitGuide — Карманный тренер</title>
+    <meta name="application-name" content="FitGuide" />
+
+    <meta name="theme-color" content="#0ea5e9" />
   </head>
   <body>
     <div id="root"></div>
