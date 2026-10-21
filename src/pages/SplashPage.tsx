@@ -81,11 +81,14 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
 
   // Имитация загрузки, затем показываем приветствие
   useEffect(() => {
+    let p = 0;
     const t = setInterval(() => {
-      setProgress(p => {
-        if (p >= 100) { clearInterval(t); setLoaded(true); return 100; }
-        return p + 4;
-      });
+      p += 4;
+      setProgress(p);
+      if (p >= 100) {
+        clearInterval(t);
+        setLoaded(true);
+      }
     }, 60);
     return () => clearInterval(t);
   }, []);

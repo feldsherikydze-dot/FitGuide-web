@@ -291,6 +291,28 @@ const kb = await evaluate(`(() => {
 console.log('\n=== ПРИЛОЖЕНИЕ (раздел «Знания») ===');
 console.log(JSON.stringify(kb, null, 2));
 
+// --- Скриншоты для визуальной сверки с Android-версией ---
+async function shot(name, hash, waitMs = 3000) {
+  await evaluate(`(async () => { location.hash = '${hash}'; await new Promise(r => setTimeout(r, 1200)); })()`);
+  await sleep(waitMs);
+  const res = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+  if (res.result?.data) {
+    const { writeFileSync } = await import('node:fs');
+    const file = `C:\\Users\\ikydz\\AppData\\Local\\Temp\\opencode\\shot-${name}.png`;
+    writeFileSync(file, Buffer.from(res.result.data, 'base64'));
+    console.log(`SHOT: ${file}`);
+  }
+}
+
+await send('Emulation.setDeviceMetricsOverride', {
+  width: 412, height: 915, deviceScaleFactor: 2, mobile: true,
+});
+
+await shot('splash', '#/');
+await shot('hub', '#/');
+await shot('exercises', '#/exercises');
+await shot('knowledge', '#/knowledge');
+
 // Пробуем зарегистрировать SW вручную — смотрим точную ошибку
 const manual = await evaluate(`(async () => {
   try {
