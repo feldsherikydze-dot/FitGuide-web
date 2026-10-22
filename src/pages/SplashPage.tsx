@@ -43,7 +43,7 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
 
   const [loaded, setLoaded] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [bgIndex, setBgIndex] = useState(0);
+  const [bgIndex, setBgIndex] = useState(1);
   const [quote, setQuote] = useState(WISHES[0]);
   const [now, setNow] = useState(new Date());
   const [runnerFrame, setRunnerFrame] = useState(1);
