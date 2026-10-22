@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Moon, Sun, Monitor, Bell, BellOff, Database, Download, Upload, RefreshCw, Shield, Info, Palette, Smartphone, Tablet, Laptop, Zap, Trash2, AlertCircle, CheckCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useUIStore, useProfileStore, useCoachStore, useProgramsStore } from '../core/store';
+import { PaletteSettings } from '../components/PaletteSettings';
 import { KEYS, clearAll, getJSON, setJSON } from '../core/storage';
 
 export function SettingsPage() {
@@ -84,6 +85,9 @@ export function SettingsPage() {
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Настройки</h1>
         <p className="text-slate-500 dark:text-slate-400">Параметры приложения, данные и внешний вид</p>
       </div>
+
+      {/* Палитры (порт ThemeManager) */}
+      <PaletteSettings />
 
       {/* Appearance */}
       <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border p-6">

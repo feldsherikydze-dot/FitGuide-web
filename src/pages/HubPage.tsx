@@ -107,7 +107,7 @@ export function HubPage() {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="text-[36px] font-bold leading-none"
-              style={{ color: 'var(--p-labels-text)', textShadow: '1px 1px 2px rgba(0,0,0,0.2)' }}>
+              style={{ color: 'var(--p-labels)', textShadow: '1px 1px 2px rgba(0,0,0,0.2)' }}>
               {timeStr}
             </div>
             <div className="mt-0.5 text-[13px] capitalize" style={{ color: 'var(--color-text-secondary)' }}>
@@ -119,7 +119,7 @@ export function HubPage() {
               <span className="text-[26px]">·</span>
             ) : weather.temp !== null ? (
               <>
-                <span className="text-[26px] font-bold" style={{ color: 'var(--p-labels-text)' }}>
+                <span className="text-[26px] font-bold" style={{ color: 'var(--p-labels)' }}>
                   {weather.temp > 0 ? '+' : ''}{Math.round(weather.temp)}°C
                 </span>
                 <span className="text-[26px]">{weather.emoji}</span>

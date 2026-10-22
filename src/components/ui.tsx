@@ -53,6 +53,29 @@ export function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+// ---------------------------------------------------------------- иконка-маска
+
+/**
+ * Иконка через CSS mask: цвет задаётся снаружи, поэтому иконка перекрашивается
+ * вместе с палитрой (в Android вектор заливается цветом темы).
+ */
+export function MaskIcon({ src, color, size = 24, className }: {
+  src: string; color: string; size?: number; className?: string;
+}) {
+  return (
+    <span
+      className={clsx('block flex-shrink-0', className)}
+      style={{
+        width: size, height: size,
+        WebkitMaskImage: `url(${src})`, maskImage: `url(${src})`,
+        WebkitMaskSize: 'contain', maskSize: 'contain',
+        WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
+        backgroundColor: color,
+      }}
+    />
+  );
+}
+
 // ---------------------------------------------------------------- верхняя панель
 
 export function TopBar({ title, subtitle, right }: {
@@ -77,7 +100,15 @@ export function TopBarButton({ onClick, icon, label }: { onClick: () => void; ic
       aria-label={label}
       className="p-2.5 rounded-full active:bg-white/15"
     >
-      <img src={icon} alt="" className="w-[26px] h-[26px] brightness-0 invert" />
+      <span
+        className="block w-[26px] h-[26px]"
+        style={{
+          WebkitMaskImage: `url(${icon})`, maskImage: `url(${icon})`,
+          WebkitMaskSize: 'contain', maskSize: 'contain',
+          WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
+          backgroundColor: '#fff',
+        }}
+      />
     </button>
   );
 }
@@ -97,7 +128,15 @@ export function ToolTile({ tool }: { tool: ToolDef }) {
     <Link to={tool.to} className="block">
       <div className="fg-tile flex flex-col items-center text-center px-4 py-[18px] h-full">
         <div className="fg-circle">
-          <img src={tool.icon} alt="" style={{ filter: 'none' }} />
+          <span
+            className="block w-[26px] h-[26px]"
+            style={{
+              WebkitMaskImage: `url(${tool.icon})`, maskImage: `url(${tool.icon})`,
+              WebkitMaskSize: 'contain', maskSize: 'contain',
+              WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
+              backgroundColor: 'var(--p-labels-text)',
+            }}
+          />
         </div>
         <div className="mt-3 text-[15px] font-bold leading-tight" style={{ color: 'var(--p-labels-text)' }}>
           {tool.title}
@@ -128,7 +167,7 @@ export function MiniPlayer({ state }: { state: MiniPlayerState }) {
       <div className="fg-miniplayer flex items-center gap-2 py-1.5 pl-4 pr-2">
         <div className="w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0"
           style={{ background: 'var(--color-surface-variant)' }}>
-          <img src={asset('icons/ic_music.svg')} alt="" className="w-6 h-6 opacity-60" />
+          <MaskIcon src={asset('icons/ic_music.svg')} color="var(--p-labels-text)" size={24} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-[15px] font-bold truncate" style={{ color: 'var(--color-text-main)' }}>
@@ -139,17 +178,16 @@ export function MiniPlayer({ state }: { state: MiniPlayerState }) {
           </div>
         </div>
         <button onClick={state.onPrev} aria-label="Предыдущий" className="p-2.5">
-          <img src={asset('icons/ic_skip_prev.svg')} alt="" className="w-6 h-6" style={{ filter: 'invert(1)' }} />
+          <MaskIcon src={asset('icons/ic_skip_prev.svg')} color="var(--p-labels-text)" />
         </button>
         <button onClick={state.onToggle} aria-label="Играть/пауза" className="p-3">
-          <img src={state.playing ? asset('icons/ic_pause.svg') : asset('icons/ic_play.svg')} alt="" className="w-6 h-6"
-            style={{ filter: 'invert(1)' }} />
+          <MaskIcon src={asset(state.playing ? 'icons/ic_pause.svg' : 'icons/ic_play.svg')} color="var(--p-labels-text)" />
         </button>
         <button onClick={state.onNext} aria-label="Следующий" className="p-2.5">
-          <img src={asset('icons/ic_skip_next.svg')} alt="" className="w-6 h-6" style={{ filter: 'invert(1)' }} />
+          <MaskIcon src={asset('icons/ic_skip_next.svg')} color="var(--p-labels-text)" />
         </button>
         <button onClick={state.onClose} aria-label="Закрыть" className="p-2.5">
-          <img src={asset('icons/ic_close.svg')} alt="" className="w-6 h-6" style={{ filter: 'invert(1)' }} />
+          <MaskIcon src={asset('icons/ic_close.svg')} color="var(--p-labels-text)" />
         </button>
       </div>
     </div>

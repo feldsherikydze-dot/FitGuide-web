@@ -36,7 +36,10 @@ for (const file of list) {
   while ((m = pathRe.exec(xml)) !== null) {
     const attrs = m[1];
     const d = (attrs.match(/android:pathData="([^"]*)"/) || [])[1];
-    const fill = (attrs.match(/android:fillColor="([^"]*)"/) || [])[1] || '#000000';
+    let fill = (attrs.match(/android:fillColor="([^"]*)"/) || [])[1] || '#000000';
+    // Ссылки на атрибуты темы (?attr/appIconPrimary) невалидны в SVG.
+    // Красим в чёрный — цвет задаём через CSS mask, тогда иконка перекрашивается.
+    if (fill.startsWith('?attr/') || fill.startsWith('@color/')) fill = '#000000';
     const stroke = (attrs.match(/android:strokeColor="([^"]*)"/) || [])[1];
     const sw = (attrs.match(/android:strokeWidth="([^"]*)"/) || [])[1];
     if (!d) continue;
