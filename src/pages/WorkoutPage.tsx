@@ -65,9 +65,25 @@ export function WorkoutPage() {
     setSession(prev => {
       if (!prev) return prev;
       const items = [...prev.items];
+      const prevItem = items[slotIndex];
+      const newSets = updates.sets ?? prevItem.sets;
       items[slotIndex] = { ...items[slotIndex], ...updates };
-      const next = { ...prev, items };
-      coach.updateSession(prev.id, { items });
+      const next: Session = { ...prev, items };
+      // Пер-сет оценка: если подходов стало больше, записываем факт с текущей оценкой.
+      const setFacts = (prev.setFacts || []) as Array<{ exercise: string; feel: 1 | 2 | 3; reps?: number; weightKg?: number; atMs?: number }>;
+      if (newSets > (prevItem.sets || 0)) {
+        const newFact = {
+          exercise: prevItem.exercise,
+          feel: (prevItem.feel || 3) as 1 | 2 | 3,
+          reps: prevItem.reps || 0,
+          weightKg: prevItem.weightKg || 0,
+          atMs: Date.now(),
+        };
+        next.setFacts = [...setFacts, newFact];
+      } else {
+        next.setFacts = setFacts;
+      }
+      coach.updateSession(prev.id, { ...updates, items, setFacts: next.setFacts });
       return next;
     });
   }, [coach]);

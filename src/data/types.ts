@@ -105,7 +105,8 @@ export interface SessionItem {
   reps: number;
   sets: number;          // реально выполнено подходов
   targetSets: number;    // план по программе (0 = не задано)
-  feel?: 1 | 2 | 3;      // 1=тяжело, 2=в самый раз, 3=легко
+  feel?: 1 | 2 | 3;      // 1=тяжело, 2=в самый раз, 3=легко (упражнение)
+  setFeels?: (1 | 2 | 3)[]; // оценки каждого подхода (пер-сет)
 }
 
 export interface Session {
@@ -118,6 +119,8 @@ export interface Session {
   /** Веса скорректированы (разгрузка / низкая готовность) — показатель силы не считается. */
   adjusted?: boolean;
   items: SessionItem[];
+  /** Факты по каждому выполненному подходу (пер-сет оценка). */
+  setFacts?: Array<{ exercise: string; feel: 1 | 2 | 3; reps?: number; weightKg?: number; atMs?: number }>;
 }
 
 /** Утренняя отметка самочувствия: сон / забитость / энергия, каждая 1..3. */

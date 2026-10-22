@@ -283,6 +283,13 @@ export function lastFeel(sessions: Session[], exercise: string | null): number {
     for (const it of s.items) {
       if (it.exercise === exercise) {
         has = true;
+        // Свежий подход важнее общей оценки упражнения.
+        if (it.setFeels && it.setFeels.length > 0) {
+          for (let k = it.setFeels.length - 1; k >= 0; k--) {
+            const v = it.setFeels[k];
+            if (v && v > 0) return v;
+          }
+        }
         if (it.feel && it.feel > 0) return it.feel;
       }
     }
