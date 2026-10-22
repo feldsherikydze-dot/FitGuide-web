@@ -37,9 +37,11 @@ for (const file of list) {
     const attrs = m[1];
     const d = (attrs.match(/android:pathData="([^"]*)"/) || [])[1];
     let fill = (attrs.match(/android:fillColor="([^"]*)"/) || [])[1] || '#000000';
-    // Ссылки на атрибуты темы (?attr/appIconPrimary) невалидны в SVG.
-    // Красим в чёрный — цвет задаём через CSS mask, тогда иконка перекрашивается.
-    if (fill.startsWith('?attr/') || fill.startsWith('@color/')) fill = '#000000';
+    // Android красит иконку сплошным цветом (app:tint) — все непрозрачные пиксели
+    // становятся одним цветом. В вебе иконка идёт через CSS mask, где форма
+    // берётся из альфы, а цвет — из background. Поэтому все пути красим в белый:
+    // так маска одинакова для любой иконки (в т.ч. с тёмной заливкой в исходнике).
+    fill = '#FFFFFF';
     const stroke = (attrs.match(/android:strokeColor="([^"]*)"/) || [])[1];
     const sw = (attrs.match(/android:strokeWidth="([^"]*)"/) || [])[1];
     if (!d) continue;
