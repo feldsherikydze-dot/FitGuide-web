@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { SplashPage } from './pages/SplashPage';
