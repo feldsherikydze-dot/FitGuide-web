@@ -69,6 +69,7 @@ export const KEYS = {
   PALETTE: 'palette',
   SPLASH_BG: 'splash_bg',
   SPLASH_QUOTE: 'splash_quote',
+  SPLASH_ENABLED: 'splash_enabled',
   TOOL_ORDER: 'tool_order',
   CACHE_EXERCISES: 'cache_exercises',
   CACHE_PICKER: 'cache_picker',

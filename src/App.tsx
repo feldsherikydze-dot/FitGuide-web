@@ -19,6 +19,7 @@ import { MusicPage } from './pages/MusicPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { SettingsPage } from './pages/SettingsPage';
 import { useProfileStore } from './core/store';
+import { getJSON, KEYS } from './core/storage';
 
 function AppRoutes() {
   return (
@@ -56,11 +57,26 @@ function Shell() {
   const navigate = useNavigate();
   const { profile } = useProfileStore();
   const [splashDone, setSplashDone] = useState(false);
+  // Настройка «стартовый экран» — как в Android (splash_enabled).
+  // Выключается в Настройках.
+  const [splashEnabled, setSplashEnabled] = useState(
+    () => getJSON<boolean>(KEYS.SPLASH_ENABLED, true)
+  );
+
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === KEYS.SPLASH_ENABLED) {
+        setSplashEnabled(e.newValue !== 'false');
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   return (
     <>
       <AppRoutes />
-      {!splashDone && (
+      {splashEnabled && !splashDone && (
         <SplashPage
           onStart={() => {
             setSplashDone(true);

@@ -308,10 +308,25 @@ await send('Emulation.setDeviceMetricsOverride', {
   width: 412, height: 915, deviceScaleFactor: 2, mobile: true,
 });
 
+// Засеваем профиль (как у залогиненного пользователя) и проходим заставку
+await evaluate(`(() => {
+  localStorage.setItem('fitguide_web_user_profile', JSON.stringify({
+    name: 'Алексей', gender: 'male', age: 35, heightCm: 180, weightKg: 82,
+    activityLevel: 'moderate', goal: 'mass', trainStyle: 'any',
+    bodyFatPercent: 14, workoutsPerWeek: 4, bio: '', country: 'Россия',
+    city: 'Красноярск', level: 'intermediate', equipment: [], place: 'gym'
+  }));
+  localStorage.setItem('fitguide_web_splash_enabled', 'false');
+  return true;
+})()`);
+await send('Page.reload', { ignoreCache: false });
+await sleep(5000);
+
 await shot('splash', '#/');
 await shot('hub', '#/');
 await shot('exercises', '#/exercises');
 await shot('knowledge', '#/knowledge');
+await shot('coach', '#/coach');
 
 // Пробуем зарегистрировать SW вручную — смотрим точную ошибку
 const manual = await evaluate(`(async () => {
