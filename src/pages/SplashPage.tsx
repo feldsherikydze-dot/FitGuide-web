@@ -139,24 +139,6 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
           </div>
         </div>
 
-        {/* Кнопка СТАРТ — внизу блока, плотно к контенту */}
-        {loaded && (
-          <button
-            onClick={() => {
-              if (onStart) { onStart(); return; }
-              navigate(profile ? '/' : '/onboarding', { replace: true });
-            }}
-            className="absolute bottom-4 left-1/2 w-[200px] h-[48px] rounded-[24px] text-[17px] font-bold transition-all duration-300"
-            style={{
-              background: btnColor,
-              color: contrastOn(btnColor),
-              transform: 'translateX(-50%) scale(1)',
-            }}
-          >
-            Старт
-          </button>
-        )}
-
         {/* Прогресс — над кнопкой */}
         {!loaded && (
           <div className="absolute bottom-[70px] left-4 right-4 flex flex-col items-end gap-1">
@@ -175,6 +157,24 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
           </div>
         )}
       </div>
+
+      {/* Кнопка СТАРТ — вынесена за блок с пропорциями телефона, чтобы ничего не перекрывало клик на десктопе */}
+      {loaded && (
+        <button
+          onClick={() => {
+            if (onStart) { onStart(); return; }
+            navigate(profile ? '/' : '/onboarding', { replace: true });
+          }}
+          className="absolute bottom-6 left-1/2 w-[200px] h-[48px] rounded-[24px] text-[17px] font-bold transition-all duration-300 z-20 pointer-events-auto"
+          style={{
+            background: btnColor,
+            color: contrastOn(btnColor),
+            transform: 'translateX(-50%) scale(1)',
+          }}
+        >
+          Старт
+        </button>
+      )}
     </div>
   );
 }
