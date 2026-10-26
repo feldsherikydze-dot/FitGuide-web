@@ -1,15 +1,68 @@
-// FitGuide Web — тренировка (порт WorkoutActivity.java)
+// FitGuide Web — тренировка (порт WorkoutActivity.java, 1:1 по разметке activity_workout.xml)
 //
-// Ведём подходы, вес/повторы, отдых и оценку «как зашло» по каждому упражнению.
-// Оценка двигает веса программы: легко — плюс, тяжело — минус.
+// Поток как в APK 1.16:
+//   подходы/повторы/вес → «Подход выполнен» → «Как прошёл подход?»
+//   → оценка → факт подхода → сразу таймер отдыха (без промежуточного экрана).
+// Оценка хранится по каждому подходу (setFeels + setFacts) и уходит тренеру.
 
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { ChevronLeft, ChevronRight, Check, X, Clock, Dumbbell, RotateCcw, AlertTriangle, Zap } from 'lucide-react';
-import { useCoachStore, useProgramsStore, useOneRmStore } from '../core/store';
-import { createSession, applyFeelProgression, loadAdjust, setDelta, readinessScore, dayKey, plural } from '../core/coach';
+import { ChevronLeft } from 'lucide-react';
+import { useCoachStore, useProgramsStore, useOneRmStore, useProfileStore } from '../core/store';
+import { createSession, applyFeelProgression, setDelta, readinessScore, dayKey } from '../core/coach';
+import { useExercises } from '../hooks/useExercises';
 import type { Session, SessionItem, Slot } from '../data/types';
+
+const FEELS = [
+  { v: 1 as const, label: 'Тяжело' },
+  { v: 2 as const, label: 'В самый раз' },
+  { v: 3 as const, label: 'Легко' },
+];
+
+function fmt(sec: number): string {
+  const s = Math.max(0, Math.floor(sec));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const r = s % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+  return `${m}:${String(r).padStart(2, '0')}`;
+}
+
+/** «90 сек», «2 мин», «1:30» → секунды. */
+function parseRest(v: string | undefined, fallback = 90): number {
+  if (!v) return fallback;
+  const s = String(v).trim().toLowerCase();
+  const clock = s.match(/^(\d+):(\d+)$/);
+  if (clock) return parseInt(clock[1], 10) * 60 + parseInt(clock[2], 10);
+  const min = s.match(/(\d+(?:[.,]\d+)?)\s*мин/);
+  if (min) return Math.round(parseFloat(min[1].replace(',', '.')) * 60);
+  const sec = s.match(/(\d+)\s*сек/);
+  if (sec) return parseInt(sec[1], 10);
+  const num = s.match(/\d+/);
+  return num ? parseInt(num[0], 10) : fallback;
+}
+
+function beep() {
+  try {
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new Ctx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.45);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.45);
+  } catch { /* звук не критичен */ }
+}
+
+function roundHalf(n: number): number {
+  return Math.round(n * 2) / 2;
+}
 
 export function WorkoutPage() {
   const [searchParams] = useSearchParams();
@@ -17,6 +70,8 @@ export function WorkoutPage() {
   const coach = useCoachStore();
   const { programs, getById, save: savePrograms } = useProgramsStore();
   const oneRm = useOneRmStore();
+  const { profile } = useProfileStore();
+  const { exercises } = useExercises();
 
   const programId = searchParams.get('program') || '';
   const week = parseInt(searchParams.get('week') || '1', 10);
@@ -27,345 +82,535 @@ export function WorkoutPage() {
   const day = phase?.days.find(d => d.title === dayTitle);
 
   const [session, setSession] = useState<Session | null>(null);
-  const [activeSlot, setActiveSlot] = useState<number | null>(null);
+  const [idx, setIdx] = useState(0);
+  const [, setTick] = useState(0);
   const [restEnd, setRestEnd] = useState<number | null>(null);
-  const [showFinish, setShowFinish] = useState(false);
+  const [restTotal, setRestTotal] = useState(0);
+  const [restPaused, setRestPaused] = useState(false);
+  const [restKind, setRestKind] = useState<'set' | 'ex'>('set');
+  const [awaitingFeel, setAwaitingFeel] = useState(false);
+  const [finishOpen, setFinishOpen] = useState(false);
   const [sessionFeel, setSessionFeel] = useState<1 | 2 | 3 | null>(null);
+  const [hintOpen, setHintOpen] = useState(false);
+  const [swapOpen, setSwapOpen] = useState(false);
+  const [weightsOpen, setWeightsOpen] = useState(false);
+  const [toast, setToast] = useState('');
+
+  const exStartRef = useRef(Date.now());
+  const setStartRef = useRef(Date.now());
+  // Накопленное активное время: как activeSec в WorkoutSession.java.
+  const workSecRef = useRef(0);
+  const exSecRef = useRef(0);
+  const lastSetSecRef = useRef(0);
 
   const checkin = coach.checkins.find(c => c.day === dayKey(Date.now()));
   const score = readinessScore(checkin);
   const delta = setDelta(program || null, week, score);
 
-  // Создание/загрузка сессии
+  // ------------------------------------------------------------ сессия
   useEffect(() => {
-    if (!program || !day) { navigate('/'); return; }
-    let existing = coach.sessions.find(s =>
-      s.programId === programId && s.week === week && s.dayTitle === dayTitle);
-    if (!existing) {
-      existing = createSession(programId, week, dayTitle, program, day.slots);
-      coach.addSession(existing);
+    if (!program || !day) return;
+    const valid = coach.sessions.find(s =>
+      s.programId === programId && s.week === week && s.dayTitle === dayTitle
+      && s.items.length === day.slots.length);
+    if (valid) {
+      setSession(valid);
+      return;
     }
-    setSession(existing);
-  }, [programId, week, dayTitle, program, day]);
+    const created = createSession(programId, week, dayTitle, program, day.slots);
+    coach.addSession(created);
+    setSession(created);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [programId, week, dayTitle, program?.id, day?.title]);
 
-  // Таймер отдыха
+  // ------------------------------------------------------------ тикеры
   useEffect(() => {
-    if (restEnd === null) return;
-    const t = setInterval(() => {
-      if (Date.now() >= restEnd) {
-        setRestEnd(null);
-        beep();
-        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-      }
-    }, 500);
+    const t = setInterval(() => setTick(x => x + 1), 1000);
     return () => clearInterval(t);
-  }, [restEnd]);
+  }, []);
 
-  const updateItem = useCallback((slotIndex: number, updates: Partial<SessionItem>) => {
+  const restLeft = restEnd === null ? 0 : Math.max(0, Math.ceil((restEnd - Date.now()) / 1000));
+
+  // Отдых закончился — переходим к следующему упражнению, если текущее закрыто.
+  useEffect(() => {
+    if (restEnd === null || restPaused) return;
+    if (Date.now() < restEnd) return;
+    setRestEnd(null);
+    beep();
+    if (navigator.vibrate) navigator.vibrate([180, 90, 180]);
+    if (!session || !day) return;
+    const it = session.items[idx];
+    const target = it?.targetSets || day.slots[idx]?.sets || 3;
+    if (it && it.sets >= target && idx + 1 < session.items.length) {
+      setIdx(idx + 1);
+      setHintOpen(false);
+      exStartRef.current = Date.now();
+      setStartRef.current = Date.now();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restEnd, restPaused, restLeft]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(''), 2500);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  // ------------------------------------------------------------ данные
+  const curItem = session?.items[idx];
+  const curSlot: Slot | undefined = day?.slots[idx];
+  const targetSets = curItem?.targetSets || curSlot?.sets || 3;
+  const doneSets = curItem?.sets || 0;
+  const exerciseDone = doneSets >= targetSets;
+
+  const totalSets = useMemo(
+    () => session ? session.items.reduce((n, it) => n + Math.max(it.targetSets, 1), 0) : 0,
+    [session],
+  );
+  const completedSets = useMemo(
+    () => session ? session.items.reduce((n, it) => n + it.sets, 0) : 0,
+    [session],
+  );
+
+  const exercise = exercises.find(e => e.name === curItem?.exercise);
+
+  const elapsed = session ? Math.max(0, Math.floor((Date.now() - session.ts) / 1000)) : 0;
+
+  // MET-оценка как в WorkoutSession.kcalPerSec(). Считаем только активное время,
+  // как activeSec: отдых и простой в калории не идут.
+  const kcalPerSec = 5.0 * 3.5 * Math.max(30, profile?.weightKg || 75) / 200 / 60;
+  const liveSec = restEnd === null ? Math.max(0, (Date.now() - setStartRef.current) / 1000) : 0;
+  const kcalWorkout = Math.round((workSecRef.current + liveSec) * kcalPerSec);
+  const kcalExercise = Math.round((exSecRef.current + liveSec) * kcalPerSec);
+  const kcalSet = Math.round(lastSetSecRef.current * kcalPerSec);
+
+  const progressText = restEnd !== null
+    ? (restKind === 'ex' ? 'Отдых между упражнениями' : 'Отдых между подходами')
+    : exerciseDone
+      ? `Следующее: ${session?.items[idx + 1]?.exercise || 'тренировка завершена'}`
+      : `Подход ${doneSets} из ${targetSets}`;
+
+  const warmup = (() => {
+    const w = curItem?.weightKg || 0;
+    if (w <= 0) return 'Разминка: пустой гриф (или лёгкий вес) × 12–15';
+    return `Разминка: ${roundHalf(w * 0.4)} кг × 10 · ${roundHalf(w * 0.6)} кг × 6 · ${roundHalf(w * 0.8)} кг × 3`;
+  })();
+
+  // ------------------------------------------------------------ действия
+  const patchItem = useCallback((patch: Partial<SessionItem>) => {
     setSession(prev => {
       if (!prev) return prev;
       const items = [...prev.items];
-      const prevItem = items[slotIndex];
-      const newSets = updates.sets ?? prevItem.sets;
-      items[slotIndex] = { ...items[slotIndex], ...updates };
-      const next: Session = { ...prev, items };
-      // Пер-сет оценка: если подходов стало больше, записываем факт с текущей оценкой.
-      const setFacts = (prev.setFacts || []) as Array<{ exercise: string; feel: 1 | 2 | 3; reps?: number; weightKg?: number; atMs?: number }>;
-      if (newSets > (prevItem.sets || 0)) {
-        const newFact = {
-          exercise: prevItem.exercise,
-          feel: (prevItem.feel || 3) as 1 | 2 | 3,
-          reps: prevItem.reps || 0,
-          weightKg: prevItem.weightKg || 0,
-          atMs: Date.now(),
-        };
-        next.setFacts = [...setFacts, newFact];
-      } else {
-        next.setFacts = setFacts;
-      }
-      coach.updateSession(prev.id, { ...updates, items, setFacts: next.setFacts });
+      items[idx] = { ...items[idx], ...patch };
+      const next = { ...prev, items };
+      coach.updateSession(prev.id, { items });
       return next;
     });
-  }, [coach]);
+  }, [coach, idx]);
 
-  const setFeel = (slotIndex: number, feel: 1 | 2 | 3) => {
-    if (!session || !program) return;
-    updateItem(slotIndex, { feel });
-    setSessionFeel(feel);
+  const startRest = (seconds: number, kind: 'set' | 'ex') => {
+    setRestKind(kind);
+    setRestTotal(seconds);
+    setRestPaused(false);
+    setRestEnd(Date.now() + seconds * 1000);
+    setStartRef.current = Date.now();
+  };
 
-    // Двигаем вес в программе по оценке
-    const item = session.items[slotIndex];
-    const slot = day?.slots[slotIndex];
-    if (!slot) return;
+  /** Оценка выбрана: пишем факт подхода и сразу уходим в отдых. */
+  const onFeel = (feel: 1 | 2 | 3) => {
+    if (!session || !curItem || !curSlot || !awaitingFeel) return;
+    const nextSets = Math.min(targetSets, doneSets + 1);
+    const feels = [...(curItem.setFeels || []), feel];
+    const items = [...session.items];
+    items[idx] = { ...curItem, sets: nextSets, feel, setFeels: feels };
+    const activeSec = Math.max(1, Math.round((Date.now() - setStartRef.current) / 1000));
+    const plannedSec = Math.max(0, curSlot.workSec || 40);
+    const facts = [...(session.setFacts || []), {
+      exercise: curItem.exercise,
+      feel,
+      reps: curItem.reps,
+      weightKg: curItem.weightKg,
+      atMs: Date.now(),
+      actualSec: plannedSec > 0 && activeSec > plannedSec + 600 ? plannedSec : activeSec,
+      plannedSec,
+    }];
+    const next: Session = { ...session, items, setFacts: facts };
+    setSession(next);
+    coach.updateSession(next.id, { items, setFacts: facts });
+
+    // Активное время подхода — в калории (как kcalLastSet / activeSec).
+    lastSetSecRef.current = activeSec;
+    workSecRef.current += activeSec;
+    exSecRef.current += activeSec;
+
+    // Автопрогрессия веса программы — как progressByFeel в Android.
     const updated = applyFeelProgression(
-      program, week, dayTitle, slot.exercise, item.weightKg, item.reps, feel);
-    if (updated) {
-      savePrograms(programs.map(p => (p.id === program.id ? updated : p)));
+      program!, week, dayTitle, curItem.exercise, curItem.weightKg, curItem.reps, feel);
+    if (updated) savePrograms(programs.map(p => (p.id === updated.id ? updated : p)));
+
+    setAwaitingFeel(false);
+    setStartRef.current = Date.now();
+    const isLast = nextSets >= targetSets;
+    const restValue = isLast ? (curSlot.restEx || curSlot.rest) : curSlot.rest;
+    startRest(parseRest(restValue, 90), isLast ? 'ex' : 'set');
+    setToast(`Подход ${nextSets}/${targetSets} записан`);
+  };
+
+  const skipRest = () => {
+    setRestEnd(null);
+    if (!session) return;
+    if (exerciseDone && idx + 1 < session.items.length) {
+      setIdx(idx + 1);
+      setHintOpen(false);
+      exStartRef.current = Date.now();
+      setStartRef.current = Date.now();
     }
   };
 
-  const startRest = (slot: Slot) => {
-    const minutes = parseInt(slot.rest) || 90;
-    setRestEnd(Date.now() + minutes * 60000);
+  const changeRest = () => {
+    const v = window.prompt('Сколько секунд отдыхать?', String(restTotal || 90));
+    if (!v) return;
+    const seconds = Math.max(5, parseInt(v, 10) || 90);
+    setRestTotal(seconds);
+    setRestEnd(Date.now() + seconds * 1000);
+    setRestPaused(false);
+  };
+
+  const goExercise = (dir: -1 | 1) => {
+    if (!session) return;
+    const next = Math.min(session.items.length - 1, Math.max(0, idx + dir));
+    setIdx(next);
+    setAwaitingFeel(false);
+    setHintOpen(false);
+    setRestEnd(null);
+    exStartRef.current = Date.now();
+    exSecRef.current = 0;
+    setStartRef.current = Date.now();
   };
 
   const finish = () => {
     if (!session) return;
-    coach.updateSession(session.id, { feel: sessionFeel || undefined });
-    setShowFinish(false);
+    const durationSec = Math.max(0, Math.round((Date.now() - session.ts) / 1000));
+    coach.updateSession(session.id, {
+      feel: sessionFeel || undefined,
+      setFacts: session.setFacts,
+      durationSec,
+    });
     navigate('/coach');
   };
 
-  if (!program || !day || !session) {
+  const swapTo = (name: string) => {
+    if (!session || !curItem) return;
+    const items = [...session.items];
+    items[idx] = { ...curItem, exercise: name, sets: 0, feel: undefined, setFeels: [] };
+    const next = { ...session, items };
+    setSession(next);
+    coach.updateSession(next.id, { items });
+    setSwapOpen(false);
+    setToast('Упражнение заменено');
+  };
+
+  // ------------------------------------------------------------ рендер
+  if (!program || !day || !session || !curItem || !curSlot) {
     return (
-      <div className="max-w-2xl mx-auto text-center py-12">
-        <Dumbbell className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">Тренировка не найдена</h2>
-        <button onClick={() => navigate('/coach')} className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center gap-4">
+        <h2 className="text-xl font-bold" style={{ color: 'var(--color-text-main)' }}>Тренировка не найдена</h2>
+        <button onClick={() => navigate('/coach')} className="fg-btn fg-btn-primary px-6 py-3">
           К тренеру
         </button>
       </div>
     );
   }
 
-  const totalSets = day.slots.reduce((sum, s) => sum + (s.sets || 3), 0);
-  const doneSets = session.items.reduce((sum, i) => sum + Math.min(i.sets, i.targetSets || i.sets), 0);
-  const isDone = session.items.every((i, idx) => {
-    const target = day.slots[idx]?.sets || 3;
-    return i.sets >= target;
-  });
+  const alt = exercises
+    .filter(e => e.muscleGroup === curSlot.group && e.name !== curItem.exercise)
+    .slice(0, 8);
+
+  const oneRmValue = oneRm.get(curItem.exercise) || (curItem.weightKg > 0 && curItem.reps > 0
+    ? roundHalf(curItem.weightKg * (1 + curItem.reps / 30)) : 0);
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4 pb-24">
-      {/* Шапка */}
-      <div className="sticky top-0 z-10 bg-white dark:bg-dark-card border-b border-slate-200 dark:border-dark-border p-4 flex items-center justify-between">
-        <button onClick={() => navigate('/coach')} className="p-2 hover:bg-slate-100 dark:hover:bg-dark-border rounded-lg">
-          <ChevronLeft className="w-5 h-5" />
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-bg)' }}>
+      {/* ---------- Шапка ---------- */}
+      <div className="flex items-center px-2">
+        <button onClick={() => navigate('/coach')} className="w-12 h-12 flex items-center justify-center rounded-full active:bg-black/5"
+          aria-label="Назад">
+          <ChevronLeft size={26} style={{ color: 'var(--p-labels)' }} />
         </button>
-        <div className="text-center">
-          <h1 className="font-bold text-slate-900 dark:text-white">{day.title}</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Неделя {week} · {doneSets} / {totalSets} подходов
-          </p>
+        <div className="flex-1 min-w-0">
+          <div className="text-[18px] font-bold leading-tight" style={{ color: 'var(--p-labels)' }}>Тренировка</div>
+          <div className="text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
+            Упражнение {idx + 1} из {session.items.length}
+          </div>
         </div>
-        <div className="w-10" />
+        <button onClick={() => setFinishOpen(true)} className="px-3 py-2.5 text-[14px] font-bold"
+          style={{ color: 'var(--p-labels-text)' }}>
+          Завершить
+        </button>
       </div>
 
-      <div className="h-1.5 bg-slate-200 dark:bg-dark-border rounded-full overflow-hidden">
-        <div className="h-full bg-primary-600 transition-all duration-300"
-          style={{ width: totalSets ? `${(doneSets / totalSets) * 100}%` : '0%' }} />
+      {/* ---------- Тело ---------- */}
+      <div className="flex-1 overflow-y-auto px-6 pb-8">
+        <div className="text-center pt-3.5 pb-1.5 text-[14px] leading-snug"
+          style={{ color: 'var(--color-text-secondary)' }}>
+          {progressText}
+        </div>
+        <div className="text-center py-0.5 text-[16px] font-bold font-mono"
+          style={{ color: 'var(--p-labels-text)' }}>
+          Тренировка: {fmt(elapsed)}
+        </div>
+        {checkin && delta !== 0 && (
+          <div className="text-center text-[12px] py-1" style={{ color: 'var(--color-warning)' }}>
+            Разгрузка или низкая готовность: вес и объём скорректированы.
+          </div>
+        )}
+
+        <h1 className="text-center pt-3 text-[22px] font-bold leading-tight"
+          style={{ color: 'var(--p-labels)' }}>
+          {curItem.exercise}
+        </h1>
+        <div className="text-center pt-1 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
+          {warmup}
+        </div>
+
+        {/* Подходы / Повторы / Вес */}
+        <div className="grid grid-cols-3 gap-2 mt-[18px]">
+          <label className="fg-wk-field">
+            <input
+              type="number" min={1} max={20}
+              value={targetSets}
+              onChange={e => patchItem({ targetSets: Math.max(1, Math.min(20, parseInt(e.target.value, 10) || 1)) })}
+              className="fg-wk-input text-center font-mono text-[18px]"
+            />
+            <span>Подходы</span>
+          </label>
+          <label className="fg-wk-field">
+            <input
+              type="number" min={0}
+              value={curItem.reps}
+              onChange={e => patchItem({ reps: Math.max(0, parseInt(e.target.value, 10) || 0) })}
+              className="fg-wk-input text-center font-mono text-[18px]"
+            />
+            <span>Повторы</span>
+          </label>
+          <label className="fg-wk-field">
+            <input
+              type="number" step="0.5" min={0}
+              value={curItem.weightKg}
+              onChange={e => patchItem({ weightKg: Math.max(0, parseFloat(e.target.value) || 0) })}
+              className="fg-wk-input text-center font-mono text-[18px]"
+            />
+            <span>Вес, кг</span>
+          </label>
+        </div>
+
+        <div className="text-center pt-[18px] text-[17px] font-bold" style={{ color: 'var(--color-text-main)' }}>
+          Подход {doneSets} из {targetSets}
+        </div>
+
+        {/* Кнопка подхода / оценка */}
+        {!awaitingFeel && !exerciseDone && restEnd === null && (
+          <button
+            onClick={() => {
+              if (restEnd !== null) return;
+              setAwaitingFeel(true);
+              setStartRef.current = Date.now();
+            }}
+            className="fg-wk-main mt-3 w-full"
+          >
+            {doneSets === 0 ? 'Начать' : 'Подход выполнен'}
+          </button>
+        )}
+
+        {!awaitingFeel && exerciseDone && restEnd === null && (
+          <button
+            onClick={() => {
+              if (idx + 1 < session.items.length) {
+                goExercise(1);
+              } else {
+                setFinishOpen(true);
+              }
+            }}
+            className="fg-wk-main mt-3 w-full"
+          >
+            {idx + 1 < session.items.length ? 'Следующее упражнение' : 'Завершить тренировку'}
+          </button>
+        )}
+
+        {awaitingFeel && (
+          <>
+            <div className="text-center pt-4 text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
+              Как прошёл подход?
+            </div>
+            <div className="flex justify-center gap-2 mt-2 flex-wrap">
+              {FEELS.map(f => (
+                <button key={f.v} onClick={() => onFeel(f.v)} className="fg-wk-chip">
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Отдых */}
+        {restEnd !== null && (
+          <div className="mt-4 flex flex-col items-center">
+            <div className="text-[14px]" style={{ color: 'var(--color-text-secondary)' }}>Отдых</div>
+            <div className="text-[56px] font-bold font-mono leading-none my-1"
+              style={{ color: 'var(--p-labels-text)' }}>
+              {fmt(restLeft)}
+            </div>
+            <button onClick={() => setRestPaused(p => !p)} className="fg-wk-accent w-full mt-1.5">
+              {restPaused ? 'Продолжить' : 'Пауза'}
+            </button>
+            <div className="flex w-full mt-1">
+              <button onClick={changeRest} className="flex-1 py-3 text-[14px]" style={{ color: 'var(--color-text-secondary)' }}>
+                Свой отдых
+              </button>
+              <button onClick={skipRest} className="flex-1 py-3 text-[14px]" style={{ color: 'var(--color-text-secondary)' }}>
+                Пропустить
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Калории */}
+        <div className="text-center mt-2 text-[13px]" style={{ color: 'var(--p-labels-text)' }}>
+          {curSlot.workSec && curSlot.workSec > 0
+            ? `Подходов: ${completedSets} · Повторов: ${session.items.reduce((n, it) => n + it.sets * it.reps, 0)} · Всего: ${kcalWorkout} ккал`
+            : `Подход: ${kcalSet} ккал · Упражнение: ${kcalExercise} ккал · Тренировка: ${kcalWorkout} ккал`}
+        </div>
+
+        {/* Переключение упражнений */}
+        <div className="flex gap-2 mt-2">
+          <button onClick={() => goExercise(-1)} disabled={idx === 0} className="fg-wk-outline flex-1 disabled:opacity-40">
+            ← Упражнение
+          </button>
+          <button onClick={() => goExercise(1)} disabled={idx + 1 >= session.items.length} className="fg-wk-outline flex-1 disabled:opacity-40">
+            Упражнение →
+          </button>
+        </div>
+
+        {/* Заменить / рабочие веса / подсказка */}
+        <button onClick={() => setSwapOpen(true)} className="fg-wk-outline w-full mt-3">
+          Заменить упражнение
+        </button>
+        <button onClick={() => setWeightsOpen(true)} className="fg-wk-outline w-full mt-2">
+          Рабочие веса от 1ПМ
+        </button>
+        <button onClick={() => setHintOpen(v => !v)} className="fg-wk-outline w-full mt-3">
+          {hintOpen ? 'Скрыть подсказку' : 'Подсказка по упражнению'}
+        </button>
+
+        {hintOpen && (
+          <div className="pt-2 text-[13px] space-y-2" style={{ color: 'var(--color-text-main)' }}>
+            <div><b>Мышцы:</b> {exercise ? `${exercise.muscleGroup} · ${exercise.target}` : curSlot.group}</div>
+            <div><b>Техника:</b> {exercise?.steps?.length ? exercise.steps.join(' · ') : 'Держи спину нейтрально, двигайся подконтрольно.'}</div>
+            <div><b>Ошибки:</b> {exercise?.mistakes?.length ? exercise.mistakes.join(' · ') : 'Рывки, неполная амплитуда, потеря нейтральной спины.'}</div>
+          </div>
+        )}
+
+        <div className="h-6" />
       </div>
 
-      {delta !== 0 && (
-        <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-700 dark:text-amber-400">
-          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-          {delta < 0 ? 'Разгрузка или низкая готовность: на один подход меньше, вес ниже.' : ''}
+      {/* ---------- Тосты ---------- */}
+      {toast && (
+        <div className="fixed left-1/2 -translate-x-1/2 bottom-24 px-4 py-2 rounded-full text-[13px] font-medium text-white z-40"
+          style={{ background: 'rgba(27,30,32,0.9)' }}>
+          {toast}
         </div>
       )}
 
-      {/* Упражнения */}
-      <div className="space-y-3">
-        {day.slots.map((slot, idx) => {
-          const item = session.items[idx];
-          const targetSets = slot.sets || 3;
-          const sets = Math.max(0, targetSets + (delta < 0 ? -1 : 0));
-          const isOpen = activeSlot === idx;
-
-          return (
-            <div key={`${slot.exercise}-${idx}`} className={clsx(
-              'bg-white dark:bg-dark-card rounded-xl border overflow-hidden transition-colors',
-              isOpen ? 'border-primary-400 dark:border-primary-600' : 'border-slate-200 dark:border-dark-border')}>
-              <button onClick={() => setActiveSlot(isOpen ? null : idx)}
-                className="w-full p-4 text-left flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={clsx('px-2 py-0.5 rounded text-xs font-medium',
-                      slot.role === 'main' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-                      slot.role === 'secondary' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
-                      'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400')}>
-                      {slot.role === 'main' ? 'Основное' : slot.role === 'secondary' ? 'Вспомогательное' : 'Изоляция'}
-                    </span>
-                  </div>
-                  <h3 className="font-medium text-slate-900 dark:text-white">{slot.exercise}</h3>
-                  <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500 dark:text-slate-400 mt-1">
-                    <span>{sets} × {slot.reps}</span>
-                    <span>⏱ {slot.rest}</span>
-                    {item?.weightKg > 0 && <span>🏋️ {item.weightKg} кг</span>}
-                  </div>
-                </div>
-                {isOpen ? <ChevronRight className="w-5 h-5 text-primary-500 flex-shrink-0" /> : <ChevronRight className="w-5 h-5 text-slate-300 flex-shrink-0" />}
-              </button>
-
-              {isOpen && (
-                <div className="border-t border-slate-200 dark:border-dark-border">
-                  <div className="p-4 space-y-3">
-                    {/* Вес и повторы */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Вес, кг</label>
-                        <input
-                          type="number" step="0.5" min="0"
-                          value={item?.weightKg || 0}
-                          onChange={e => updateItem(idx, { weightKg: parseFloat(e.target.value) || 0 })}
-                          className="w-full px-3 py-2.5 border border-slate-200 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-slate-900 dark:text-white text-center font-mono text-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Повторы</label>
-                        <input
-                          type="number" min="0"
-                          value={item?.reps || 0}
-                          onChange={e => updateItem(idx, { reps: parseInt(e.target.value) || 0 })}
-                          className="w-full px-3 py-2.5 border border-slate-200 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-slate-900 dark:text-white text-center font-mono text-lg"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Подходы */}
-                    <div>
-                      <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">
-                        Выполнено подходов: {item?.sets || 0} из {sets}
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        {Array.from({ length: sets }, (_, si) => (
-                          <button
-                            key={si}
-                            onClick={() => {
-                              const cur = item?.sets || 0;
-                              const next = si < cur ? si : cur + 1;
-                              updateItem(idx, { sets: next, targetSets });
-                            }}
-                            className={clsx(
-                              'w-11 h-11 rounded-lg font-mono font-bold transition-colors',
-                              (item?.sets || 0) > si
-                                ? 'bg-green-500 text-white'
-                                : 'bg-slate-100 dark:bg-dark-border text-slate-500 hover:bg-primary-100 dark:hover:bg-primary-900/30'
-                            )}>
-                            {si + 1}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Оценка */}
-                    <div>
-                      <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">Как зашло?</label>
-                      <div className="flex gap-2">
-                        {([{ v: 1, l: '😰 Тяжело' }, { v: 2, l: '😐 В самый раз' }, { v: 3, l: '😎 Легко' }] as const).map(f => (
-                          <button key={f.v} onClick={() => setFeel(idx, f.v)}
-                            className={clsx('flex-1 py-2 rounded-lg text-xs font-medium transition-colors',
-                              item?.feel === f.v
-                                ? (f.v === 1 ? 'bg-red-500 text-white' : f.v === 2 ? 'bg-green-500 text-white' : 'bg-blue-500 text-white')
-                                : 'bg-slate-100 dark:bg-dark-border text-slate-600 dark:text-slate-400')}>
-                            {f.l}
-                          </button>
-                        ))}
-                      </div>
-                      {item?.feel === 1 && (
-                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5">
-                          Вес будет снижен на 10% — пока не станет легче.
-                        </p>
-                      )}
-                      {item?.feel === 3 && (
-                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-1.5">
-                          Следующий раз можно добавить вес.
-                        </p>
-                      )}
-                    </div>
-
-                    <button onClick={() => startRest(slot)}
-                      className="w-full py-2.5 bg-slate-100 dark:bg-dark-border text-slate-600 dark:text-slate-400 rounded-lg hover:bg-slate-200 dark:hover:bg-dark-border/50 flex items-center justify-center gap-2">
-                      <Clock className="w-4 h-4" /> Отдых {slot.rest}
-                    </button>
-                  </div>
-                </div>
-              )}
+      {/* ---------- Завершение ---------- */}
+      {finishOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-6">
+          <div className="w-full max-w-md rounded-2xl p-5" style={{ background: 'var(--color-surface)' }}>
+            <h3 className="text-[18px] font-bold mb-1" style={{ color: 'var(--color-text-main)' }}>
+              Как прошла тренировка?
+            </h3>
+            <p className="text-[13px] mb-3" style={{ color: 'var(--color-text-secondary)' }}>
+              Подходов: {completedSets} из {totalSets} · {Math.round(kcalWorkout)} ккал
+            </p>
+            <div className="flex gap-2 mb-4">
+              {FEELS.map(f => (
+                <button key={f.v} onClick={() => setSessionFeel(f.v)}
+                  className={clsx('fg-wk-chip flex-1', sessionFeel === f.v && 'fg-wk-chip-on')}>
+                  {f.label}
+                </button>
+              ))}
             </div>
-          );
-        })}
-      </div>
-
-      {/* Таймер отдыха */}
-      {restEnd !== null && (
-        <div className="fixed bottom-20 left-4 right-4 z-30 max-w-2xl mx-auto px-4">
-          <div className="bg-primary-600 text-white rounded-xl p-4 flex items-center justify-between shadow-lg">
-            <div>
-              <div className="text-sm opacity-90">Отдых</div>
-              <div className="text-2xl font-mono font-bold">
-                {Math.max(0, Math.ceil((restEnd - Date.now()) / 1000))} сек
-              </div>
+            {completedSets < totalSets && (
+              <p className="text-[12px] mb-3" style={{ color: 'var(--color-warning)' }}>
+                Не все подходы выполнены. Тренер учтёт это в прогрессии.
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button onClick={() => setFinishOpen(false)} className="fg-wk-outline flex-1">Завершить позже</button>
+              <button onClick={finish} className="fg-wk-main flex-1">Завершить</button>
             </div>
-            <button onClick={() => setRestEnd(null)} className="p-2 rounded-lg hover:bg-white/20">
-              <X className="w-5 h-5" />
-            </button>
           </div>
         </div>
       )}
 
-      {/* Завершение */}
-      <div className="fixed bottom-4 left-4 right-4 max-w-2xl mx-auto px-4 z-20">
-        <button onClick={() => setShowFinish(true)}
-          className="w-full py-3 bg-green-600 text-white rounded-lg font-semibold text-lg hover:bg-green-700 flex items-center justify-center gap-2">
-          <Check className="w-5 h-5" /> Завершить тренировку
-        </button>
-      </div>
-
-      {showFinish && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white dark:bg-dark-card rounded-2xl p-6 max-w-md w-full">
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">Завершить тренировку?</h3>
-
-            {!isDone && (
-              <p className="text-sm text-amber-600 dark:text-amber-400 mb-3 flex items-start gap-1.5">
-                <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                Не все подходы выполнены. Тренер учтёт это в прогрессии.
+      {/* ---------- Замена упражнения ---------- */}
+      {swapOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center"
+          onClick={() => setSwapOpen(false)}>
+          <div className="w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 max-h-[70vh] overflow-y-auto"
+            style={{ background: 'var(--color-surface)' }} onClick={e => e.stopPropagation()}>
+            <h3 className="text-[18px] font-bold mb-2" style={{ color: 'var(--color-text-main)' }}>Заменить на…</h3>
+            {alt.length === 0 && (
+              <p className="text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
+                Альтернатив не нашлось — попробуй после разминки или выбери другое.
               </p>
             )}
+            <div className="space-y-2">
+              {alt.map(e => (
+                <button key={e.id} onClick={() => swapTo(e.name)}
+                  className="w-full text-left px-3 py-3 rounded-xl border"
+                  style={{ borderColor: 'var(--color-outline)', color: 'var(--color-text-main)' }}>
+                  <div className="font-medium">{e.name}</div>
+                  <div className="text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
+                    {e.muscleGroup} · {e.equipmentType}
+                  </div>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setSwapOpen(false)} className="fg-wk-outline w-full mt-3">Отмена</button>
+          </div>
+        </div>
+      )}
 
-            <div className="mb-4">
-              <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1.5">Тренировка в целом</label>
-              <div className="flex gap-2">
-                {([{ v: 1, l: 'Тяжело' }, { v: 2, l: 'Нормально' }, { v: 3, l: 'Легко' }] as const).map(f => (
-                  <button key={f.v} onClick={() => setSessionFeel(f.v)}
-                    className={clsx('flex-1 py-2 rounded-lg text-sm font-medium transition-colors',
-                      sessionFeel === f.v
-                        ? (f.v === 1 ? 'bg-red-500 text-white' : f.v === 2 ? 'bg-green-500 text-white' : 'bg-blue-500 text-white')
-                        : 'bg-slate-100 dark:bg-dark-border text-slate-600 dark:text-slate-400')}>
-                    {f.l}
+      {/* ---------- Рабочие веса ---------- */}
+      {weightsOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-6"
+          onClick={() => setWeightsOpen(false)}>
+          <div className="w-full max-w-md rounded-2xl p-5" style={{ background: 'var(--color-surface)' }}
+            onClick={e => e.stopPropagation()}>
+            <h3 className="text-[18px] font-bold mb-1" style={{ color: 'var(--color-text-main)' }}>
+              Рабочие веса от 1ПМ
+            </h3>
+            <p className="text-[13px] mb-3" style={{ color: 'var(--color-text-secondary)' }}>
+              {curItem.exercise}: 1ПМ ≈ {oneRmValue > 0 ? `${oneRmValue} кг` : 'не рассчитан'}
+            </p>
+            {oneRmValue > 0 ? (
+              <div className="grid grid-cols-2 gap-2">
+                {[40, 50, 60, 70, 80, 90].map(p => (
+                  <button key={p} onClick={() => { patchItem({ weightKg: roundHalf(oneRmValue * p / 100) }); setWeightsOpen(false); }}
+                    className="fg-wk-outline">
+                    {p}% — {roundHalf(oneRmValue * p / 100)} кг
                   </button>
                 ))}
               </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button onClick={() => setShowFinish(false)}
-                className="flex-1 py-2 border border-slate-200 dark:border-dark-border rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-dark-border">
-                Продолжить
-              </button>
-              <button onClick={finish}
-                className="flex-1 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700">
-                Завершить
-              </button>
-            </div>
+            ) : (
+              <p className="text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
+                Сначала сохрани 1ПМ в «Профиле» или выполни подход с весом — расчёт появится сам.
+              </p>
+            )}
+            <button onClick={() => setWeightsOpen(false)} className="fg-wk-outline w-full mt-3">Закрыть</button>
           </div>
         </div>
       )}
     </div>
   );
-}
-
-function beep() {
-  try {
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 880;
-    osc.type = 'sine';
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.5);
-  } catch { /* ignore */ }
 }

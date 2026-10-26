@@ -119,8 +119,19 @@ export interface Session {
   /** Веса скорректированы (разгрузка / низкая готовность) — показатель силы не считается. */
   adjusted?: boolean;
   items: SessionItem[];
+  /** Длительность тренировки, секунд (как JournalEntry.durationSec в Android). */
+  durationSec?: number;
   /** Факты по каждому выполненному подходу (пер-сет оценка). */
-  setFacts?: Array<{ exercise: string; feel: 1 | 2 | 3; reps?: number; weightKg?: number; atMs?: number }>;
+  setFacts?: Array<{
+    exercise: string;
+    feel: 1 | 2 | 3;
+    reps?: number;
+    weightKg?: number;
+    atMs?: number;
+    /** Время подхода и план, секунд — для вкладки «Анализ». */
+    actualSec?: number;
+    plannedSec?: number;
+  }>;
 }
 
 /** Утренняя отметка самочувствия: сон / забитость / энергия, каждая 1..3. */
@@ -312,9 +323,21 @@ export interface BodyLogEntry {
   bodyFatPct?: number;
   waistCm?: number;
   chestCm?: number;
+  /** Как BodyLog.bicepsCm в Android. */
+  bicepsCm?: number;
+  /** Как BodyLog.hipsCm в Android. */
+  hipsCm?: number;
   armCm?: number;
   thighCm?: number;
   calfCm?: number;
+}
+
+/** Ручной рекорд (порт PrStore.Pr). */
+export interface PrEntry {
+  name: string;
+  weight: number;
+  reps: number;
+  date: number;
 }
 
 // --- Сезонный план ---

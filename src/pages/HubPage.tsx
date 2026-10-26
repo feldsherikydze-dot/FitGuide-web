@@ -15,7 +15,7 @@ import { useWeather } from '../core/weather';
 
 // Порядок ярлыков — как buildTools() в MainActivity
 const TOOLS: ToolDef[] = [
-  { key: 'workout', title: 'Карманный тренер', subtitle: 'Подсказки, прогрессия и старт тренировки', icon: asset('icons/ic_tool_coach.svg'), to: '/' },
+  { key: 'workout', title: 'Карманный тренер', subtitle: 'Подсказки, прогрессия и старт тренировки', icon: asset('icons/ic_tool_coach.svg'), to: '/coach' },
   { key: 'music', title: 'Музыка', subtitle: 'Плеер: своя музыка, радио, онлайн', icon: asset('icons/ic_tool_music.svg'), to: '/music' },
   { key: 'myprogress', title: 'Мой прогресс', subtitle: 'Тренировки, рекорды и тело', icon: asset('icons/ic_tool_progress.svg'), to: '/progress' },
   { key: 'programs', title: 'Программы', subtitle: 'Лучшие программы, генератор и база', icon: asset('icons/ic_tool_program.svg'), to: '/programs' },
@@ -83,9 +83,13 @@ export function HubPage() {
   const timeStr = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
   const dateStr = now.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
 
+  // В Android поиск уходит по actionSearch (Enter), а не на каждую букву.
   const handleSearch = (v: string) => {
     setQuery(v);
-    if (v.trim()) navigate('/search?q=' + encodeURIComponent(v.trim()));
+  };
+
+  const submitSearch = () => {
+    if (query.trim()) navigate('/search?q=' + encodeURIComponent(query.trim()));
   };
 
   return (
@@ -168,11 +172,15 @@ export function HubPage() {
       </div>
 
       {/* Поиск */}
-      <SearchField
-        value={query}
-        onChange={handleSearch}
-        placeholder="Поиск упражнений, мышц…"
-      />
+      <div
+        onKeyDown={e => { if (e.key === 'Enter') submitSearch(); }}
+      >
+        <SearchField
+          value={query}
+          onChange={handleSearch}
+          placeholder="Поиск упражнений, мышц…"
+        />
+      </div>
 
       {/* Сетка ярлыков */}
       <div className="flex-1 fg-scroll px-2 pt-1 pb-4">
@@ -184,6 +192,19 @@ export function HubPage() {
           ))}
         </div>
       </div>
+
+      {/* Мини-плеер — как <include layout="@layout/mini_player"> в activity_main.xml */}
+      {player.visible && (
+        <MiniPlayer state={{
+          title: player.title,
+          subtitle: player.subtitle,
+          playing: player.playing,
+          onToggle: player.toggle,
+          onPrev: player.prev,
+          onNext: player.next,
+          onClose: player.close,
+        }} />
+      )}
     </div>
   );
 }

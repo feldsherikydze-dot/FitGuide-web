@@ -1,13 +1,16 @@
 // FitGuide Web — страница настроек
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Moon, Sun, Monitor, Bell, BellOff, Database, Download, Upload, RefreshCw, Shield, Info, Palette, Smartphone, Tablet, Laptop, Zap, Trash2, AlertCircle, CheckCircle } from 'lucide-react';
 import { clsx } from 'clsx';
+import { PageHeader } from '../components/ui';
 import { useUIStore, useProfileStore, useCoachStore, useProgramsStore } from '../core/store';
 import { PaletteSettings } from '../components/PaletteSettings';
 import { KEYS, clearAll, getJSON, setJSON } from '../core/storage';
 
 export function SettingsPage() {
+  const navigate = useNavigate();
   const { theme, setTheme, sidebarOpen, setSidebarOpen } = useUIStore();
   const { profile, clearProfile } = useProfileStore();
   const { resetCoach } = useCoachStore();
@@ -80,11 +83,7 @@ export function SettingsPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Настройки</h1>
-        <p className="text-slate-500 dark:text-slate-400">Параметры приложения, данные и внешний вид</p>
-      </div>
+      <PageHeader title="Настройки" onBack={() => navigate('/')} />
 
       {/* Палитры (порт ThemeManager) */}
       <PaletteSettings />

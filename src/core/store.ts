@@ -7,7 +7,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type {
-  Program, Session, Checkin, CoachState, UserProfile, Assessment, JournalEntry, BodyLogEntry,
+  Program, Session, Checkin, CoachState, UserProfile, Assessment, JournalEntry, BodyLogEntry, PrEntry,
 } from '../data/types';
 import { KEYS, getJSON, setJSON } from './storage';
 
@@ -260,6 +260,39 @@ export const useJournalStore = create<JournalSlice>()(
       },
     }),
     { name: KEYS.JOURNAL, storage: createJSONStorage(() => localStorage) }
+  )
+);
+
+// ------------------------------------------------------------------ Ручные рекорды (PrStore)
+
+interface PrSlice {
+  prs: PrEntry[];
+  add: (p: PrEntry) => void;
+  remove: (exercise: string) => void;
+  best: (exercise: string) => PrEntry | null;
+}
+
+export const usePrStore = create<PrSlice>()(
+  persist(
+    (set, get) => ({
+      prs: getJSON<PrEntry[]>(KEYS.PR, []),
+      add: (p) => {
+        const list = [p, ...get().prs].slice(0, 500);
+        setJSON(KEYS.PR, list);
+        set({ prs: list });
+      },
+      remove: (exercise) => {
+        const list = get().prs.filter(x => x.name.toLowerCase() !== exercise.toLowerCase());
+        setJSON(KEYS.PR, list);
+        set({ prs: list });
+      },
+      best: (exercise) => {
+        const list = get().prs.filter(x => x.name.toLowerCase() === exercise.toLowerCase());
+        if (!list.length) return null;
+        return list.reduce((a, b) => (b.weight * (1 + b.reps / 30) > a.weight * (1 + a.reps / 30) ? b : a));
+      },
+    }),
+    { name: KEYS.PR, storage: createJSONStorage(() => localStorage) }
   )
 );
 

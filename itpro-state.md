@@ -1,0 +1,33 @@
+# itpro-state — FitGuide Web (веб-паритет с Android 1.16)
+
+## Текущее состояние
+- Веб-приложение FitGuide-web доводится до 1:1 копии Android-приложения FitGuide 1.16 (appVersionCode = 16, appVersionName = "1.16").
+- APK собраны и установлены: `FitGuide-1.16.apk` и `FitGuide-wear-1.16.apk` в `C:\Users\ikydz\Desktop\Телефон+Часы\Релиз\`.
+
+## Сделано (веб, парите с APK 1.16)
+- `WorkoutPage.tsx` — экран тренировки 1:1 `activity_workout.xml`: подход → оценка → факт → отдых, `setFeels`/`setFacts` пер-сет, таймер защищён `snapTsMs <= 0`, калории только по активному времени.
+- `HubPage` — зелёный топ-бар, часы, неделя, поиск, 2 колонки плиток, мини-плеер.
+- `CoachPage` — «Карманный тренер» + стартовый экран 1:1.
+- Хаб «Программы» (`ProgramHubPage.tsx`) — разделы: тренер, мои программы, легенды, генератор, своя сборка, база упражнений.
+- «Тренировки» (`MyProgramsPage.tsx`) — шапка, плюс, карточки с метаданными и крестиком, пустое состояние, диалог «Что добавить?».
+- Генератор (`ProgramGeneratorPage.tsx`) — имя, мультицель, тип, уровень, дни, недели, направление, периодизация, оборудование, «Как это устроено».
+- «Программы легенд» (`LegendsPage.tsx` + `core/legends.ts`) — каталог 18 программ, генерация при добавлении.
+- «Часы и таймер» (`TimerPage.tsx`) — три режима, часы HH:mm:ss, секундомер mm:ss.t с кругами, таймер mm:ss.cc, пресеты 1/3/5/10/15/20 мин, звук/вибрация/тост «Время вышло!».
+- «Мой прогресс» (`ProgressHubPage.tsx` + `src/pages/progress/*`) — 5 вкладок: Журнал, Рекорды, 1ПМ, Тело, Анализ (порт `ProgressHubActivity` + фрагментов + `WorkAnalysis`).
+- «Питание» (`NutritionHubPage.tsx` + `src/pages/nutrition/*`) — 4 вкладки: КБЖУ (формулы Миффлина/Харриса-Бенедикта/Катча/Каннингема/ВОЗ, БЖУ, вода, идеальный вес), Кухня (меню на неделю), Спортпит (подбор добавок), Дневник (учёт съеденного по дням).
+- «Своя сборка» (`CustomProgramPage.tsx`) — редактор курсы → дни → упражнения с поиском, подходами, сохранением.
+- Страницы приведены к `PageHeader` и точным текстам `strings.xml`: Settings, Profile, Knowledge, Music, Search.
+- `ProgressPage` заменён на новый хаб `ProgressHubPage`.
+
+## Причина Tailwind 4 (важное)
+- Tailwind 4 **не читает** `tailwind.config.js` автоматически. Конфиг подключен явно через `@config "../tailwind.config.js";` в CSS.
+- Палитра перенесена с Android: primary зелёная (#3AA76D / #2C8555), dark #0D0F11 / #14171A / #2A3033, `colorSurface` #FFFFFF, `textSecondary` #6E767B, `stroke` #D8E4DC.
+- В старых страницах оставались хардкодed `slate`/цвета — приведены к CSS-переменным темы, иначе в тёмной теме появлялся белый фон.
+
+## Сборка и деплой
+- `npm run build` проходит без TS-ошибок.
+- Деплой на GitHub Pages через `.github/workflows/deploy.yml` при push в `main` (сайт: https://feldsherikydze-dot.github.io/FitGuide-web/).
+- Live-сайт может отдавать старый бандл — нужен реальный деплой и проверка Actions.
+
+## Блокировка
+- `git push` требует подтверждения пользователя (правило AGENTS.md). После подтверждения — деплой и проверка https://feldsherikydze-dot.github.io/FitGuide-web/.

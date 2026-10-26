@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* Tailwind 4 не читает tailwind.config.js сам — подключаем старый конфиг явно. */
+@config "../tailwind.config.js";
 
 /* ============================================================
    FitGuide Web — визуальный язык Android-приложения
@@ -144,6 +146,97 @@ body {
 .fg-input:focus {
   border-color: var(--p-labels);
   box-shadow: 0 0 0 1px var(--p-labels);
+}
+
+/* ---------- Экран тренировки (activity_workout.xml) ---------- */
+.fg-wk-field { position: relative; display: block; }
+.fg-wk-field > span {
+  position: absolute;
+  top: -7px;
+  left: 12px;
+  padding: 0 4px;
+  background: var(--color-bg);
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--color-text-secondary);
+  pointer-events: none;
+}
+.fg-wk-input {
+  width: 100%;
+  padding: 12px 12px 10px;
+  border: 1px solid var(--color-outline);
+  border-radius: 16px;
+  background: transparent;
+  color: var(--color-text-main);
+  outline: none;
+}
+.fg-wk-input:focus {
+  border-color: var(--p-labels);
+  box-shadow: 0 0 0 1px var(--p-labels);
+}
+
+.fg-wk-main {
+  height: 52px;
+  border-radius: 26px;
+  background: var(--p-labels);
+  color: var(--p-on-labels);
+  font-size: 16px;
+  font-weight: 700;
+}
+.fg-wk-main:active { filter: brightness(0.94); }
+
+.fg-wk-accent {
+  height: 52px;
+  border-radius: 26px;
+  background: var(--p-labels-text);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+}
+.fg-wk-accent:active { filter: brightness(0.94); }
+
+.fg-wk-outline {
+  min-height: 46px;
+  padding: 0 16px;
+  border: 1px solid var(--color-outline);
+  border-radius: 23px;
+  background: transparent;
+  color: var(--color-text-main);
+  font-size: 14px;
+  font-weight: 600;
+}
+.fg-wk-outline:active { background: rgba(0, 0, 0, 0.04); }
+
+.fg-wk-chip {
+  min-height: 38px;
+  padding: 0 18px;
+  border: 1px solid var(--color-outline);
+  border-radius: 19px;
+  background: transparent;
+  color: var(--color-text-main);
+  font-size: 14px;
+}
+
+/* Chip из Android: 32dp, скругление 8dp, выбранный — цветом темы. */
+.fg-chip {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--color-stroke);
+  border-radius: 8px;
+  background: var(--color-surface-variant);
+  color: var(--color-text-main);
+  font-size: 13px;
+  line-height: 1.2;
+}
+.fg-chip-on {
+  background: var(--p-labels);
+  border-color: var(--p-labels);
+  color: var(--p-on-labels);
+}
+.fg-wk-chip-on {
+  background: var(--p-labels);
+  border-color: var(--p-labels);
+  color: var(--p-on-labels);
 }
 
 /* ---------- Прочее ---------- */

@@ -67,50 +67,65 @@ export function CoachPage() {
     coach.saveCheckin({ day: dayKey(now), sleep, sore, energy });
   };
 
-  if (!program) {
-    return (
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="bg-gradient-to-br from-primary-600 to-primary-800 text-white rounded-2xl p-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-white/20 rounded-xl"><Zap className="w-8 h-8" /></div>
-            <div>
-              <h1 className="text-2xl font-bold">Добро пожаловать в FitGuide</h1>
-              <p className="text-primary-100">Твой карманный тренер для силовых тренировок</p>
-            </div>
-          </div>
-          <p className="text-primary-100 opacity-90 mb-6">
-            Сначала — замеры и калибровка силы, потом тренер соберёт программу под тебя
-            и будет вести прогрессию, разгрузки и чекпоинты.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <button onClick={() => navigate('/assessment')}
-              className="flex-1 min-w-[160px] px-6 py-3 bg-white text-primary-700 font-semibold rounded-xl hover:bg-primary-50 transition-colors">
-              Пройти замеры
-            </button>
-            <button onClick={() => navigate('/programs')}
-              className="flex-1 min-w-[160px] px-6 py-3 bg-white/20 text-white font-semibold rounded-xl hover:bg-white/30 transition-colors border border-white/30">
-              Своя программа
-            </button>
-          </div>
-        </div>
+  // Шапка как в activity_coach.xml: назад + «Карманный тренер».
+  const header = (
+    <div className="flex items-center px-2 py-1 w-full">
+      <button onClick={() => navigate('/')} className="w-12 h-12 flex items-center justify-center rounded-full active:bg-black/5"
+        aria-label="Назад">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--p-labels)" strokeWidth="2.5"
+          strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+      </button>
+      <div className="ml-1 text-[20px] font-bold" style={{ color: 'var(--p-labels)' }}>Карманный тренер</div>
+    </div>
+  );
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[
-            { icon: Dumbbell, title: 'Генератор программ', desc: 'Фулбоди, сплиты, периодизация под цели' },
-            { icon: Target, title: 'Карманный тренер', desc: 'Автопрогрессия весов, готовность, разгрузки' },
-            { icon: TrendingUp, title: 'Прогресс', desc: 'Графики e1RM, объёма, личные рекорды' },
-            { icon: BookOpen, title: 'База знаний', desc: '90 глав по тренировкам, питанию и восстановлению' },
-            { icon: Clock, title: 'Таймер отдыха', desc: 'Обратный отсчёт и секундомер' },
-            { icon: RotateCcw, title: 'Чекпоинты', desc: `Замеры каждые ${CHECKPOINT_DAYS} дней с пересчётом` },
-          ].map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="bg-white dark:bg-dark-card rounded-xl p-6 border border-slate-200 dark:border-dark-border">
-              <div className="p-3 bg-primary-100 dark:bg-primary-900/30 rounded-lg w-fit mb-4">
-                <Icon className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-              </div>
-              <h3 className="font-semibold text-slate-900 dark:text-white mb-1">{title}</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400">{desc}</p>
-            </div>
-          ))}
+  if (!program) {
+    // Стартовый выбор пути — renderChoice() в CoachActivity.
+    return (
+      <div className="max-w-2xl mx-auto pb-8 w-full">
+        {header}
+        <div className="px-4">
+          <h1 className="text-[18px] font-bold mb-1" style={{ color: 'var(--p-labels)' }}>
+            Привет! Я твой карманный тренер
+          </h1>
+          <p className="text-[14px] leading-relaxed" style={{ color: 'var(--color-text-main)' }}>
+            Я буду вести тебя от первого шага до сцены: подберу нагрузку по самочувствию, посчитаю рабочие веса,
+            разберу каждую тренировку и буду следить за формой. Сначала выбери, как предпочитаешь тренироваться.
+          </p>
+
+          <div className="mt-5 mb-2 text-[15px] font-bold" style={{ color: 'var(--p-labels)' }}>
+            Как предпочитаешь тренироваться?
+          </div>
+
+          <div className="text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>По своей программе</div>
+          <p className="text-[12px] mt-0.5 mb-2 leading-snug" style={{ color: 'var(--color-text-secondary)' }}>
+            У тебя уже есть программа — я подберу её из твоих программ и поведу по ней: с периодизацией или без,
+            как ты сам настроил. Буду корректировать веса и разбирать каждый день.
+          </p>
+          <button onClick={() => navigate('/programs')} className="fg-btn fg-btn-primary w-full py-3">
+            Своя программа
+          </button>
+
+          <div className="mt-5 text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>
+            Хочу тренироваться по программе тренера
+          </div>
+          <p className="text-[12px] mt-0.5 mb-2 leading-snug" style={{ color: 'var(--color-text-secondary)' }}>
+            Пройдём знакомство и подготовку к старту: соберу о тебе всё, что нужно, дам вводную тренировку
+            для калибровки рабочих весов, а затем поведу по индивидуальной программе до пика формы.
+          </p>
+          <button onClick={() => navigate('/onboarding')} className="fg-btn fg-btn-primary w-full py-3">
+            Знакомство и подготовка к старту
+          </button>
+
+          <button
+            onClick={() => {
+              if (!window.confirm('Тренер удалит тренировки, замеры, всю ленту и программу, сбросит собой ам. Начнём заново: неделя 1, замеры 1, программа — нет. Профиль, свои программы и лента тренировок останутся. Сбросить?')) return;
+              coach.resetCoach();
+            }}
+            className="mt-6 text-[13px] underline underline-offset-4"
+            style={{ color: 'var(--color-text-secondary)' }}>
+            Сбросить программу тренера
+          </button>
         </div>
       </div>
     );
@@ -121,7 +136,8 @@ export function CoachPage() {
   const score = readinessScore(checkin);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4">
+    <div className="max-w-2xl mx-auto space-y-4 pb-8">
+      {header}
       {/* --- План на сегодня --- */}
       <div className={clsx(
         'rounded-2xl p-5 text-white',

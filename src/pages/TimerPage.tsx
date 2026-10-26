@@ -1,314 +1,344 @@
-﻿// FitGuide Web — страница таймера
+﻿// FitGuide Web — «Часы и таймер» (порт TimerActivity + activity_timer.xml)
+//
+// Три режима, как в Android: часы, секундомер с кругами и таймер обратного отсчёта.
+// Форматы совпадают: часы HH:mm:ss, секундомер mm:ss.t, таймер mm:ss.cc.
 
-import { useState, useEffect, useCallback } from 'react';
-import { Play, Pause, RotateCcw, Plus, Minus, X, Bell, BellOff, Settings, SkipForward, SkipBack, Dumbbell } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { useCoachStore } from '../core/store';
+import { PageHeader } from '../components/ui';
 
-const PRESET_TIMERS = [
-  { name: 'Разминка', time: 5 * 60 },
-  { name: 'Отдых 60с', time: 60 },
-  { name: 'Отдых 90с', time: 90 },
-  { name: 'Отдых 2мин', time: 120 },
-  { name: 'Отдых 3мин', time: 180 },
-  { name: 'Табата', time: 4 * 60 }, // 20с работа / 10с отдых x 8
-] as const;
+type Mode = 'clock' | 'stopwatch' | 'timer';
+
+const MODES: { value: Mode; label: string }[] = [
+  { value: 'clock', label: 'Часы' },
+  { value: 'stopwatch', label: 'Секундомер' },
+  { value: 'timer', label: 'Таймер' },
+];
+
+const MINUTES_PRESETS = [1, 3, 5, 10, 15, 20];
+
+interface Lap {
+  n: number;
+  total: string;
+  delta: string;
+}
+
+function pad(n: number) {
+  return n < 10 ? `0${n}` : String(n);
+}
+
+/** Как formatStopwatch: mm:ss.t (десятые). */
+function formatStopwatch(ms: number) {
+  const totalSec = Math.floor(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  const tenth = Math.floor((ms % 1000) / 100);
+  return `${pad(min)}:${pad(sec)}.${tenth}`;
+}
+
+/** Как formatTimer: mm:ss.cc, при часах — hh:mm:ss.cc. */
+function formatTimer(ms: number) {
+  const safe = Math.max(0, ms);
+  const totalSec = Math.floor(safe / 1000);
+  const hours = Math.floor(totalSec / 3600);
+  const min = Math.floor((totalSec % 3600) / 60);
+  const sec = totalSec % 60;
+  const centi = Math.floor((safe % 1000) / 10);
+  if (hours > 0) return `${pad(hours)}:${pad(min)}:${pad(sec)}.${pad(centi)}`;
+  return `${pad(min)}:${pad(sec)}.${pad(centi)}`;
+}
+
+function capitalize(s: string) {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
+function beep() {
+  try {
+    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    for (let i = 0; i < 3; i++) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      osc.type = 'square';
+      const t = ctx.currentTime + i * 0.55;
+      gain.gain.setValueAtTime(0.25, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+      osc.start(t);
+      osc.stop(t + 0.45);
+    }
+    window.setTimeout(() => ctx.close?.(), 2200);
+  } catch {
+    /* звук не критичен */
+  }
+}
 
 export function TimerPage() {
-  const [timeLeft, setTimeLeft] = useState(60);
-  const [totalTime, setTotalTime] = useState(60);
-  const [isRunning, setIsRunning] = useState(false);
-  const [mode, setMode] = useState<'countdown' | 'stopwatch'>('countdown');
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [vibrateEnabled, setVibrateEnabled] = useState(true);
-  const [showPresets, setShowPresets] = useState(false);
-  const [stopwatchTime, setStopwatchTime] = useState(0);
-  const [laps, setLaps] = useState<number[]>([]);
+  const navigate = useNavigate();
+  const [mode, setMode] = useState<Mode>('clock');
+  const [now, setNow] = useState(() => new Date());
 
-  const { activeProgramId, sessions } = useCoachStore();
+  // --- секундомер ---
+  const [swRunning, setSwRunning] = useState(false);
+  const [swElapsed, setSwElapsed] = useState(0);
+  const swBase = useRef(0);
+  const swOffset = useRef(0);
+  const lastLapBase = useRef(0);
+  const lapCount = useRef(0);
+  const [laps, setLaps] = useState<Lap[]>([]);
 
-  // Auto-set rest timer from active workout
+  // --- таймер ---
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [timerRemain, setTimerRemain] = useState(0);
+  const [timerTotal, setTimerTotal] = useState(0);
+  const timerBase = useRef(0);
+  const timerFinishedRef = useRef(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [minutes, setMinutes] = useState('');
+  const [seconds, setSeconds] = useState('');
+
+  // Тик 100 мс, как Handler в Android.
   useEffect(() => {
-    if (activeProgramId) {
-      const activeSession = sessions.find(s => s.programId === activeProgramId && !s.ts);
-      if (activeSession) {
-        // Could auto-detect rest time from current exercise
+    const id = window.setInterval(() => {
+      const t = new Date();
+      setNow(t);
+      if (swRunning) {
+        setSwElapsed(swBase.current + (performance.now() - swOffset.current));
       }
-    }
-  }, [activeProgramId, sessions]);
-
-  // Countdown timer
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | null = null;
-    if (isRunning && mode === 'countdown') {
-      interval = window.setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            if (soundEnabled) playSound();
-            if (vibrateEnabled && navigator.vibrate) navigator.vibrate([200, 100, 200]);
-            setIsRunning(false);
-            return totalTime;
+      if (timerRunning) {
+        const remain = timerTotal - (performance.now() - timerBase.current);
+        if (remain <= 0) {
+          setTimerRunning(false);
+          setTimerRemain(0);
+          if (!timerFinishedRef.current) {
+            timerFinishedRef.current = true;
+            beep();
+            navigator.vibrate?.(800);
+            setToast('Время вышло!');
+            window.setTimeout(() => setToast(null), 3000);
           }
-          return prev - 1;
-        });
-      }, 1000);
+        } else {
+          setTimerRemain(remain);
+        }
+      }
+    }, 100);
+    return () => window.clearInterval(id);
+  }, [swRunning, timerRunning, timerTotal]);
+
+  const swToggle = () => {
+    if (swRunning) {
+      swBase.current += performance.now() - swOffset.current;
+      setSwRunning(false);
+    } else {
+      swOffset.current = performance.now();
+      setSwRunning(true);
     }
-    return () => { if (interval) clearInterval(interval); };
-  }, [isRunning, mode, timeLeft, totalTime, soundEnabled, vibrateEnabled]);
-
-  // Stopwatch
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | null = null;
-    if (isRunning && mode === 'stopwatch') {
-      interval = window.setInterval(() => {
-        setStopwatchTime(prev => prev + 1);
-      }, 1000);
-    }
-    return () => { if (interval) clearInterval(interval); };
-  }, [isRunning, mode]);
-
-  const playSound = () => {
-    // Simple beep using Web Audio API
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 800;
-    osc.type = 'sine';
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.5);
   };
 
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const s = (seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-  };
-
-  const formatStopwatch = (ms: number) => {
-    const m = Math.floor(ms / 60).toString().padStart(2, '0');
-    const s = (ms % 60).toString().padStart(2, '0');
-    const cs = Math.floor((ms * 100) % 100).toString().padStart(2, '0');
-    return `${m}:${s}.${cs}`;
-  };
-
-  const handlePreset = (seconds: number) => {
-    setTimeLeft(seconds);
-    setTotalTime(seconds);
-    setIsRunning(false);
-    setShowPresets(false);
-  };
-
-  const addTime = (seconds: number) => {
-    setTimeLeft(prev => Math.max(0, prev + seconds));
-    setTotalTime(prev => prev + seconds);
-  };
-
-  const toggleRunning = () => setIsRunning(!isRunning);
-  const reset = () => {
-    setIsRunning(false);
-    setTimeLeft(totalTime);
-    setStopwatchTime(0);
+  const swReset = () => {
+    setSwRunning(false);
+    swBase.current = 0;
+    swOffset.current = 0;
+    lastLapBase.current = 0;
+    lapCount.current = 0;
+    setSwElapsed(0);
     setLaps([]);
   };
-  const lap = () => {
-    if (mode === 'stopwatch') {
-      setLaps(prev => [stopwatchTime, ...prev]);
-    }
+
+  const swLap = () => {
+    if (!swRunning) return;
+    const total = swBase.current + (performance.now() - swOffset.current);
+    const delta = total - lastLapBase.current;
+    lastLapBase.current = total;
+    lapCount.current += 1;
+    setLaps(list => [{ n: lapCount.current, total: formatStopwatch(total), delta: formatStopwatch(delta) }, ...list]);
   };
 
+  const readTimerInput = () => {
+    let mm = parseInt(minutes, 10) || 0;
+    let ss = parseInt(seconds, 10) || 0;
+    if (ss >= 60) {
+      mm += Math.floor(ss / 60);
+      ss %= 60;
+    }
+    return mm * 60000 + ss * 1000;
+  };
+
+  const timerToggle = () => {
+    if (timerRunning) {
+      setTimerRunning(false);
+      setTimerTotal(timerRemain);
+      return;
+    }
+    let total = readTimerInput();
+    if (total <= 0) {
+      total = timerRemain > 0 ? timerRemain : 0;
+      if (total <= 0) {
+        setTimerRemain(0);
+        return;
+      }
+    } else {
+      setTimerTotal(total);
+      setTimerRemain(total);
+    }
+    timerFinishedRef.current = false;
+    timerBase.current = performance.now() - (total - (timerRemain > 0 ? timerRemain : total));
+    setTimerRunning(true);
+  };
+
+  const timerReset = () => {
+    setTimerRunning(false);
+    setTimerRemain(timerTotal);
+    timerFinishedRef.current = false;
+  };
+
+  const choosePreset = (m: number) => {
+    if (timerRunning) return;
+    const total = m * 60000;
+    setTimerTotal(total);
+    setTimerRemain(total);
+    setMinutes(String(m));
+    setSeconds('0');
+  };
+
+  const clockStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const dateStr = capitalize(
+    new Intl.DateTimeFormat('ru-RU', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    }).format(now).replace(/\s*г\.$/, '')
+  );
+
   return (
-    <div className="max-w-xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Таймер</h1>
-          <p className="text-slate-500 dark:text-slate-400">Отдых между подходами, табата, секундомер</p>
-        </div>
-        <div className="flex items-center gap-2">
+    <div className="max-w-xl mx-auto pb-4 w-full">
+      <PageHeader title="Часы и таймер" onBack={() => navigate('/')} />
+
+      <div className="flex justify-center gap-1.5 mt-1.5">
+        {MODES.map(m => (
           <button
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            className={clsx('p-2 rounded-lg', soundEnabled ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-slate-100 dark:bg-dark-border text-slate-500')}
-            title={soundEnabled ? 'Звук вкл' : 'Звук выкл'}
+            key={m.value}
+            onClick={() => setMode(m.value)}
+            className={clsx('fg-chip', mode === m.value && 'fg-chip-on')}
           >
-            {soundEnabled ? <Bell className="w-5 h-5" /> : <BellOff className="w-5 h-5" />}
+            {m.label}
           </button>
-          <button
-            onClick={() => setVibrateEnabled(!vibrateEnabled)}
-            className={clsx('p-2 rounded-lg', vibrateEnabled ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' : 'bg-slate-100 dark:bg-dark-border text-slate-500')}
-            title={vibrateEnabled ? 'Вибрация вкл' : 'Вибрация выкл'}
-          >
-            <Bell className="w-5 h-5" />
-          </button>
-        </div>
+        ))}
       </div>
 
-      {/* Mode Tabs */}
-      <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border p-1 flex">
-        <button
-          onClick={() => { setMode('countdown'); setIsRunning(false); }}
-          className={clsx(
-            'flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors',
-            mode === 'countdown' ? 'bg-primary-600 text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-dark-border'
-          )}
-        >
-          Обратный отсчёт
-        </button>
-        <button
-          onClick={() => { setMode('stopwatch'); setIsRunning(false); }}
-          className={clsx(
-            'flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors',
-            mode === 'stopwatch' ? 'bg-primary-600 text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-dark-border'
-          )}
-        >
-          Секундомер
-        </button>
-      </div>
-
-      {/* Timer Display */}
-      <div className="bg-white dark:bg-dark-card rounded-2xl border border-slate-200 dark:border-dark-border p-8 relative overflow-hidden">
-        {/* Background ring */}
-        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 280 280">
-          <circle
-            cx="140" cy="140" r="110"
-            stroke="#e2e8f0"
-            strokeWidth="8"
-            fill="none"
-            className="dark:stroke-dark-border"
-          />
-          {mode === 'countdown' && totalTime > 0 && (
-            <circle
-              cx="140" cy="140" r="110"
-              stroke="#0ea5e9"
-              strokeWidth="8"
-              fill="none"
-              strokeDasharray={2 * Math.PI * 110}
-              strokeDashoffset={2 * Math.PI * 110 * (1 - timeLeft / totalTime)}
-              strokeLinecap="round"
-              className="transform -rotate-90 transition-all duration-1000 ease-linear"
-            />
-          )}
-        </svg>
-
-        <div className="relative z-10 flex flex-col items-center justify-center h-64">
-          <div className="text-6xl font-mono font-bold text-slate-900 dark:text-white tabular-nums">
-            {mode === 'countdown' ? formatTime(timeLeft) : formatStopwatch(stopwatchTime)}
+      {mode === 'clock' && (
+        <div className="flex flex-col items-center justify-center px-6 py-10">
+          <div className="text-[72px] font-light leading-none tabular-nums" style={{ color: 'var(--color-text-main)' }}>
+            {clockStr}
           </div>
-          {mode === 'countdown' && totalTime > 0 && (
-            <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              из {formatTime(totalTime)}
-            </div>
-          )}
-        </div>
-
-        {/* Quick time adjust */}
-        <div className="flex items-center justify-center gap-2 mt-4">
-          <button onClick={() => addTime(-10)} className="p-2 rounded-lg bg-slate-100 dark:bg-dark-border hover:bg-slate-200 dark:hover:bg-dark-border/50" disabled={isRunning}>
-            <Minus className="w-5 h-5" /> 10с
-          </button>
-          <button onClick={() => addTime(10)} className="p-2 rounded-lg bg-slate-100 dark:bg-dark-border hover:bg-slate-200 dark:hover:bg-dark-border/50" disabled={isRunning}>
-            +10с <Plus className="w-5 h-5" />
-          </button>
-          <button onClick={() => addTime(30)} className="p-2 rounded-lg bg-slate-100 dark:bg-dark-border hover:bg-slate-200 dark:hover:bg-dark-border/50" disabled={isRunning}>
-            +30с
-          </button>
-          <button onClick={() => addTime(60)} className="p-2 rounded-lg bg-slate-100 dark:bg-dark-border hover:bg-slate-200 dark:hover:bg-dark-border/50" disabled={isRunning}>
-            +1м
-          </button>
-        </div>
-      </div>
-
-      {/* Controls */}
-      <div className="flex items-center justify-center gap-4">
-        <button
-          onClick={reset}
-          className="p-3 rounded-xl bg-slate-100 dark:bg-dark-border text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-dark-border/50"
-          disabled={!isRunning && ((mode === 'countdown' && timeLeft === totalTime) || (mode === 'stopwatch' && stopwatchTime === 0))}
-        >
-          <RotateCcw className="w-6 h-6" />
-        </button>
-        <button
-          onClick={lap}
-          className={clsx(
-            'p-3 rounded-xl text-white font-medium transition-colors',
-            mode === 'stopwatch' && isRunning ? 'bg-primary-600 hover:bg-primary-700' : 'bg-slate-300 dark:bg-slate-600 cursor-not-allowed'
-          )}
-          disabled={!(mode === 'stopwatch' && isRunning)}
-        >
-          <SkipForward className="w-6 h-6" />
-        </button>
-        <button
-          onClick={toggleRunning}
-          className={clsx(
-            'w-20 h-20 rounded-full flex items-center justify-center text-white font-bold text-xl transition-all shadow-lg',
-            isRunning ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'
-          )}
-        >
-          {isRunning ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8 ml-1" />}
-        </button>
-      </div>
-
-      {/* Presets */}
-      <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-medium text-slate-900 dark:text-white">Быстрые таймеры</h3>
-          <button
-            onClick={() => setShowPresets(!showPresets)}
-            className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
-          >
-            {showPresets ? 'Скрыть' : 'Показать'}
-          </button>
-        </div>
-        {showPresets && (
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {PRESET_TIMERS.map(preset => (
-              <button
-                key={preset.name}
-                onClick={() => handlePreset(preset.time)}
-                className="p-3 rounded-lg border border-slate-200 dark:border-dark-border text-left hover:border-primary-300 dark:hover:border-primary-700 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
-              >
-                <div className="font-medium text-slate-900 dark:text-white">{preset.name}</div>
-                <div className="text-sm text-slate-500 dark:text-slate-400 font-mono">{formatTime(preset.time)}</div>
-              </button>
-            ))}
+          <div className="mt-2 text-[18px]" style={{ color: 'var(--color-text-secondary)' }}>
+            {dateStr}
           </div>
-        )}
-      </div>
-
-      {/* Laps */}
-      {mode === 'stopwatch' && laps.length > 0 && (
-        <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border">
-          <div className="px-4 py-3 border-b border-slate-200 dark:border-dark-border flex items-center justify-between">
-            <h3 className="font-medium text-slate-900 dark:text-white">Круги</h3>
-            <button onClick={() => setLaps([])} className="text-sm text-red-600 hover:underline">Очистить</button>
+          <div className="mt-6 text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
+            Точное время
           </div>
-          <div className="divide-y divide-slate-200 dark:divide-dark-border max-h-64 overflow-y-auto">
-            {laps.slice().reverse().map((lapTime, i) => (
-              <div key={i} className="px-4 py-2 flex items-center justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Круг {laps.length - i}</span>
-                <span className="font-mono text-slate-900 dark:text-white">{formatStopwatch(lapTime)}</span>
+        </div>
+      )}
+
+      {mode === 'stopwatch' && (
+        <div className="px-4">
+          <div className="mt-4 text-center text-[56px] font-light leading-none tabular-nums"
+            style={{ color: 'var(--color-text-main)' }}>
+            {formatStopwatch(swElapsed)}
+          </div>
+
+          <div className="flex gap-2 mt-5">
+            <button onClick={swReset}
+              className="flex-1 h-12 rounded-[24px] text-[14px] font-semibold"
+              style={{ border: '1px solid var(--color-outline)', color: 'var(--color-text-main)' }}>
+              Сброс
+            </button>
+            <button onClick={swToggle}
+              className="flex-[2] h-12 rounded-[24px] text-[14px] font-bold"
+              style={{ background: 'var(--p-labels)', color: 'var(--p-on-labels)' }}>
+              {swRunning ? 'Стоп' : 'Старт'}
+            </button>
+            <button onClick={swLap}
+              className="flex-1 h-12 rounded-[24px] text-[14px] font-semibold"
+              style={{ border: '1px solid var(--color-outline)', color: 'var(--color-text-main)' }}>
+              Круг
+            </button>
+          </div>
+
+          <div className="mt-4 text-[13px] font-bold" style={{ color: 'var(--color-text-secondary)' }}>
+            Круги
+          </div>
+          <div className="mt-1.5 space-y-1">
+            {laps.map(l => (
+              <div key={l.n} className="flex items-center justify-between py-1.5">
+                <span className="text-[14px]" style={{ color: 'var(--color-text-secondary)' }}>{l.n}</span>
+                <span className="text-[14px] tabular-nums" style={{ color: 'var(--color-text-main)' }}>{l.total}</span>
+                <span className="text-[13px] tabular-nums" style={{ color: 'var(--color-text-secondary)' }}>+{l.delta}</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Auto-rest from workout hint */}
-      {activeProgramId && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
-          <div className="flex items-start gap-3">
-            <Dumbbell className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
-            <div>
-              <p className="font-medium text-blue-800 dark:text-blue-300">Активная тренировка</p>
-              <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">
-                Таймер может автоматически подставлять время отдыха из текущего упражнения.
-                Перейди в <a href="/workout" className="underline hover:text-blue-600">тренировку</a>, чтобы увидеть.
-              </p>
-            </div>
+      {mode === 'timer' && (
+        <div className="px-4">
+          <div className="mt-1 flex gap-1.5 overflow-x-auto fg-no-scrollbar">
+            {MINUTES_PRESETS.map(m => (
+              <button key={m} onClick={() => choosePreset(m)} className="fg-chip flex-shrink-0">
+                {m} мин
+              </button>
+            ))}
           </div>
+
+          <div className="mt-3 flex items-center">
+            <input
+              value={minutes}
+              onChange={e => setMinutes(e.target.value.replace(/\D/g, '').slice(0, 3))}
+              placeholder="01"
+              inputMode="numeric"
+              className="w-16 h-[46px] text-center text-[18px] rounded-lg"
+              style={{ background: 'var(--color-surface)', border: '1px solid var(--color-outline)', color: 'var(--color-text-main)' }}
+            />
+            <span className="px-1 text-[24px]" style={{ color: 'var(--color-text-secondary)' }}> : </span>
+            <input
+              value={seconds}
+              onChange={e => setSeconds(e.target.value.replace(/\D/g, '').slice(0, 2))}
+              placeholder="00"
+              inputMode="numeric"
+              className="w-16 h-[46px] text-center text-[18px] rounded-lg"
+              style={{ background: 'var(--color-surface)', border: '1px solid var(--color-outline)', color: 'var(--color-text-main)' }}
+            />
+            <span className="ml-3 text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
+              минуты и секунды
+            </span>
+          </div>
+
+          <div className="mt-5 text-center text-[64px] font-light leading-none tabular-nums"
+            style={{ color: 'var(--color-text-main)' }}>
+            {formatTimer(timerRemain)}
+          </div>
+
+          <div className="mt-5 flex gap-2">
+            <button onClick={timerReset}
+              className="flex-1 h-12 rounded-[24px] text-[14px] font-semibold"
+              style={{ border: '1px solid var(--color-outline)', color: 'var(--color-text-main)' }}>
+              Сброс
+            </button>
+            <button onClick={timerToggle}
+              className="flex-1 h-12 rounded-[24px] text-[14px] font-bold"
+              style={{ background: 'var(--p-labels)', color: 'var(--p-on-labels)' }}>
+              {timerRunning ? 'Пауза' : 'Старт'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed left-1/2 -translate-x-1/2 bottom-24 px-4 py-2 rounded-full text-[13px] font-medium text-white z-40"
+          style={{ background: 'rgba(0,0,0,0.85)' }}>
+          {toast}
         </div>
       )}
     </div>

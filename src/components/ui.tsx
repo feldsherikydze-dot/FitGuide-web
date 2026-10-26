@@ -113,6 +113,72 @@ export function TopBarButton({ onClick, icon, label }: { onClick: () => void; ic
   );
 }
 
+/**
+ * Шапка внутреннего экрана — как в Android: стрелка назад + заголовок цветом темы.
+ * Заголовки берутся из strings.xml (title_*).
+ */
+export function PageHeader({ title, right, onBack }: {
+  title: string; right?: ReactNode; onBack?: () => void;
+}) {
+  const navigate = useNavigate();
+  return (
+    <div className="flex items-center px-2 py-1 w-full">
+      <button
+        onClick={() => (onBack ? onBack() : navigate('/'))}
+        className="w-12 h-12 flex items-center justify-center rounded-full active:bg-black/5 flex-shrink-0"
+        aria-label="Назад"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--p-labels)" strokeWidth="2.5"
+          strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+      </button>
+      <div className="ml-1 flex-1 min-w-0 text-[20px] font-bold truncate" style={{ color: 'var(--p-labels)' }}>
+        {title}
+      </div>
+      {right}
+    </div>
+  );
+}
+
+/**
+ * Карточка-строка внутреннего хаба — как MaterialCardView в Android:
+ * круг с градиентом, заголовок 16sp bold и подпись 12sp.
+ */
+export function HubCard({ icon, title, subtitle, onClick }: {
+  icon: string; title: string; subtitle: string; onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left flex items-center gap-3 p-3.5 mb-2.5 rounded-[18px] active:opacity-80"
+      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}
+    >
+      <span
+        className="w-[42px] h-[42px] rounded-full flex items-center justify-center flex-shrink-0"
+        style={{ background: 'linear-gradient(135deg, var(--p-circle-from), var(--p-circle-to))' }}
+      >
+        <MaskIcon src={icon} color="var(--p-labels-text)" size={22} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[16px] font-bold leading-tight" style={{ color: 'var(--p-labels)' }}>
+          {title}
+        </span>
+        <span className="block text-[12px] mt-0.5 leading-snug" style={{ color: 'var(--color-text-secondary)' }}>
+          {subtitle}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+/** Заголовок раздела внутри хаба (13sp bold, цвет темы). */
+export function HubSection({ children }: { children: ReactNode }) {
+  return (
+    <div className="mt-4 mb-0.5 text-[13px] font-bold" style={{ color: 'var(--p-labels)' }}>
+      {children}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------- плитка ярлыка
 
 export interface ToolDef {

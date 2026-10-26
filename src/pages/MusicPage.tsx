@@ -1,8 +1,10 @@
 // FitGuide Web — страница музыки
 
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Play, Pause, SkipForward, SkipBack, Volume2, VolumeX, Music, Radio, Headphones, Heart, Plus, Search, Shuffle, Repeat, Mic, Loader2 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { PageHeader } from '../components/ui';
 import { useUIStore } from '../core/store';
 
 interface Track {
@@ -32,6 +34,7 @@ const MOCK_LOCAL_TRACKS: Track[] = [
 
 export function MusicPage() {
   const { theme } = useUIStore();
+  const navigate = useNavigate();
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -120,13 +123,7 @@ export function MusicPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Музыка</h1>
-          <p className="text-slate-500 dark:text-slate-400">Твои треки, радио и тренировочные подборки</p>
-        </div>
-      </div>
+      <PageHeader title="Музыка" onBack={() => navigate('/')} />
 
       {/* Tabs */}
       <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border p-1 flex">

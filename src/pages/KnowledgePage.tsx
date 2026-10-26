@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { BookOpen, Search, ChevronLeft, ChevronRight, List, X } from 'lucide-react';
+import { PageHeader } from '../components/ui';
 import { useKnowledge } from '../hooks/useExercises';
 import { knowledgeToHtml, excerpt } from '../core/knowledge';
 
@@ -21,18 +22,7 @@ export function KnowledgePage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">База знаний</h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm">
-            {chapters.length} глав по тренировкам, питанию и восстановлению
-          </p>
-        </div>
-        <button onClick={() => navigate('/')}
-          className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-dark-border">
-          <X className="w-5 h-5" />
-        </button>
-      </div>
+      <PageHeader title="Библиотека" onBack={() => navigate('/')} />
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
