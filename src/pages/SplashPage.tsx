@@ -112,7 +112,7 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
     <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
       {/* Блок с пропорциями телефона 9:16 — картинка не обрезается, элементы компактны */}
       <div
-        className="relative w-full max-w-[430px] aspect-[9/16] max-h-[94vh] overflow-hidden"
+        className="relative w-full max-w-[430px] aspect-[9/16] max-h-[94vh]"
         style={{ transform: 'scale(1)' }}
       >
         {/* Фон — относительный путь, приложение может лежать в подпапке */}
@@ -139,6 +139,24 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
           </div>
         </div>
 
+        {/* Кнопка СТАРТ — внутри блока с картинкой, над контентом */}
+        {loaded && (
+          <button
+            onClick={() => {
+              if (onStart) { onStart(); return; }
+              navigate(profile ? '/' : '/onboarding', { replace: true });
+            }}
+            className="absolute bottom-4 left-1/2 w-[200px] h-[48px] rounded-[24px] text-[17px] font-bold transition-all duration-300 z-20 pointer-events-auto"
+            style={{
+              background: btnColor,
+              color: contrastOn(btnColor),
+              transform: 'translateX(-50%) scale(1)',
+            }}
+          >
+            Старт
+          </button>
+        )}
+
         {/* Прогресс — над кнопкой */}
         {!loaded && (
           <div className="absolute bottom-[70px] left-4 right-4 flex flex-col items-end gap-1">
@@ -157,24 +175,6 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
           </div>
         )}
       </div>
-
-      {/* Кнопка СТАРТ — вынесена за блок с пропорциями телефона, чтобы ничего не перекрывало клик на десктопе */}
-      {loaded && (
-        <button
-          onClick={() => {
-            if (onStart) { onStart(); return; }
-            navigate(profile ? '/' : '/onboarding', { replace: true });
-          }}
-          className="absolute bottom-6 left-1/2 w-[200px] h-[48px] rounded-[24px] text-[17px] font-bold transition-all duration-300 z-20 pointer-events-auto"
-          style={{
-            background: btnColor,
-            color: contrastOn(btnColor),
-            transform: 'translateX(-50%) scale(1)',
-          }}
-        >
-          Старт
-        </button>
-      )}
     </div>
   );
 }
