@@ -189,7 +189,7 @@ export function PaletteSettings() {
                   height: 34,
                   borderRadius: 17,
                   background: bg,
-                  border: '3px solid var(--color-text-main)',
+                  border: '3px solid var(--p-outline)',
                   color: fg,
                   fontSize: 15,
                   lineHeight: 1,

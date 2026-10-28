@@ -185,8 +185,8 @@ export function SettingsPage() {
           style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}
         >
           <div className="mb-1 flex items-center gap-2">
-            <Palette className="w-5 h-5" style={{ color: 'var(--p-labels)' }} />
-            <h2 className="text-[16px] font-bold" style={{ color: 'var(--p-labels)' }}>Тема</h2>
+            <Palette className="w-5 h-5" style={{ color: 'var(--p-labels-text)' }} />
+            <h2 className="text-[16px] font-bold" style={{ color: 'var(--p-labels-text)' }}>Тема</h2>
           </div>
           <p className="text-[13px] mt-1" style={{ color: 'var(--color-text-secondary)' }}>
             Оформление приложения
@@ -201,9 +201,9 @@ export function SettingsPage() {
                   onClick={() => setAppTheme(value)}
                   className="min-h-[32px] px-3 rounded-[8px] text-[13px] whitespace-nowrap transition-colors"
                   style={{
-                    background: active ? 'var(--p-labels)' : 'var(--color-surface-variant)',
-                    border: `1px solid ${active ? 'var(--p-labels)' : 'var(--color-stroke)'}`,
-                    color: active ? 'var(--p-on-labels)' : 'var(--color-text-main)',
+                    background: active ? 'var(--p-circle)' : 'transparent',
+                    border: `1px solid ${active ? 'var(--p-circle)' : 'var(--p-outline)'}`,
+                    color: active ? 'var(--p-on-circle)' : 'var(--p-outline)',
                   }}
                 >
                   <Icon className="w-4 h-4 mr-1.5" />
@@ -223,8 +223,8 @@ export function SettingsPage() {
           style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}
         >
           <div className="mb-1 flex items-center gap-2">
-            <Palette className="w-5 h-5" style={{ color: 'var(--p-labels)' }} />
-            <h2 className="text-[16px] font-bold" style={{ color: 'var(--p-labels)' }}>Палитра</h2>
+            <Palette className="w-5 h-5" style={{ color: 'var(--p-labels-text)' }} />
+            <h2 className="text-[16px] font-bold" style={{ color: 'var(--p-labels-text)' }}>Палитра</h2>
           </div>
           <p className="text-[13px] mt-1" style={{ color: 'var(--color-text-secondary)' }}>
             Четыре независимых слота: контур, ярлыки, кругляшки, надписи.
@@ -238,8 +238,8 @@ export function SettingsPage() {
           style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}
         >
           <div className="mb-1 flex items-center gap-2">
-            <Sun className="w-5 h-5" style={{ color: 'var(--p-labels)' }} />
-            <h2 className="text-[16px] font-bold" style={{ color: 'var(--p-labels)' }}>Приветствие</h2>
+            <Sun className="w-5 h-5" style={{ color: 'var(--p-labels-text)' }} />
+            <h2 className="text-[16px] font-bold" style={{ color: 'var(--p-labels-text)' }}>Приветствие</h2>
           </div>
           <p className="text-[13px] mb-3" style={{ color: 'var(--color-text-secondary)' }}>
             Экран приветствия: фон и часы.
@@ -247,7 +247,7 @@ export function SettingsPage() {
 
           {/* Фон заставки */}
           <div>
-            <div className="text-[14px] font-bold mb-1" style={{ color: 'var(--p-labels)' }}>
+            <div className="text-[14px] font-bold mb-1" style={{ color: 'var(--p-labels-text)' }}>
               Фон заставки
             </div>
             <div className="flex flex-wrap gap-1.5 mb-3">
@@ -257,9 +257,9 @@ export function SettingsPage() {
                   onClick={() => { setSplashBg(value); setString('splash_bg_fixed', value); }}
                   className="min-h-[32px] px-3 rounded-[8px] text-[13px] whitespace-nowrap transition-colors"
                   style={{
-                    background: splashBg === value ? 'var(--p-labels)' : 'var(--color-surface-variant)',
-                    border: `1px solid ${splashBg === value ? 'var(--p-labels)' : 'var(--color-stroke)'}`,
-                    color: splashBg === value ? 'var(--p-on-labels)' : 'var(--color-text-main)',
+                    background: splashBg === value ? 'var(--p-circle)' : 'transparent',
+                    border: `1px solid ${splashBg === value ? 'var(--p-circle)' : 'var(--p-outline)'}`,
+                    color: splashBg === value ? 'var(--p-on-circle)' : 'var(--p-outline)',
                   }}
                 >
                   {value === '' ? 'Авто (по дням)' : value}
@@ -270,7 +270,7 @@ export function SettingsPage() {
 
           {/* Своя картинка */}
           <div>
-            <div className="text-[14px] font-bold mb-1" style={{ color: 'var(--p-labels)' }}>
+            <div className="text-[14px] font-bold mb-1" style={{ color: 'var(--p-labels-text)' }}>
               Своя картинка на заставке
             </div>
             <p className="text-[12px] mb-2" style={{ color: 'var(--color-text-secondary)' }}>
@@ -286,7 +286,7 @@ export function SettingsPage() {
               </button>
               <button
                 onClick={clearMySplashBgs}
-                className="flex-1 h-10 rounded-[20px] text-[13px] font-medium border border-[var(--p-labels)] text-[var(--p-labels)] bg-transparent"
+                className="flex-1 h-10 rounded-[20px] text-[13px] font-medium border border-[var(--p-outline)] text-[var(--p-outline)] bg-transparent"
               >
                 <ImageOff className="w-4 h-4 mr-1.5" /> Очистить
               </button>
@@ -298,7 +298,7 @@ export function SettingsPage() {
                 </p>
               ) : (
                 mySplashBgs.map((url, i) => (
-                  <div key={i} className="relative w-16 h-16 rounded-[12px] border border-[var(--p-labels)] bg-[var(--color-surface-variant)] flex-shrink-0">
+                  <div key={i} className="relative w-16 h-16 rounded-[12px] border border-[var(--p-outline)] bg-[var(--color-surface-variant)] flex-shrink-0">
                     <img src={url} alt="" className="w-full h-full object-cover rounded-[12px]" />
                     <button
                       onClick={(e) => { e.stopPropagation(); removeMySplashBg(url); }}
@@ -325,9 +325,9 @@ export function SettingsPage() {
                   onClick={() => { setSplashMode(m.key); setString('splash_bg_mode', m.key); }}
                   className="min-h-[30px] px-3 rounded-[8px] text-[12px] whitespace-nowrap transition-colors"
                   style={{
-                    background: splashMode === m.key ? 'var(--p-labels)' : 'var(--color-surface-variant)',
-                    border: `1px solid ${splashMode === m.key ? 'var(--p-labels)' : 'var(--color-stroke)'}`,
-                    color: splashMode === m.key ? 'var(--p-on-labels)' : 'var(--color-text-main)',
+                    background: splashMode === m.key ? 'var(--p-circle)' : 'transparent',
+                    border: `1px solid ${splashMode === m.key ? 'var(--p-circle)' : 'var(--p-outline)'}`,
+                    color: splashMode === m.key ? 'var(--p-on-circle)' : 'var(--p-outline)',
                   }}
                 >
                   {m.label}
@@ -363,15 +363,15 @@ export function SettingsPage() {
           style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}
         >
           <div className="mb-1 flex items-center gap-2">
-            <Zap className="w-5 h-5" style={{ color: 'var(--p-labels)' }} />
-            <h2 className="text-[16px] font-bold" style={{ color: 'var(--p-labels)' }}>Сигналы тренировки</h2>
+            <Zap className="w-5 h-5" style={{ color: 'var(--p-labels-text)' }} />
+            <h2 className="text-[16px] font-bold" style={{ color: 'var(--p-labels-text)' }}>Сигналы тренировки</h2>
           </div>
           <p className="text-[13px] mb-4" style={{ color: 'var(--color-text-secondary)' }}>
             Звук и вибрация при старте подхода, конце времени и конце отдыха.
           </p>
 
           <div>
-            <div className="text-[14px] font-bold mb-1" style={{ color: 'var(--p-labels)' }}>
+            <div className="text-[14px] font-bold mb-1" style={{ color: 'var(--p-labels-text)' }}>
               Профиль звука
             </div>
             <p className="text-[12px] mb-2" style={{ color: 'var(--color-text-secondary)' }}>
@@ -384,9 +384,9 @@ export function SettingsPage() {
                   onClick={() => pickSignal(p.key)}
                   className="min-h-[30px] px-3 rounded-[8px] text-[13px] whitespace-nowrap transition-colors"
                   style={{
-                    background: signalProfile === p.key ? 'var(--p-labels)' : 'var(--color-surface-variant)',
-                    border: `1px solid ${signalProfile === p.key ? 'var(--p-labels)' : 'var(--color-stroke)'}`,
-                    color: signalProfile === p.key ? 'var(--p-on-labels)' : 'var(--color-text-main)',
+                    background: signalProfile === p.key ? 'var(--p-circle)' : 'transparent',
+                    border: `1px solid ${signalProfile === p.key ? 'var(--p-circle)' : 'var(--p-outline)'}`,
+                    color: signalProfile === p.key ? 'var(--p-on-circle)' : 'var(--p-outline)',
                   }}
                 >
                   {p.label}
@@ -397,10 +397,10 @@ export function SettingsPage() {
 
           <div className="space-y-1">
             <div className="flex justify-between mb-1">
-              <div className="text-[14px] font-bold" style={{ color: 'var(--p-labels)' }}>
+              <div className="text-[14px] font-bold" style={{ color: 'var(--p-labels-text)' }}>
                 Громкость сигнала
               </div>
-              <span className="text-[12px] font-medium" style={{ color: 'var(--p-labels)' }}>
+              <span className="text-[12px] font-medium" style={{ color: 'var(--p-labels-text)' }}>
                 {signalVolume <= 0 ? '0% — только вибрация' : signalVolume + '%'}
               </span>
             </div>
@@ -430,8 +430,8 @@ export function SettingsPage() {
           style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}
         >
           <div className="mb-1 flex items-center gap-2">
-            <Smartphone className="w-5 h-5" style={{ color: 'var(--p-labels)' }} />
-            <h2 className="text-[16px] font-bold" style={{ color: 'var(--p-labels)' }}>Главный экран</h2>
+            <Smartphone className="w-5 h-5" style={{ color: 'var(--p-labels-text)' }} />
+            <h2 className="text-[16px] font-bold" style={{ color: 'var(--p-labels-text)' }}>Главный экран</h2>
           </div>
           <p className="text-[13px] mb-3" style={{ color: 'var(--color-text-secondary)' }}>
             Настраивайте ярлыки инструментов, строку поиска и плеер.
@@ -439,7 +439,7 @@ export function SettingsPage() {
 
           <div className="flex items-center justify-between mb-1">
             <div>
-              <div className="text-[14px] font-bold" style={{ color: 'var(--p-labels)' }}>
+              <div className="text-[14px] font-bold" style={{ color: 'var(--p-labels-text)' }}>
                 Перетаскивание иконок
               </div>
               <p className="text-[12px] mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
@@ -455,8 +455,8 @@ export function SettingsPage() {
               />
               <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"
                 style={{
-                  background: dragEnabled ? 'var(--p-labels)' : 'var(--color-stroke)',
-                  border: dragEnabled ? `1px solid var(--p-labels)` : '1px solid var(--color-stroke)',
+                  background: dragEnabled ? 'var(--p-circle)' : 'var(--color-stroke)',
+                  border: dragEnabled ? `1px solid var(--p-circle)` : '1px solid var(--color-stroke)',
                 }}
               />
             </label>
@@ -476,8 +476,8 @@ export function SettingsPage() {
           style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}
         >
           <div className="mb-1 flex items-center gap-2">
-            <Database className="w-5 h-5" style={{ color: 'var(--p-labels)' }} />
-            <h2 className="text-[16px] font-bold" style={{ color: 'var(--p-labels)' }}>Инструменты</h2>
+            <Database className="w-5 h-5" style={{ color: 'var(--p-labels-text)' }} />
+            <h2 className="text-[16px] font-bold" style={{ color: 'var(--p-labels-text)' }}>Инструменты</h2>
           </div>
           <p className="text-[13px] mb-4" style={{ color: 'var(--color-text-secondary)' }}>
             Поиск, погода, обновления и связь с часами.
@@ -485,7 +485,7 @@ export function SettingsPage() {
 
           <div className="flex items-center justify-between mb-1">
             <div>
-              <div className="text-[14px] font-bold" style={{ color: 'var(--p-labels)' }}>
+              <div className="text-[14px] font-bold" style={{ color: 'var(--p-labels-text)' }}>
                 Строка поиска на главном
               </div>
               <p className="text-[12px] mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
@@ -501,8 +501,8 @@ export function SettingsPage() {
               />
               <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"
                 style={{
-                  background: searchEnabled ? 'var(--p-labels)' : 'var(--color-stroke)',
-                  border: searchEnabled ? `1px solid var(--p-labels)` : '1px solid var(--color-stroke)',
+                  background: searchEnabled ? 'var(--p-circle)' : 'var(--color-stroke)',
+                  border: searchEnabled ? `1px solid var(--p-circle)` : '1px solid var(--color-stroke)',
                 }}
               />
             </label>
@@ -520,7 +520,7 @@ export function SettingsPage() {
               className="w-full h-[46px] px-4 rounded-[10px] text-[15px] outline-none"
               style={{
                 background: 'var(--color-surface)',
-                border: '1px solid var(--color-outline)',
+                border: '1px solid var(--p-outline)',
                 color: 'var(--color-text-main)',
               }}
             />
@@ -555,7 +555,7 @@ export function SettingsPage() {
               className="w-full h-[46px] px-4 rounded-[10px] text-[14px] outline-none mb-2"
               style={{
                 background: 'var(--color-surface)',
-                border: '1px solid var(--color-outline)',
+                border: '1px solid var(--p-outline)',
                 color: 'var(--color-text-main)',
               }}
             />
@@ -646,7 +646,7 @@ export function SettingsPage() {
                 checked={clockEnabled}
                 onChange={e => setClockEnabled(e.target.checked)}
                 className="w-4 h-4 rounded"
-                style={{ accentColor: 'var(--p-labels)' }}
+                style={{ accentColor: 'var(--p-circle)' }}
               />
               <div className="text-[15px] font-medium" style={{ color: 'var(--color-text-main)' }}>
                 Показывать часы на стартовом
@@ -663,8 +663,8 @@ export function SettingsPage() {
                   onClick={() => setClockMode(m.key)}
                   className={`min-h-[28px] px-2.5 py-1 rounded-[6px] text-[12px] whitespace-nowrap transition-colors ${
                     clockMode === m.key
-                      ? 'bg-[var(--p-labels)] text-[var(--p-on-labels)] border-[var(--p-labels)]'
-                      : 'bg-[var(--color-surface-variant)] text-[var(--color-text-main)] border-[var(--color-stroke)]'
+                      ? 'bg-[var(--p-circle)] text-[var(--p-on-circle)] border-[var(--p-circle)]'
+                      : 'bg-transparent text-[var(--p-outline)] border-[var(--p-outline)]'
                   }`}
                 >
                   {m.label}
