@@ -27,12 +27,12 @@
      (C) --p-circle      — кругляшки: шапка (градиент), кружок под иконкой, выбранный чип
      (D) --p-labels-text — надписи: заголовки, текст и значки кнопок, ползунки
      --p-on-labels / --p-on-circle — авто-контраст к заливке (как contrastOn) */
-  --p-outline: #FF9F1C;
-  --p-labels: #12A594;
-  --p-labels-text: #FF9F1C;
-  --p-circle: #12A594;
-  --p-circle-from: #12A594;
-  --p-circle-to: #0E8476;
+  --p-outline: #FF0080;
+  --p-labels: #000000;
+  --p-labels-text: #FF0080;
+  --p-circle: #7FFF00;
+  --p-circle-from: #7FFF00;
+  --p-circle-to: #5FBF00;
   --p-on-labels: #FFFFFF;
   --p-on-labels-soft: rgba(255, 255, 255, 0.8);
   --p-on-circle: #FFFFFF;

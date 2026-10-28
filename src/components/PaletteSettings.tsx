@@ -174,12 +174,8 @@ export function PaletteSettings() {
         {SLOTS.map(slot => {
           const custom = palette.custom[slot.id];
           const bg = custom || 'var(--color-surface)';
-          // (D) Надписи без своего цвета — текст contrastOn(контура), как в Android.
-          const fg = custom
-            ? contrastOn(custom)
-            : slot.id === 'labelsText'
-              ? contrastOn(slotColor('outline'))
-              : 'var(--color-text-main)';
+          // На сворче палитры галочка/карандаш всегда белые (как на скриншоте Android).
+          const fg = '#FFFFFF';
           return (
             <div key={slot.id}>
               <div className="text-[15px] font-bold mb-1.5" style={{ color: 'var(--color-text-main)' }}>

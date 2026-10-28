@@ -64,7 +64,13 @@ const DEFAULT_PALETTE: PaletteState = {
   primary: 0,
   secondary: 0,
   slots: { outline: 0, labelsButtons: 0, circleIcons: 0, labelsText: null },
-  custom: { outline: null, labelsButtons: null, circleIcons: null, labelsText: null },
+  /** Дефолтные цвета под скриншот Android 1.18: A=розовый, B=чёрный, C=лайм-зелёный, D наследует A. */
+  custom: {
+    outline: '#FF0080',
+    labelsButtons: '#000000',
+    circleIcons: '#7FFF00',
+    labelsText: null,
+  },
 };
 
 let state: PaletteState = loadPalette();
