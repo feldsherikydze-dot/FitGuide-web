@@ -163,7 +163,7 @@ export function PaletteSettings() {
   return (
     <div
       className="rounded-[18px] p-4"
-      style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
+      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}
     >
       <h2 className="text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>Палитра</h2>
       <p className="text-[13px] mt-0.5 mb-3" style={{ color: 'var(--color-text-secondary)' }}>
@@ -174,7 +174,12 @@ export function PaletteSettings() {
         {SLOTS.map(slot => {
           const custom = palette.custom[slot.id];
           const bg = custom || 'var(--color-surface)';
-          const fg = custom ? contrastOn(custom) : 'var(--color-text-main)';
+          // (D) Надписи без своего цвета — текст contrastOn(контура), как в Android.
+          const fg = custom
+            ? contrastOn(custom)
+            : slot.id === 'labelsText'
+              ? contrastOn(slotColor('outline'))
+              : 'var(--color-text-main)';
           return (
             <div key={slot.id}>
               <div className="text-[15px] font-bold mb-1.5" style={{ color: 'var(--color-text-main)' }}>
@@ -209,7 +214,7 @@ export function PaletteSettings() {
         >
           <div
             className="w-full max-w-[360px] rounded-[20px] p-4"
-            style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
+            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}
             onClick={e => e.stopPropagation()}
           >
             <div className="text-[17px] font-bold mb-1" style={{ color: 'var(--color-text-main)' }}>
