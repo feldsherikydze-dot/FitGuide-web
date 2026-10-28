@@ -1,11 +1,13 @@
-// FitGuide Web — система палитр (порт ThemeManager.java)
+// FitGuide Web — система палитр (порт ThemeManager.java + BaseActivity.tintTree)
 //
-// Четыре независимых слота цвета:
-//   (A) Контур   — рамки карточек
-//   (B) Ярлыки   — ярлыки и кнопки (верхняя панель, круглые иконки)
-//   (C) Кругляшки— круг под иконкой внутри ярлыка
-//   (D) Надписи  — текст на ярлыках
-// Каждый слот: индекс пресета (0..6) ИЛИ свой RGB.
+// Четыре независимых слота цвета — ровно как в Android:
+//   (A) Контур    — обводки карточек, чипов, полей; значок внутри кругляшка
+//   (B) Ярлыки+кнопки — фон ярлыков, кнопок, полей ввода, мини-плеера
+//   (C) Кругляшки — шапка (градиент), кружок под иконкой, выбранные чипы
+//   (D) Надписи   — заголовки, текст и значки кнопок, ползунки.
+//                   Пока не задан вручную — повторяет контур (A).
+//
+// Текст НА ярлыке (B) и НА кругляшке (C) — не слот, а авто-контраст к заливке.
 
 import { getJSON, setJSON, KEYS } from './storage';
 
@@ -34,14 +36,6 @@ export const SECONDARY_COLORS = [
   '#F3C20F', // kolizey
 ];
 
-/** Градиент круга (как circle_icon: угол 315°). */
-export const GRADIENT_STARTS = [
-  '#2EB0A1', '#4880EF', '#7E70EA', '#DD3673', '#EB6D29', '#5F656B', '#00A546',
-];
-export const GRADIENT_ENDS = [
-  '#0E8476', '#2659BE', '#564AB9', '#AD164D', '#BA470A', '#3A4046', '#007C33',
-];
-
 /** Базовые цвета интерфейса (colors.xml). */
 export const BASE = {
   surface: '#FFFFFF',
@@ -53,24 +47,23 @@ export const BASE = {
   surfaceVariant: '#EDF4EF',
   warning: '#C0392B',
   white: '#FFFFFF',
-  whiteAlpha80: 'rgba(255,255,255,0.8)',
-  whiteAlpha40: 'rgba(255,255,255,0.4)',
-  whiteAlpha33: 'rgba(255,255,255,0.2)',
 };
 
 export type SlotName = 'outline' | 'labelsButtons' | 'circleIcons' | 'labelsText';
 
 export interface PaletteState {
-  primary: number;            // индекс пресета основной темы
+  primary: number;
   secondary: number;
-  slots: Record<SlotName, number>;      // индекс пресета для слота
-  custom: Record<SlotName, string | null>; // свой RGB ('' = выключен)
+  /** Индекс пресета для слота. labelsText: null = наследует контур (A). */
+  slots: { outline: number; labelsButtons: number; circleIcons: number; labelsText: number | null };
+  /** Свой RGB (null = выключен). */
+  custom: Record<SlotName, string | null>;
 }
 
 const DEFAULT_PALETTE: PaletteState = {
   primary: 0,
   secondary: 0,
-  slots: { outline: 0, labelsButtons: 0, circleIcons: 0, labelsText: 0 },
+  slots: { outline: 0, labelsButtons: 0, circleIcons: 0, labelsText: null },
   custom: { outline: null, labelsButtons: null, circleIcons: null, labelsText: null },
 };
 
@@ -102,15 +95,7 @@ function commit(next: PaletteState) {
   listeners.forEach(fn => fn());
 }
 
-export function setPrimaryPalette(index: number) {
-  commit({ ...state, primary: index, slots: { ...state.slots, labelsButtons: index, circleIcons: index } });
-}
-
-export function setSecondaryPalette(index: number) {
-  commit({ ...state, secondary: index, slots: { ...state.slots, outline: index, labelsText: index } });
-}
-
-export function setSlotPalette(slot: SlotName, index: number) {
+export function setSlotPalette(slot: SlotName, index: number | null) {
   commit({ ...state, slots: { ...state.slots, [slot]: index } });
 }
 
@@ -122,45 +107,64 @@ export function resetPalette() {
   commit({ ...DEFAULT_PALETTE });
 }
 
+/** Затемнение цвета как darken() в Android (factor 0.82). */
+export function darken(hex: string, factor = 0.82): string {
+  const h = hex.replace('#', '');
+  if (h.length < 6) return hex;
+  const r = Math.min(255, Math.round(parseInt(h.slice(0, 2), 16) * factor));
+  const g = Math.min(255, Math.round(parseInt(h.slice(2, 4), 16) * factor));
+  const b = Math.min(255, Math.round(parseInt(h.slice(4, 6), 16) * factor));
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
 /** Цвет слота: свой RGB, если задан, иначе цвет пресета. */
 export function slotColor(slot: SlotName): string {
   const custom = state.custom[slot];
   if (custom) return custom;
   switch (slot) {
     case 'outline':
-    case 'labelsText':
-      return SECONDARY_COLORS[state.slots[slot]] ?? SECONDARY_COLORS[0];
+      return SECONDARY_COLORS[state.slots.outline] ?? SECONDARY_COLORS[0];
     case 'labelsButtons':
-      return PRIMARY_COLORS[state.slots[slot]] ?? PRIMARY_COLORS[0];
+      return PRIMARY_COLORS[state.slots.labelsButtons] ?? PRIMARY_COLORS[0];
     case 'circleIcons':
-      return PRIMARY_COLORS[state.slots[slot]] ?? PRIMARY_COLORS[0];
+      return PRIMARY_COLORS[state.slots.circleIcons] ?? PRIMARY_COLORS[0];
+    case 'labelsText': {
+      // (D) по умолчанию повторяет контур (A), как cacheText в ThemeManager.
+      const idx = state.slots.labelsText;
+      if (idx === null) return slotColor('outline');
+      return SECONDARY_COLORS[idx] ?? SECONDARY_COLORS[0];
+    }
   }
 }
 
-/** Градиент для круга под иконкой. */
+/** Градиент круга под иконкой: C → darken(C, 0.82), как applyGradient(). */
 export function circleGradient(): { from: string; to: string } {
-  const custom = state.custom.circleIcons;
-  if (custom) return { from: custom, to: custom };
-  const i = state.slots.circleIcons;
-  return { from: GRADIENT_STARTS[i] ?? GRADIENT_STARTS[0], to: GRADIENT_ENDS[i] ?? GRADIENT_ENDS[0] };
+  const c = slotColor('circleIcons');
+  return { from: c, to: darken(c) };
 }
 
-/** Градиент верхней панели. */
+/** Градиент шапки — тот же, что у кругляшков (C), как tintHeader(). */
 export function topBarGradient(): { from: string; to: string } {
-  const custom = state.custom.labelsButtons;
-  if (custom) return { from: custom, to: custom };
-  const i = state.slots.labelsButtons;
-  return { from: GRADIENT_STARTS[i] ?? GRADIENT_STARTS[0], to: GRADIENT_ENDS[i] ?? GRADIENT_ENDS[0] };
+  return circleGradient();
 }
 
 /** Контрастный цвет текста на заливке (как ThemeManager.contrastOn). */
 export function contrastOn(hex: string): string {
   const h = hex.replace('#', '');
-  if (h.length < 6) return '#000000';
+  if (h.length < 6) return '#111111';
   const r = parseInt(h.slice(0, 2), 16);
   const g = parseInt(h.slice(2, 4), 16);
   const b = parseInt(h.slice(4, 6), 16);
-  // относительная яркость
   const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return lum > 0.6 ? '#000000' : '#FFFFFF';
+  return lum > 0.6 ? '#111111' : '#FFFFFF';
+}
+
+/** Тот же цвет с прозрачностью (withAlpha в Android). */
+export function withAlpha(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  if (h.length < 6) return hex;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
 }

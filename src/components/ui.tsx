@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import {
-  slotColor, circleGradient, topBarGradient, contrastOn, subscribePalette, getPalette,
+  slotColor, circleGradient, topBarGradient, contrastOn, withAlpha, subscribePalette, getPalette,
   type SlotName,
 } from '../core/palette';
 
@@ -29,18 +29,24 @@ export function usePaletteVars() {
   const outline = slotColor('outline');
   const labels = slotColor('labelsButtons');
   const labelsText = slotColor('labelsText');
-  const circle = circleGradient();
+  const circle = slotColor('circleIcons');
+  const circleGrad = circleGradient();
   const grad = topBarGradient();
 
   const root = document.documentElement;
   root.style.setProperty('--p-outline', outline);
   root.style.setProperty('--p-labels', labels);
   root.style.setProperty('--p-labels-text', labelsText);
-  root.style.setProperty('--p-circle-from', circle.from);
-  root.style.setProperty('--p-circle-to', circle.to);
-  root.style.setProperty('--p-on-labels', contrastOn(labels));
+  root.style.setProperty('--p-circle', circle);
+  root.style.setProperty('--p-circle-from', circleGrad.from);
+  root.style.setProperty('--p-circle-to', circleGrad.to);
   root.style.setProperty('--p-grad-from', grad.from);
   root.style.setProperty('--p-grad-to', grad.to);
+  // Авто-контраст к заливкам (как contrastOn в Android)
+  root.style.setProperty('--p-on-labels', contrastOn(labels));
+  root.style.setProperty('--p-on-labels-soft', withAlpha(contrastOn(labels), 0.8));
+  root.style.setProperty('--p-on-circle', contrastOn(circle));
+  root.style.setProperty('--p-on-circle-soft', withAlpha(contrastOn(circle), 0.8));
   root.style.setProperty('--p-ripple', hexToRgba(labels, 0.12));
 }
 
@@ -92,29 +98,8 @@ export function TopBar({ title, subtitle, right }: {
   );
 }
 
-/** Кнопка-иконка в верхней панели (42dp, как в Android). */
-export function TopBarButton({ onClick, icon, label }: { onClick: () => void; icon: string; label: string }) {
-  return (
-    <button
-      onClick={onClick}
-      aria-label={label}
-      className="p-2.5 rounded-full active:bg-white/15"
-    >
-      <span
-        className="block w-[26px] h-[26px]"
-        style={{
-          WebkitMaskImage: `url(${icon})`, maskImage: `url(${icon})`,
-          WebkitMaskSize: 'contain', maskSize: 'contain',
-          WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
-          backgroundColor: '#fff',
-        }}
-      />
-    </button>
-  );
-}
-
 /**
- * Шапка внутреннего экрана — как в Android: стрелка назад + заголовок цветом темы.
+ * Шапка внутреннего экрана — как в Android: стрелка назад + заголовок цветом (D).
  * Заголовки берутся из strings.xml (title_*).
  */
 export function PageHeader({ title, right, onBack }: {
@@ -128,10 +113,10 @@ export function PageHeader({ title, right, onBack }: {
         className="w-12 h-12 flex items-center justify-center rounded-full active:bg-black/5 flex-shrink-0"
         aria-label="Назад"
       >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--p-labels)" strokeWidth="2.5"
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--p-labels-text)" strokeWidth="2.5"
           strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
       </button>
-      <div className="ml-1 flex-1 min-w-0 text-[20px] font-bold truncate" style={{ color: 'var(--p-labels)' }}>
+      <div className="ml-1 flex-1 min-w-0 text-[20px] font-bold truncate" style={{ color: 'var(--p-labels-text)' }}>
         {title}
       </div>
       {right}
@@ -139,9 +124,19 @@ export function PageHeader({ title, right, onBack }: {
   );
 }
 
+/** Кнопка-иконка в шапке: значок — авто-контраст к градиенту (C). */
+export function TopBarButton({ onClick, icon, label }: { onClick: () => void; icon: string; label: string }) {
+  return (
+    <button onClick={onClick} aria-label={label} className="p-2.5 rounded-full active:bg-white/15 flex-shrink-0">
+      <MaskIcon src={icon} color="var(--p-on-circle)" size={26} />
+    </button>
+  );
+}
+
 /**
- * Карточка-строка внутреннего хаба — как MaterialCardView в Android:
- * круг с градиентом, заголовок 16sp bold и подпись 12sp.
+ * Карточка-строка внутреннего хаба — MaterialCardView из Android:
+ * фон — ярлыки (B), обводка — контур (A), кружок — градиент (C),
+ * значок в кружке — контур (A), заголовок — надписи (D), подпись — textSecondary.
  */
 export function HubCard({ icon, title, subtitle, onClick }: {
   icon: string; title: string; subtitle: string; onClick: () => void;
@@ -150,16 +145,16 @@ export function HubCard({ icon, title, subtitle, onClick }: {
     <button
       onClick={onClick}
       className="w-full text-left flex items-center gap-3 p-3.5 mb-2.5 rounded-[18px] active:opacity-80"
-      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}
+      style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
     >
       <span
         className="w-[42px] h-[42px] rounded-full flex items-center justify-center flex-shrink-0"
         style={{ background: 'linear-gradient(135deg, var(--p-circle-from), var(--p-circle-to))' }}
       >
-        <MaskIcon src={icon} color="var(--p-labels-text)" size={22} />
+        <MaskIcon src={icon} color="var(--p-outline)" size={22} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[16px] font-bold leading-tight" style={{ color: 'var(--p-labels)' }}>
+        <span className="block text-[16px] font-bold leading-tight" style={{ color: 'var(--p-labels-text)' }}>
           {title}
         </span>
         <span className="block text-[12px] mt-0.5 leading-snug" style={{ color: 'var(--color-text-secondary)' }}>
@@ -170,10 +165,10 @@ export function HubCard({ icon, title, subtitle, onClick }: {
   );
 }
 
-/** Заголовок раздела внутри хаба (13sp bold, цвет темы). */
+/** Заголовок раздела внутри хаба (13sp bold, цвет надписей (D)). */
 export function HubSection({ children }: { children: ReactNode }) {
   return (
-    <div className="mt-4 mb-0.5 text-[13px] font-bold" style={{ color: 'var(--p-labels)' }}>
+    <div className="mt-4 mb-0.5 text-[13px] font-bold" style={{ color: 'var(--p-labels-text)' }}>
       {children}
     </div>
   );
@@ -194,20 +189,12 @@ export function ToolTile({ tool }: { tool: ToolDef }) {
     <Link to={tool.to} className="block">
       <div className="fg-tile flex flex-col items-center text-center px-4 py-[18px] h-full">
         <div className="fg-circle">
-          <span
-            className="block w-[26px] h-[26px]"
-            style={{
-              WebkitMaskImage: `url(${tool.icon})`, maskImage: `url(${tool.icon})`,
-              WebkitMaskSize: 'contain', maskSize: 'contain',
-              WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
-              backgroundColor: 'var(--p-labels-text)',
-            }}
-          />
+          <MaskIcon src={tool.icon} color="var(--p-outline)" size={26} />
         </div>
-        <div className="mt-3 text-[15px] font-bold leading-tight" style={{ color: 'var(--p-labels-text)' }}>
+        <div className="mt-3 text-[15px] font-bold leading-tight" style={{ color: 'var(--p-on-labels)' }}>
           {tool.title}
         </div>
-        <div className="mt-0.5 text-[12px] leading-snug" style={{ color: 'var(--color-text-secondary)' }}>
+        <div className="mt-0.5 text-[12px] leading-snug" style={{ color: 'var(--p-on-labels-soft)' }}>
           {tool.subtitle}
         </div>
       </div>
@@ -236,10 +223,10 @@ export function MiniPlayer({ state }: { state: MiniPlayerState }) {
           <MaskIcon src={asset('icons/ic_music.svg')} color="var(--p-labels-text)" size={24} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[15px] font-bold truncate" style={{ color: 'var(--color-text-main)' }}>
+          <div className="text-[15px] font-bold truncate" style={{ color: 'var(--p-on-labels)' }}>
             {state.title}
           </div>
-          <div className="text-[12px] truncate mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
+          <div className="text-[12px] truncate mt-0.5" style={{ color: 'var(--p-on-labels-soft)' }}>
             {state.subtitle}
           </div>
         </div>

@@ -21,14 +21,23 @@
 }
 
 :root {
-  /* Палитра подставляется из JS (см. core/palette.ts) */
+  /* Палитра подставляется из JS (см. core/palette.ts).
+     (A) --p-outline     — контур: обводки карточек, чипов, полей, значки в кружках
+     (B) --p-labels      — ярлыки и кнопки: фон карточек, кнопок, полей, мини-плеера
+     (C) --p-circle      — кругляшки: шапка (градиент), кружок под иконкой, выбранный чип
+     (D) --p-labels-text — надписи: заголовки, текст и значки кнопок, ползунки
+     --p-on-labels / --p-on-circle — авто-контраст к заливке (как contrastOn) */
   --p-outline: #FF9F1C;
   --p-labels: #12A594;
   --p-labels-text: #FF9F1C;
-  --p-circle-from: #2EB0A1;
+  --p-circle: #12A594;
+  --p-circle-from: #12A594;
   --p-circle-to: #0E8476;
   --p-on-labels: #FFFFFF;
-  --p-grad-from: #2EB0A1;
+  --p-on-labels-soft: rgba(255, 255, 255, 0.8);
+  --p-on-circle: #FFFFFF;
+  --p-on-circle-soft: rgba(255, 255, 255, 0.8);
+  --p-grad-from: #12A594;
   --p-grad-to: #0E8476;
   --p-ripple: rgba(18, 165, 148, 0.1);
 }
@@ -56,17 +65,17 @@ body {
   font-size: 24px;
   font-weight: 700;
   letter-spacing: -0.2px;
-  color: #fff;
+  color: var(--p-on-circle);
 }
 
 .fg-topbar-sub {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--p-on-circle-soft);
 }
 
 /* ---------- Карточка плитки (item_tool) ---------- */
 .fg-tile {
-  background: var(--color-surface);
+  background: var(--p-labels);
   border: 1px solid var(--p-outline);
   border-radius: 20px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
@@ -103,15 +112,15 @@ body {
   border: 1px solid var(--color-stroke);
 }
 
-/* ---------- Мини-плеер (mini_player) ---------- */
+/* ---------- Мини-плеер (mini_player): фон (B), обводка (A) ---------- */
 .fg-miniplayer {
-  background: var(--color-surface);
-  border: 1px solid var(--color-stroke);
+  background: var(--p-labels);
+  border: 1px solid var(--p-outline);
   border-radius: 18px;
   box-shadow: none;
 }
 
-/* ---------- Кнопки ---------- */
+/* ---------- Кнопки: заливка (B), текст (D) ---------- */
 .fg-btn {
   border-radius: 22px;
   font-weight: 500;
@@ -122,30 +131,32 @@ body {
 
 .fg-btn-primary {
   background: var(--p-labels);
-  color: var(--p-on-labels);
+  color: var(--p-labels-text);
 }
 
 .fg-btn-ghost {
-  border: 1px solid var(--color-outline);
-  color: var(--color-text-main);
+  border: 1px solid var(--p-outline);
+  color: var(--p-labels-text);
   background: transparent;
 }
 
-/* ---------- Поля ввода ---------- */
+/* ---------- Поля ввода: заливка (B), обводка (A) ---------- */
 .fg-input {
-  border: 1px solid var(--color-outline);
+  border: 1px solid var(--p-outline);
   border-radius: 22px;
-  background: var(--color-surface);
+  background: var(--p-labels);
   padding: 12px 16px;
   font-size: 15px;
-  color: var(--color-text-main);
+  color: var(--p-on-labels);
   width: 100%;
   outline: none;
 }
 
+.fg-input::placeholder { color: var(--p-on-labels-soft); }
+
 .fg-input:focus {
-  border-color: var(--p-labels);
-  box-shadow: 0 0 0 1px var(--p-labels);
+  border-color: var(--p-outline);
+  box-shadow: 0 0 0 1px var(--p-outline);
 }
 
 /* ---------- Экран тренировки (activity_workout.xml) ---------- */
@@ -250,8 +261,34 @@ body {
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 .safe-top { padding-top: env(safe-area-inset-top); }
 
+/* Темы через data-theme атрибут (приоритет над prefers-color-scheme) */
+:root[data-theme="dark"] {
+  --color-surface: #14171A;
+  --color-bg: #0D0F11;
+  --color-text-main: #ECEFF1;
+  --color-text-secondary: #9AA5A1;
+  --color-stroke: #2A3033;
+  --color-outline: #3A4245;
+  --color-surface-variant: #1B1F22;
+}
+:root[data-theme="dark"] .fg-banner {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Light theme explicit */
+:root[data-theme="light"] {
+  --color-surface: #FFFFFF;
+  --color-bg: #F5F8F6;
+  --color-text-main: #1B1E20;
+  --color-text-secondary: #6E767B;
+  --color-stroke: #D8E4DC;
+  --color-outline: #BFCFC4;
+  --color-surface-variant: #EDF4EF;
+}
+
+/* System (fallback to prefers-color-scheme) */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
     --color-surface: #14171A;
     --color-bg: #0D0F11;
     --color-text-main: #ECEFF1;
@@ -260,5 +297,7 @@ body {
     --color-outline: #3A4245;
     --color-surface-variant: #1B1F22;
   }
-  .fg-banner { background: rgba(255, 255, 255, 0.06); }
+  :root:not([data-theme]) .fg-banner {
+    background: rgba(255, 255, 255, 0.06);
+  }
 }

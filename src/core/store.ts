@@ -325,6 +325,15 @@ export const useBodyLogStore = create<BodyLogSlice>()(
 
 // ------------------------------------------------------------------ UI
 
+function applyTheme(t: 'light' | 'dark' | 'system') {
+  const root = document.documentElement;
+  if (t === 'system') {
+    root.removeAttribute('data-theme');
+  } else {
+    root.setAttribute('data-theme', t);
+  }
+}
+
 interface UIState {
   theme: 'light' | 'dark' | 'system';
   setTheme: (t: 'light' | 'dark' | 'system') => void;
@@ -335,9 +344,12 @@ interface UIState {
 
 export const useUIStore = create<UIState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       theme: 'system',
-      setTheme: (t) => set({ theme: t }),
+      setTheme: (t) => {
+        set({ theme: t });
+        applyTheme(t);
+      },
       sidebarOpen: false,
       toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
@@ -345,3 +357,14 @@ export const useUIStore = create<UIState>()(
     { name: KEYS.SETTINGS, storage: createJSONStorage(() => localStorage) }
   )
 );
+
+// Apply theme on load
+if (typeof window !== 'undefined') {
+  const stored = localStorage.getItem(KEYS.SETTINGS);
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (parsed.state?.theme) applyTheme(parsed.state.theme);
+    } catch {}
+  }
+}

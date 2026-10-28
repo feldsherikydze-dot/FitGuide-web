@@ -1,155 +1,263 @@
-// FitGuide Web — экран палитр (порт ThemeManager + настройки тем в Android)
+// FitGuide Web — экран палитры (порт SettingsActivity.setupPalette / buildPaletteGroup
+// и ColorCircleView из Android 1.17)
 //
-// Четыре независимых слота цвета, у каждого — свой пресет или свой RGB:
-//   (A) Контур    — рамки карточек
-//   (B) Ярлыки    — верхняя панель и кнопки
-//   (C) Кругляшки — круг под иконкой в ярлыке
-//   (D) Надписи   — текст на ярлыках
+// Ровно как в APK:
+//   • четыре строки — Контур (A), Ярлыки + кнопки (B), Кругляшки внутри ярлыков (C), Надписи (D);
+//   • в строке один свотч во всю ширину (34dp, скругление в половину высоты);
+//   • обводка свотча — статический цвет темы textMain, толщина 3dp;
+//   • заливка — свой цвет, если задан, иначе colorSurface;
+//   • глиф: ✓ — свой цвет задан, ✎ — не задан;
+//   • клик открывает колорпикер: круг HSV + ползунок яркости + кружок-превью.
 
-import { useState } from 'react';
-import { clsx } from 'clsx';
-import { Palette, RotateCcw, Check } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import {
-  PALETTE_KEYS, PRIMARY_COLORS, SECONDARY_COLORS,
-  getPalette, setSlotPalette, setSlotCustom, resetPalette, subscribePalette,
+  slotColor, contrastOn, setSlotCustom, getPalette, subscribePalette,
   type SlotName,
 } from '../core/palette';
-import { usePaletteVars } from '../components/ui';
 
-const SLOTS: { id: SlotName; title: string; desc: string }[] = [
-  { id: 'outline', title: 'Контур', desc: 'Рамки карточек' },
-  { id: 'labelsButtons', title: 'Ярлыки и кнопки', desc: 'Верхняя панель, кнопки' },
-  { id: 'circleIcons', title: 'Кругляшки', desc: 'Круг под иконкой в ярлыке' },
-  { id: 'labelsText', title: 'Надписи', desc: 'Текст на ярлыках' },
+const SLOTS: { id: SlotName; title: string }[] = [
+  { id: 'outline', title: 'Контур' },
+  { id: 'labelsButtons', title: 'Ярлыки + кнопки' },
+  { id: 'circleIcons', title: 'Кругляшки внутри ярлыков' },
+  { id: 'labelsText', title: 'Надписи' },
 ];
 
-export function PaletteSettings() {
-  usePaletteVars();
-  const [, force] = useState(0);
-  useState(() => subscribePalette(() => force(x => x + 1)));
+// ---------------------------------------------------------------- HSV
 
-  const [customSlot, setCustomSlot] = useState<SlotName | null>(null);
-  const [customColor, setCustomColor] = useState('#12A594');
-  const palette = getPalette();
+function rgbToHsv(hex: string): { h: number; s: number; v: number } {
+  const h6 = hex.replace('#', '');
+  const r = parseInt(h6.slice(0, 2), 16) / 255;
+  const g = parseInt(h6.slice(2, 4), 16) / 255;
+  const b = parseInt(h6.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const d = max - min;
+  let hue = 0;
+  if (d !== 0) {
+    if (max === r) hue = ((g - b) / d) % 6;
+    else if (max === g) hue = (b - r) / d + 2;
+    else hue = (r - g) / d + 4;
+    hue *= 60;
+    if (hue < 0) hue += 360;
+  }
+  return { h: hue, s: max === 0 ? 0 : d / max, v: max };
+}
 
-  const apply = (slot: SlotName, index: number) => {
-    setSlotPalette(slot, index);
-    setCustomSlot(null);
+function hsvToHex(h: number, s: number, v: number): string {
+  const c = v * s;
+  const hp = ((h % 360) + 360) % 360 / 60;
+  const x = c * (1 - Math.abs((hp % 2) - 1));
+  let r = 0, g = 0, b = 0;
+  if (hp < 1) { r = c; g = x; }
+  else if (hp < 2) { r = x; g = c; }
+  else if (hp < 3) { g = c; b = x; }
+  else if (hp < 4) { g = x; b = c; }
+  else if (hp < 5) { r = x; b = c; }
+  else { r = c; b = x; }
+  const m = v - c;
+  const to = (n: number) => Math.round(Math.min(255, Math.max(0, (n + m) * 255)))
+    .toString(16).padStart(2, '0');
+  return `#${to(r)}${to(g)}${to(b)}`;
+}
+
+// ---------------------------------------------------------------- круг цвета
+
+function ColorWheel({ hue, sat, value, size, onPick }: {
+  hue: number; sat: number; value: number; size: number;
+  onPick: (h: number, s: number) => void;
+}) {
+  const ref = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const cv = ref.current;
+    if (!cv) return;
+    const ctx = cv.getContext('2d');
+    if (!ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    cv.width = size * dpr;
+    cv.height = size * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, size, size);
+
+    const r = size / 2;
+    const img = ctx.createImageData(size, size);
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const dx = x - r + 0.5;
+        const dy = y - r + 0.5;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const i = (y * size + x) * 4;
+        if (dist > r) { img.data[i + 3] = 0; continue; }
+        let angle = Math.atan2(dy, dx) * 180 / Math.PI;
+        if (angle < 0) angle += 360;
+        const hex = hsvToHex(angle, Math.min(1, dist / r), value);
+        img.data[i] = parseInt(hex.slice(1, 3), 16);
+        img.data[i + 1] = parseInt(hex.slice(3, 5), 16);
+        img.data[i + 2] = parseInt(hex.slice(5, 7), 16);
+        img.data[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }, [size, value]);
+
+  const pick = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const r = rect.width / 2;
+    const dx = e.clientX - rect.left - r;
+    const dy = e.clientY - rect.top - r;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    let angle = Math.atan2(dy, dx) * 180 / Math.PI;
+    if (angle < 0) angle += 360;
+    onPick(angle, Math.min(1, dist / r));
   };
 
-  const applyCustom = (slot: SlotName, color: string) => {
-    setSlotCustom(slot, color);
-  };
+  const rad = (hue * Math.PI) / 180;
+  const pr = sat * (size / 2 - 8);
+  const px = size / 2 + Math.cos(rad) * pr;
+  const py = size / 2 + Math.sin(rad) * pr;
 
   return (
-    <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border p-6">
-      <div className="flex items-center justify-between mb-1">
-        <h2 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-          <Palette className="w-5 h-5 text-primary-600" />
-          Палитра
-        </h2>
-        <button
-          onClick={() => { resetPalette(); setCustomSlot(null); }}
-          className="text-sm text-slate-500 dark:text-slate-400 hover:underline flex items-center gap-1"
-        >
-          <RotateCcw className="w-3.5 h-3.5" /> Сброс
-        </button>
-      </div>
-      <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-        Четыре независимых цвета оформления. Каждый — из пресета или свой.
+    <div className="relative" style={{ width: size, height: size }}>
+      <canvas
+        ref={ref}
+        style={{ width: size, height: size, borderRadius: '50%', touchAction: 'none', display: 'block' }}
+        onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); pick(e); }}
+        onPointerMove={e => { if (e.buttons) pick(e); }}
+      />
+      <span
+        className="absolute rounded-full pointer-events-none"
+        style={{
+          left: px - 9, top: py - 9, width: 18, height: 18,
+          border: '2px solid #fff', boxShadow: '0 0 0 1px rgba(0,0,0,0.45)',
+        }}
+      />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- экран
+
+export function PaletteSettings() {
+  const [, force] = useState(0);
+  useEffect(() => subscribePalette(() => force(x => x + 1)), []);
+
+  const [editSlot, setEditSlot] = useState<SlotName | null>(null);
+  const [hue, setHue] = useState(0);
+  const [sat, setSat] = useState(0);
+  const [val, setVal] = useState(1);
+
+  const palette = getPalette();
+
+  const openPicker = (slot: SlotName) => {
+    const custom = palette.custom[slot];
+    const hsv = rgbToHsv(custom || slotColor(slot));
+    setHue(hsv.h);
+    setSat(hsv.s);
+    setVal(hsv.v || 1);
+    setEditSlot(slot);
+  };
+
+  const preview = hsvToHex(hue, sat, val);
+  const editTitle = SLOTS.find(s => s.id === editSlot)?.title ?? '';
+
+  return (
+    <div
+      className="rounded-[18px] p-4"
+      style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
+    >
+      <h2 className="text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>Палитра</h2>
+      <p className="text-[13px] mt-0.5 mb-3" style={{ color: 'var(--color-text-secondary)' }}>
+        Цветовая схема приложения
       </p>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {SLOTS.map(slot => {
           const custom = palette.custom[slot.id];
-          const idx = palette.slots[slot.id];
+          const bg = custom || 'var(--color-surface)';
+          const fg = custom ? contrastOn(custom) : 'var(--color-text-main)';
           return (
             <div key={slot.id}>
-              <div className="flex items-center justify-between mb-2">
-                <div>
-                  <div className="font-medium text-slate-900 dark:text-white">{slot.title}</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">{slot.desc}</div>
-                </div>
-                {custom && (
-                  <span className="text-xs px-2 py-0.5 rounded-full"
-                    style={{ background: custom + '22', color: custom }}>
-                    свой цвет
-                  </span>
-                )}
+              <div className="text-[15px] font-bold mb-1.5" style={{ color: 'var(--color-text-main)' }}>
+                {slot.title}
               </div>
-
-              <div className="flex flex-wrap gap-2">
-                {PALETTE_KEYS.map((key, i) => (
-                  <button
-                    key={key}
-                    onClick={() => apply(slot.id, i)}
-                    title={key}
-                    className={clsx(
-                      'w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-95',
-                      !custom && idx === i && 'ring-2 ring-offset-2'
-                    )}
-                    style={{
-                      background: slot.id === 'outline' || slot.id === 'labelsText'
-                        ? SECONDARY_COLORS[i] : PRIMARY_COLORS[i],
-                      // кольцо в цвет текста, чтобы читалось на любом фоне
-                      ['--tw-ring-color' as any]: 'var(--color-text-main)',
-                    }}
-                  >
-                    {!custom && idx === i && (
-                      <Check className="w-4 h-4 text-white drop-shadow" />
-                    )}
-                  </button>
-                ))}
-
-                {/* Свой цвет */}
-                <button
-                  onClick={() => { setCustomSlot(slot.id); setCustomColor(custom || '#12A594'); }}
-                  className={clsx(
-                    'w-9 h-9 rounded-full flex items-center justify-center border-2 border-dashed',
-                    customSlot === slot.id
-                      ? 'border-slate-900 dark:border-white'
-                      : 'border-slate-300 dark:border-dark-border'
-                  )}
-                  style={custom ? { background: custom } : undefined}
-                  title="Свой цвет"
-                >
-                  {!custom && <span className="text-xs text-slate-400">+</span>}
-                </button>
-
-                {custom && (
-                  <button
-                    onClick={() => setSlotCustom(slot.id, null)}
-                    className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 dark:bg-dark-border"
-                    title="Убрать свой цвет"
-                  >
-                    <span className="text-xs text-slate-500">×</span>
-                  </button>
-                )}
-              </div>
-
-              {customSlot === slot.id && (
-                <div className="mt-2 flex items-center gap-3 p-3 rounded-lg"
-                  style={{ background: 'var(--color-surface-variant)' }}>
-                  <input
-                    type="color"
-                    value={customColor}
-                    onChange={e => { setCustomColor(e.target.value); applyCustom(slot.id, e.target.value); }}
-                    className="w-10 h-10 rounded cursor-pointer border-0 bg-transparent"
-                  />
-                  <input
-                    type="text"
-                    value={customColor}
-                    onChange={e => { setCustomColor(e.target.value); applyCustom(slot.id, e.target.value); }}
-                    className="fg-input flex-1"
-                    style={{ padding: '8px 12px' }}
-                  />
-                  <span className="text-sm text-slate-500 dark:text-slate-400">свой цвет</span>
-                </div>
-              )}
+              <button
+                onClick={() => openPicker(slot.id)}
+                aria-label={`Свой цвет: ${slot.title}`}
+                className="w-full flex items-center px-3 active:opacity-90"
+                style={{
+                  height: 34,
+                  borderRadius: 17,
+                  background: bg,
+                  border: '3px solid var(--color-text-main)',
+                  color: fg,
+                  fontSize: 15,
+                  lineHeight: 1,
+                }}
+              >
+                {custom ? '✓' : '✎'}
+              </button>
             </div>
           );
         })}
       </div>
+
+      {editSlot && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-6"
+          style={{ background: 'rgba(0,0,0,0.55)' }}
+          onClick={() => setEditSlot(null)}
+        >
+          <div
+            className="w-full max-w-[360px] rounded-[20px] p-4"
+            style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="text-[17px] font-bold mb-1" style={{ color: 'var(--color-text-main)' }}>
+              Свой цвет
+            </div>
+            <div className="text-[13px] mb-3" style={{ color: 'var(--color-text-secondary)' }}>
+              {editTitle}
+            </div>
+
+            <div className="flex flex-col items-center">
+              <ColorWheel hue={hue} sat={sat} value={val} size={220} onPick={(h, s) => { setHue(h); setSat(s); }} />
+              <span
+                className="mt-3 rounded-full"
+                style={{
+                  width: 48, height: 48, background: preview,
+                  border: `2px solid ${contrastOn(preview)}`,
+                }}
+              />
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={Math.round(val * 100)}
+                onChange={e => setVal(Number(e.target.value) / 100)}
+                className="w-full mt-3"
+                style={{ accentColor: 'var(--p-labels-text)' }}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setEditSlot(null)}
+                className="px-4 py-2 rounded-full text-[14px] font-medium"
+                style={{ color: 'var(--color-text-secondary)' }}
+              >
+                Отмена
+              </button>
+              <button
+                onClick={() => { setSlotCustom(editSlot, preview); setEditSlot(null); }}
+                className="px-4 py-2 rounded-full text-[14px] font-medium"
+                style={{ color: 'var(--p-labels-text)' }}
+              >
+                Сохранить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
