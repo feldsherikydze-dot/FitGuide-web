@@ -5,7 +5,7 @@
 // cache.addAll падает целиком, SW не устанавливается, и браузер
 // не считает приложение устанавливаемым (ярлык открывается во вкладке).
 
-const CACHE_NAME = 'fitguide-v1.13';
+const CACHE_NAME = 'fitguide-v1.14';
 
 const STATIC_ASSETS = [
   './',
@@ -61,6 +61,24 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+
+  // Навигация (index.html) — сначала сеть: после обновления приложения телефон
+  // не должен застревать на старой версии с другим viewport/разметкой.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      caches.open(CACHE_NAME).then(async (cache) => {
+        try {
+          const fresh = await fetch(request);
+          if (fresh && fresh.ok) cache.put(request, fresh.clone());
+          return fresh;
+        } catch {
+          const cached = await cache.match(request);
+          return cached || cache.match('./index.html') || Response.error();
+        }
+      })
+    );
+    return;
+  }
 
   event.respondWith(
     caches.open(CACHE_NAME).then(async (cache) => {

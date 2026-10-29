@@ -213,7 +213,7 @@ export function TimerPage() {
   );
 
   return (
-    <div className="max-w-xl mx-auto pb-4 w-full">
+    <div className="max-w-xl mx-auto pb-4 w-full max-w-full">
       <PageHeader title="Часы и таймер" onBack={() => navigate('/')} />
 
       <div className="flex justify-center gap-1.5 mt-1.5">

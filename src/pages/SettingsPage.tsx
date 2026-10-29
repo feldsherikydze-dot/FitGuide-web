@@ -179,7 +179,7 @@ export function SettingsPage() {
       {/* Шапка — как в Android: стрелка назад + заголовок цветом темы */}
       <PageHeader title="Настройки" onBack={() => navigate('/')} />
 
-      <div className="max-w-2xl mx-auto space-y-6 px-4 py-4">
+      <div className="max-w-2xl mx-auto space-y-6 px-4 py-4 w-full max-w-full">
         {/* ===== ТЕМА ===== */}
         <div
           className="rounded-[18px] p-5 space-y-4"

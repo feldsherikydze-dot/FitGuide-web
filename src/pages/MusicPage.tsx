@@ -122,7 +122,7 @@ export function MusicPage() {
   );
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6 w-full max-w-full">
       <PageHeader title="Музыка" onBack={() => navigate('/')} />
 
       {/* Tabs */}
@@ -255,7 +255,7 @@ export function MusicPage() {
           <div className="p-8 text-center">
             <Mic className="w-16 h-16 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">Онлайн-поиск</h3>
-            <p className="text-slate-500 dark:text-slate-400 mb-6 max-w-md mx-auto">
+            <p className="text-slate-500 dark:text-slate-400 mb-6 max-w-md mx-auto w-full max-w-full">
               Интеграция с YouTube Music, SoundCloud, VK Music требует API ключей.
               Настрой их в разделе «Настройки» → «Музыка».
             </p>
@@ -277,7 +277,7 @@ export function MusicPage() {
       {/* Now Playing Bar */}
       {currentTrack && (
         <div className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-dark-card border-t border-slate-200 dark:border-dark-border shadow-xl">
-          <div className="max-w-4xl mx-auto p-3">
+          <div className="max-w-4xl mx-auto p-3 w-full max-w-full">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-dark-border flex items-center justify-center flex-shrink-0 relative">

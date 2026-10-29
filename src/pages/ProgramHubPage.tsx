@@ -11,7 +11,7 @@ export function ProgramHubPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="max-w-2xl mx-auto pb-4 w-full">
+    <div className="max-w-2xl mx-auto pb-4 w-full max-w-full">
       <PageHeader
         title="Программы"
         onBack={() => navigate('/')}

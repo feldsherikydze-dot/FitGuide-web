@@ -32,7 +32,7 @@ export function ProgressHubPage() {
   const Comp = RENDER[tab] || JournalTab;
 
   return (
-    <div className="max-w-2xl mx-auto pb-4 w-full flex flex-col min-h-[calc(100vh-56px)]">
+    <div className="max-w-2xl mx-auto pb-4 w-full flex flex-col min-h-[calc(100vh-56px)] max-w-full">
       <PageHeader title="Мой прогресс" onBack={() => window.history.back()} />
 
       {/* Tab bar: фиксированная ширина каждой, как TabLayout в Android. */}

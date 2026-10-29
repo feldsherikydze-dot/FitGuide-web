@@ -14,7 +14,7 @@ export function DiaryPage() {
   const [tab, setTab] = useState<'calendar' | 'journal' | 'body'>('calendar');
 
   return (
-    <div className="max-w-3xl mx-auto space-y-4">
+    <div className="max-w-3xl mx-auto space-y-4 w-full max-w-full">
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Дневник</h1>
         <p className="text-slate-500 dark:text-slate-400 text-sm">Календарь тренировок, записи и замеры тела</p>

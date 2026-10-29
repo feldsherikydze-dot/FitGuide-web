@@ -106,7 +106,7 @@ export function ProfilePage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-5">
+    <div className="max-w-2xl mx-auto space-y-5 w-full max-w-full">
       <PageHeader title="Профиль" onBack={() => navigate('/')} right={
         <div className="flex gap-1">
           {profile && !edit && (

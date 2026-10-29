@@ -52,6 +52,8 @@ export const BASE = {
 export type SlotName = 'outline' | 'labelsButtons' | 'circleIcons' | 'labelsText';
 
 export interface PaletteState {
+  /** Версия схемы: старые сохранённые палитры сбрасываются к дефолту Android. */
+  v?: number;
   primary: number;
   secondary: number;
   /** Индекс пресета для слота. labelsText: null = наследует контур (A). */
@@ -60,15 +62,25 @@ export interface PaletteState {
   custom: Record<SlotName, string | null>;
 }
 
+/** Версия схемы палитры. 2 — точные дефолты Android 1.18 (SplashActivity.java). */
+const PALETTE_SCHEMA = 2;
+
 const DEFAULT_PALETTE: PaletteState = {
+  v: PALETTE_SCHEMA,
   primary: 0,
   secondary: 0,
   slots: { outline: 0, labelsButtons: 0, circleIcons: 0, labelsText: null },
-  /** Дефолтные цвета под скриншот Android 1.18: A=розовый, B=чёрный, C=лайм-зелёный, D наследует A. */
+  /**
+   * Дефолт чистого запуска ровно как в SplashActivity.java:
+   *   A (контур)        = rgb(255, 0, 91)  = #FF005B
+   *   B (ярлыки+кнопки) = rgb(0, 0, 0)     = #000000
+   *   C (кругляшки)     = rgb(143, 255, 0) = #8FFF00
+   *   D (надписи)       = не задан вручную, повторяет A (в UI — карандаш).
+   */
   custom: {
-    outline: '#FF0080',
+    outline: '#FF005B',
     labelsButtons: '#000000',
-    circleIcons: '#7FFF00',
+    circleIcons: '#8FFF00',
     labelsText: null,
   },
 };
@@ -78,18 +90,14 @@ const listeners = new Set<() => void>();
 
 function loadPalette(): PaletteState {
   const raw = getJSON<Partial<PaletteState>>(KEYS.PALETTE, {});
-  // Если сохранённой палитры нет — применяются дефолтные Android-цвета
-  // (как при первом запуске APK). Иначе — сохранённые пользователем.
-  const hasSaved = Object.keys(raw).length > 0 && raw.slots;
+  // Старая схема (без v:2) могла хранить цвета других пресетов — сбрасываем
+  // к дефолту Android, иначе пользователь видит «палитру не как в APK».
+  if (raw.v !== PALETTE_SCHEMA) return { ...DEFAULT_PALETTE };
   return {
     ...DEFAULT_PALETTE,
-    ...(hasSaved ? raw : {}),
-    slots: hasSaved
-      ? { ...DEFAULT_PALETTE.slots, ...(raw.slots || {}) }
-      : DEFAULT_PALETTE.slots,
-    custom: hasSaved
-      ? { ...DEFAULT_PALETTE.custom, ...(raw.custom || {}) }
-      : DEFAULT_PALETTE.custom,
+    ...raw,
+    slots: { ...DEFAULT_PALETTE.slots, ...(raw.slots || {}) },
+    custom: { ...DEFAULT_PALETTE.custom, ...(raw.custom || {}) },
   };
 }
 

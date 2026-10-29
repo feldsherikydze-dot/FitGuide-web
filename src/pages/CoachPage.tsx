@@ -82,7 +82,7 @@ export function CoachPage() {
   if (!program) {
     // Стартовый выбор пути — renderChoice() в CoachActivity.
     return (
-      <div className="max-w-2xl mx-auto pb-8 w-full">
+      <div className="max-w-2xl mx-auto pb-8 w-full max-w-full">
         {header}
         <div className="px-4">
           <h1 className="text-[18px] font-bold mb-1" style={{ color: 'var(--p-labels)' }}>
@@ -136,7 +136,7 @@ export function CoachPage() {
   const score = readinessScore(checkin);
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4 pb-8">
+    <div className="max-w-2xl mx-auto space-y-4 pb-8 w-full max-w-full">
       {header}
       {/* --- План на сегодня --- */}
       <div className={clsx(

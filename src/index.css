@@ -44,6 +44,11 @@
 
 html, body, #root {
   height: 100%;
+  width: 100%;
+  max-width: 100%;
+  /* Ни одна страница не должна расширять layout viewport: иначе мобильный
+     браузер «зумит» страницу и она перестаёт помещаться в экран. */
+  overflow-x: clip;
 }
 
 body {
@@ -53,6 +58,14 @@ body {
   font-family: var(--font-family-sans);
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: none;
+  overflow-wrap: break-word;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Картинки/иконки не вылезают за контейнер на узких экранах. */
+img, svg, video, canvas {
+  max-width: 100%;
 }
 
 /* ---------- Верхняя панель (bg_top_bar) ---------- */

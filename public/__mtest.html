@@ -1,0 +1,51 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>mtest</title>
+<style>
+html,body{margin:0;background:#222;font-family:sans-serif;color:#fff}
+.wrap{display:flex;gap:16px;padding:16px}
+.phone{width:360px;height:800px;border:2px solid #555;border-radius:10px;overflow:hidden;background:#000}
+iframe{width:360px;height:800px;border:0;display:block}
+pre{font-size:11px;white-space:pre-wrap;max-width:640px}
+</style></head>
+<body>
+<div class="wrap">
+  <div class="phone"><iframe id="f" src="about:blank"></iframe></div>
+  <pre id="log">loading…</pre>
+</div>
+<script>
+const PROG = {
+  id: 'test1', name: 'Золотая программа', goal: 'mass', level: 'advanced',
+  daysPerWeek: 6, weeks: 8, createdAt: Date.now(),
+  phases: [
+    { weekStart: 1, weekEnd: 2, label: 'Аккумуляция', scheme: '6–10 на базу · объём и техника · прогрессия массы', deload: false,
+      days: [{ title: 'День 1 — Верх', slots: [
+        { exercise: 'Жим лёжа', group: 'Грудь', reps: '6–10', rest: '90–120 сек', sets: 4, role: 'main' },
+        { exercise: 'Тяга штанги в наклоне', group: 'Спина', reps: '6–10', rest: '90–120 сек', sets: 4, role: 'main' }
+      ]}]},
+    { weekStart: 3, weekEnd: 4, label: 'Интенсификация', scheme: '6–10 на базу · рабочий вес · прогрессия массы', deload: false, days: [] },
+    { weekStart: 5, weekEnd: 7, label: 'Пик', scheme: '6–10 на базу · интенсивность · прогрессия массы', deload: false, days: [] },
+    { weekStart: 8, weekEnd: 8, label: 'Разгрузка', scheme: '6–10 на базу · восстановление', deload: true, days: [] }
+  ]
+};
+localStorage.setItem('fitguide_web_saved_programs', JSON.stringify([PROG]));
+localStorage.setItem('saved_programs', JSON.stringify({ state: { programs: [PROG] }, version: 0 }));
+localStorage.setItem('fitguide_web_splash_enabled', 'false');
+const ROUTES = ['/', '/programs', '/programs/test1', '/settings', '/profile', '/coach', '/progress', '/nutrition', '/exercises', '/diary', '/music', '/timer', '/knowledge', '/search', '/workout', '/assessment', '/programs/mine', '/programs/new', '/programs/custom', '/programs/legends', '/onboarding'];
+const log = (s) => { document.getElementById('log').textContent += '\n' + s; };
+const f = document.getElementById('f');
+let i = 0;
+const measure = () => {
+  const w = f.contentWindow, d = w.document.documentElement;
+  const wide = [...w.document.querySelectorAll('*')].map(el => {
+    const r = el.getBoundingClientRect();
+    return { tag: el.tagName, cls: (el.className || '').toString().slice(0, 70), w: Math.round(r.width), left: Math.round(r.left), text: (el.textContent || '').trim().slice(0, 30) };
+  }).filter(x => x.w > d.clientWidth + 1).slice(0, 6);
+  log(ROUTES[i] + ' | cw=' + d.clientWidth + ' sw=' + d.scrollWidth + ' body=' + w.document.body.scrollWidth + (wide.length ? ' | ' + wide.map(x => x.tag + '.' + x.cls + ':' + x.w).join(' ;; ') : ''));
+  i++;
+  if (i < ROUTES.length) { w.location.hash = '#' + ROUTES[i]; setTimeout(measure, 900); }
+  else log('DONE');
+};
+f.addEventListener('load', () => { setTimeout(() => { f.contentWindow.location.hash = '#' + ROUTES[0]; setTimeout(measure, 1200); }, 800); });
+f.src = './index.html';
+</script>
+</body></html>

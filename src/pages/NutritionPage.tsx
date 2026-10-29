@@ -50,7 +50,7 @@ export function NutritionPage() {
   );
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
+    <div className="max-w-3xl mx-auto space-y-5 w-full max-w-full">
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Питание</h1>
         <p className="text-slate-500 dark:text-slate-400 text-sm">Калории, макросы и спортпит под твою цель</p>

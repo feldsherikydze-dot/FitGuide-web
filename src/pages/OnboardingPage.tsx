@@ -133,7 +133,7 @@ export function OnboardingPage() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-bg)' }}>
-      <div className="max-w-lg mx-auto w-full px-5 py-6 space-y-4 flex-1">
+      <div className="max-w-lg mx-auto w-full px-5 py-6 space-y-4 flex-1 max-w-full">
         {/* Заголовок */}
         <div>
           <h1 className="text-[28px] font-bold" style={{ color: 'var(--p-labels)' }}>Знакомство</h1>

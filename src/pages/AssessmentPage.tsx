@@ -233,7 +233,7 @@ export function AssessmentPage() {
   const stepIndex = STEPS.findIndex(s => s.id === step);
 
   return (
-    <div className="max-w-2xl mx-auto space-y-5">
+    <div className="max-w-2xl mx-auto space-y-5 w-full max-w-full">
       {/* Заголовок */}
       <div className="flex items-center justify-between">
         <div>

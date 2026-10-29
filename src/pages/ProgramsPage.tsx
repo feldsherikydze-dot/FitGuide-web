@@ -84,7 +84,7 @@ export function ProgramsPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-5">
+    <div className="max-w-4xl mx-auto space-y-5 w-full max-w-full">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Программы</h1>
@@ -356,7 +356,7 @@ export function ProgramDetailPage() {
 
   if (!program) {
     return (
-      <div className="max-w-2xl mx-auto text-center py-12">
+      <div className="max-w-2xl mx-auto text-center py-12 w-full max-w-full">
         <h2 className="text-xl font-semibold mb-4" style={{ color: labelsText }}>
           Программа не найдена
         </h2>
@@ -594,7 +594,7 @@ export function ProgramDetailPage() {
         }
       />
 
-      <div className="max-w-4xl mx-auto space-y-4 px-4 pb-30">
+      <div className="max-w-4xl mx-auto space-y-4 px-4 pb-30 w-full max-w-full">
         <div className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
           {GOAL_LABELS[normalizeGoal(program.goal)] || program.goal} · {program.level}
           · {program.daysPerWeek} дн/нед · {program.weeks} нед

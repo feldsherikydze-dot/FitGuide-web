@@ -112,7 +112,7 @@ export function ProgramGeneratorPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto pb-4 w-full">
+    <div className="max-w-2xl mx-auto pb-4 w-full max-w-full">
       <PageHeader title="Новая программа" onBack={() => navigate(-1)} />
       <div className="px-3">
         <div className="p-5 rounded-[18px]" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}>

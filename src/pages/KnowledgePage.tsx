@@ -21,7 +21,7 @@ export function KnowledgePage() {
   }, [chapters, query]);
 
   return (
-    <div className="max-w-3xl mx-auto space-y-4">
+    <div className="max-w-3xl mx-auto space-y-4 w-full max-w-full">
       <PageHeader title="Библиотека" onBack={() => navigate('/')} />
 
       <div className="relative">
@@ -84,7 +84,7 @@ export function KnowledgeDetailPage() {
 
   if (!chapter) {
     return (
-      <div className="max-w-2xl mx-auto text-center py-12">
+      <div className="max-w-2xl mx-auto text-center py-12 w-full max-w-full">
         <BookOpen className="w-12 h-12 text-slate-300 mx-auto mb-3" />
         <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">Глава не найдена</h2>
         <button onClick={() => navigate('/knowledge')}
@@ -96,7 +96,7 @@ export function KnowledgeDetailPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4">
+    <div className="max-w-2xl mx-auto space-y-4 w-full max-w-full">
       <div className="flex items-center justify-between">
         <button onClick={() => navigate('/knowledge')}
           className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-dark-border">

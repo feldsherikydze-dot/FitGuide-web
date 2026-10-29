@@ -454,7 +454,7 @@ export function CustomProgramPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto pb-4 w-full">
+    <div className="max-w-2xl mx-auto pb-4 w-full max-w-full">
       <PageHeader title="Конструктор программы" onBack={() => navigate('/programs')} />
       <div className="-mt-1 mb-2 ml-4 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
         Курсы → дни → упражнения
