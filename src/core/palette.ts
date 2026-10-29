@@ -78,11 +78,18 @@ const listeners = new Set<() => void>();
 
 function loadPalette(): PaletteState {
   const raw = getJSON<Partial<PaletteState>>(KEYS.PALETTE, {});
+  // Если сохранённой палитры нет — применяются дефолтные Android-цвета
+  // (как при первом запуске APK). Иначе — сохранённые пользователем.
+  const hasSaved = Object.keys(raw).length > 0 && raw.slots;
   return {
     ...DEFAULT_PALETTE,
-    ...raw,
-    slots: { ...DEFAULT_PALETTE.slots, ...(raw.slots || {}) },
-    custom: { ...DEFAULT_PALETTE.custom, ...(raw.custom || {}) },
+    ...(hasSaved ? raw : {}),
+    slots: hasSaved
+      ? { ...DEFAULT_PALETTE.slots, ...(raw.slots || {}) }
+      : DEFAULT_PALETTE.slots,
+    custom: hasSaved
+      ? { ...DEFAULT_PALETTE.custom, ...(raw.custom || {}) }
+      : DEFAULT_PALETTE.custom,
   };
 }
 

@@ -16,6 +16,7 @@ import { PageHeader } from '../components/ui';
 import { useUIStore } from '../core/store';
 import { PaletteSettings } from '../components/PaletteSettings';
 import { clearAll, getString, setString, remove, getJSON, setJSON } from '../core/storage';
+import { slotColor, contrastOn, setSlotCustom, getPalette, subscribePalette, resetPalette } from '../core/palette';
 
 const THEME_VALUES: ('system' | 'light' | 'dark')[] = ['system', 'light', 'dark'];
 
@@ -229,6 +230,15 @@ export function SettingsPage() {
           <p className="text-[13px] mt-1" style={{ color: 'var(--color-text-secondary)' }}>
             Четыре независимых слота: контур, ярлыки, кругляшки, надписи.
           </p>
+          <button
+            className="w-full h-10 rounded-[22px] text-[14px] font-medium border border-[#C0392B] text-[#C0392B] bg-transparent mt-3"
+            onClick={() => {
+              resetPalette();
+              showToast('success', 'Палитра сброшена к стандартной (как в Android).');
+            }}
+          >
+            <RefreshCw className="w-4 h-4 mr-1.5" /> Сбросить палитру к стандартной
+          </button>
           <PaletteSettings />
         </div>
 
