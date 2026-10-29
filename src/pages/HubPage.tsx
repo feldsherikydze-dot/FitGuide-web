@@ -43,7 +43,8 @@ export function HubPage() {
   const [searchEnabled, setSearchEnabled] = useState(() => getString('home_search_enabled', '1') !== '0');
   const [dragSrc, setDragSrc] = useState<number | null>(null);
   const player = usePlayer();
-  const weather = useWeather(profile?.city || '');
+  const weatherCity = getString('weather_city', 'Красноярск');
+  const weather = useWeather(weatherCity);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
@@ -143,7 +144,7 @@ export function HubPage() {
               {dateStr}
             </div>
           </div>
-          <div className="text-right flex-shrink-0 flex items-center gap-1.5">
+          <div className="text-right flex-shrink-0 flex-col items-end gap-1">
             {weather.loading ? (
               <span className="text-[26px]">·</span>
             ) : weather.temp !== null ? (
@@ -155,15 +156,12 @@ export function HubPage() {
               </>
             ) : null}
             {weather.city && (
-              <div className="absolute" />
+              <div className="text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
+                {weather.city}
+              </div>
             )}
           </div>
         </div>
-        {weather.city && (
-          <div className="text-[12px] text-right" style={{ color: 'var(--color-text-secondary)' }}>
-            {weather.city}
-          </div>
-        )}
 
         {/* Полоска недели */}
         <div className="mt-2 grid grid-cols-7 gap-1">
