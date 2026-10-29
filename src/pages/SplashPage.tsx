@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProfileStore } from '../core/store';
-import { getJSON, setJSON, KEYS } from '../core/storage';
+import { getJSON, setJSON, KEYS, getString } from '../core/storage';
 import { usePaletteVars, AnalogClock, asset } from '../components/ui';
 import { slotColor, contrastOn } from '../core/palette';
 
@@ -50,6 +50,7 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
   const [quote, setQuote] = useState(WISHES[0]);
   const [now, setNow] = useState(new Date());
   const [runnerFrame, setRunnerFrame] = useState(1);
+  const [mySplashBgs, setMySplashBgs] = useState<string[]>([]);
 
   // Бегущий человечек: три кадра по 130 мс (как animation-list в Android)
   useEffect(() => {
@@ -64,8 +65,30 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
     return () => clearInterval(t);
   }, []);
 
-  // Фон: случайная картинка, запоминаем на день
+  // Сохранённые свои фоны заставки
   useEffect(() => {
+    const raw = getJSON<string[]>('splash_my_bgs', []);
+    setMySplashBgs(Array.isArray(raw) ? raw : []);
+  }, []);
+
+  // Фон: фиксированный из настроек, свои картинки, или случайный по дням
+  useEffect(() => {
+    const fixed = getString('splash_bg_fixed', '');
+    if (fixed && fixed !== '') {
+      // fixeд фон: "1".."5" → splash_1.jpg .. splash_5.jpg
+      const idx = parseInt(fixed, 10);
+      if (!isNaN(idx) && idx >= 1 && idx <= 5) {
+        setBgIndex(idx);
+        return;
+      }
+    }
+    // Свои картинки: если есть, показываем первую
+    if (mySplashBgs.length > 0) {
+      // Свои картинки — ObjectURL, показываем как фон
+      setBgIndex(0);
+      return;
+    }
+    // Иначе случайная картинка, запоминаем на день
     const dayKey = new Date().toDateString();
     const stored = getJSON<{ day: string; index: number }>(KEYS.SPLASH_BG, { day: '', index: 0 });
     if (stored.day === dayKey) {
@@ -75,7 +98,7 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
       setBgIndex(idx);
       setJSON(KEYS.SPLASH_BG, { day: dayKey, index: idx });
     }
-  }, []);
+  }, [mySplashBgs]);
 
   // Пожелание дня — по индексу дня, не повторяется
   useEffect(() => {
@@ -108,6 +131,9 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
   const btnColor = slotColor('circleIcons');
   const userName = profile?.name || '';
 
+  // Часы включены?
+  const clockEnabled = getString('splash_clock_enabled', '1') === '1';
+
   return (
     <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
       {/* Блок с пропорциями телефона 9:16 — картинка не обрезается, элементы компактны */}
@@ -116,12 +142,22 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
         style={{ transform: 'scale(1)' }}
       >
         {/* Фон — относительный путь, приложение может лежать в подпапке */}
-        <img
-          src={`${import.meta.env.BASE_URL}splash/splash_${bgIndex}.jpg`}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000"
-          style={{ opacity: loaded ? 1 : 0 }}
-        />
+        {mySplashBgs.length > 0 ? (
+          // Своя картинка на заставке
+          <img
+            src={mySplashBgs[0]}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000"
+            style={{ opacity: loaded ? 1 : 0 }}
+          />
+        ) : (
+          <img
+            src={`${import.meta.env.BASE_URL}splash/splash_${bgIndex}.jpg`}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000"
+            style={{ opacity: loaded ? 1 : 0 }}
+          />
+        )}
 
         {/* Приветствие — упаковано компактно, как на телефоне */}
         <div className="absolute inset-0 z-10 flex flex-col items-center text-center pt-4 pb-2 gap-3 px-4">
@@ -134,9 +170,11 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
           <p className="px-3 text-[13px] text-white/85 leading-snug max-w-[360px]">
             {quote}
           </p>
-          <div className="mt-1">
-            <AnalogClock size={130} />
-          </div>
+          {clockEnabled && (
+            <div className="mt-1">
+              <AnalogClock size={130} />
+            </div>
+          )}
         </div>
 
         {/* Кнопка СТАРТ — внутри блока с картинкой, над контентом */}

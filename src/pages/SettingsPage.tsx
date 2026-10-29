@@ -280,7 +280,7 @@ export function SettingsPage() {
               <button
                 onClick={addMySplashBg}
                 className="flex-1 h-10 rounded-[20px] text-[13px] font-medium"
-                style={{ background: 'var(--p-labels)', color: 'var(--p-on-labels)', border: 'none' }}
+                style={{ background: 'var(--p-labels)', color: 'var(--p-labels-text)', border: 'none' }}
               >
                 <Image className="w-4 h-4 mr-1.5" /> Добавить картинку
               </button>
@@ -343,7 +343,7 @@ export function SettingsPage() {
             </div>
             <button
               className="w-full h-10 rounded-[22px] text-[14px] font-medium flex items-center justify-center gap-2"
-              style={{ background: 'var(--p-labels)', color: 'var(--p-on-labels)', border: 'none' }}
+              style={{ background: 'var(--p-labels)', color: 'var(--p-labels-text)', border: 'none' }}
               onClick={() => {
                 setClockEnabled(getString('splash_clock_enabled', '1') === '1');
                 setClockMode((getString('splash_clock', 'analog') as any) || 'analog');
@@ -416,7 +416,7 @@ export function SettingsPage() {
                 setString('signal_volume', String(v));
               }}
               className="w-full h-2 bg-[var(--color-stroke)] rounded-lg appearance-none cursor-pointer"
-              style={{ accentColor: 'var(--p-labels)' }}
+              style={{ accentColor: 'var(--p-labels-text)' }}
             />
             <p className="text-[12px] mt-1" style={{ color: 'var(--color-text-secondary)' }}>
               Кнопки громкости телефона тоже регулируют сигнал. На нуле остаётся только вибрация.
@@ -463,7 +463,7 @@ export function SettingsPage() {
           </div>
 
           <button
-            className="w-full h-10 rounded-[22px] text-[14px] font-medium border border-[var(--p-labels)] text-[var(--p-labels)] bg-transparent mt-2"
+            className="w-full h-10 rounded-[22px] text-[14px] font-medium border border-[var(--p-outline)] text-[var(--p-outline)] bg-transparent mt-2"
             onClick={() => { setString('tool_order', ''); showToast('success', 'Порядок иконок сброшен к стандартному.'); }}
           >
             <RotateCcw className="w-4 h-4 mr-1.5" /> Сбросить порядок
@@ -532,7 +532,7 @@ export function SettingsPage() {
               checked={weatherIpDetect}
               onChange={e => { setWeatherIpDetect(e.target.checked); setString('weather_ip_detect', e.target.checked ? '1' : '0'); }}
               className="w-4 h-4 rounded border-[var(--color-stroke)]"
-              style={{ accentColor: 'var(--p-labels)' }}
+              style={{ accentColor: 'var(--p-labels-text)' }}
             />
             <div className="text-[15px] font-medium" style={{ color: 'var(--color-text-main)' }}>
               Определять город по интернет-адресу
@@ -585,14 +585,14 @@ export function SettingsPage() {
             </div>
             <div className="flex gap-2">
               <button
-                className="flex-1 h-10 rounded-[22px] text-[13px] font-medium border border-[var(--p-labels)] text-[var(--p-labels)] bg-transparent"
+                className="flex-1 h-10 rounded-[22px] text-[13px] font-medium border border-[var(--p-outline)] text-[var(--p-outline)] bg-transparent"
                 onClick={() => showToast('info', 'Поиск часов — функция подключения Wear OS')}
               >
                 <Wifi className="w-4 h-4 mr-1.5" /> Найти часы
               </button>
               <button
                 className="flex-1 h-10 rounded-[22px] text-[13px] font-medium"
-                style={{ background: 'var(--p-labels)', color: 'var(--p-on-labels)', border: 'none' }}
+                style={{ background: 'var(--p-labels)', color: 'var(--p-labels-text)', border: 'none' }}
                 onClick={() => showToast('info', 'Сопряжение часов — функция подключения Wear OS')}
               >
                 <Link className="w-4 h-4 mr-1.5" /> Это мои часы
@@ -646,7 +646,7 @@ export function SettingsPage() {
                 checked={clockEnabled}
                 onChange={e => setClockEnabled(e.target.checked)}
                 className="w-4 h-4 rounded"
-                style={{ accentColor: 'var(--p-circle)' }}
+                style={{ accentColor: 'var(--p-labels-text)' }}
               />
               <div className="text-[15px] font-medium" style={{ color: 'var(--color-text-main)' }}>
                 Показывать часы на стартовом
@@ -684,7 +684,7 @@ export function SettingsPage() {
                       onClick={() => setClockAnalogStyle(s.key)}
                       className={`min-h-[28px] px-2.5 py-1 rounded-[6px] text-[12px] whitespace-nowrap transition-colors ${
                         clockAnalogStyle === s.key
-                          ? 'bg-[var(--p-labels)] text-[var(--p-on-labels)] border-[var(--p-labels)]'
+                          ? 'bg-[var(--p-circle)] text-[var(--p-on-circle)] border-[var(--p-circle)]'
                           : 'bg-[var(--color-surface-variant)] text-[var(--color-text-main)] border-[var(--color-stroke)]'
                       }`}
                     >

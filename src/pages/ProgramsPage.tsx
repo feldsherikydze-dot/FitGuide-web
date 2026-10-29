@@ -881,7 +881,7 @@ export function ProgramDetailPage() {
                 checked={editingSlot.workOn}
                 onChange={() => setEditingSlot(s => s ? { ...s, workOn: !s.workOn } : null)}
                 className="w-4 h-4 rounded"
-                style={{ accentColor: circle }}
+                style={{ accentColor: labelsText }}
               />
               <span className="text-[13px] font-medium" style={{ color: '#1B1E20' }}>Считать время подхода</span>
             </div>

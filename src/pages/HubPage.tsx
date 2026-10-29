@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { useProfileStore, useProgramsStore, useCoachStore } from '../core/store';
 import { usePaletteVars, TopBar, TopBarButton, ToolTile, MiniPlayer, SearchField, type ToolDef, asset } from '../components/ui';
-import { getJSON, setJSON, KEYS } from '../core/storage';
+import { getJSON, setJSON, KEYS, getString } from '../core/storage';
 import { usePlayer } from '../core/player';
 import { useWeather } from '../core/weather';
 
@@ -39,6 +39,9 @@ export function HubPage() {
   const [now, setNow] = useState(new Date());
   const [query, setQuery] = useState('');
   const [order, setOrder] = useState<string[]>(TOOLS.map(t => t.key));
+  const [dragEnabled, setDragEnabled] = useState(() => getString('home_drag_enabled', '1') !== '0');
+  const [searchEnabled, setSearchEnabled] = useState(() => getString('home_search_enabled', '1') !== '0');
+  const [dragSrc, setDragSrc] = useState<number | null>(null);
   const player = usePlayer();
   const weather = useWeather(profile?.city || '');
 
@@ -65,6 +68,28 @@ export function HubPage() {
   const setToolOrder = (next: string[]) => {
     setOrder(next);
     setJSON(KEYS.TOOL_ORDER, next);
+  };
+
+  // Перетаскивание ярлыков (long-press + drag, как на Android)
+  const onDragStart = (idx: number) => {
+    if (!dragEnabled) return;
+    setDragSrc(idx);
+  };
+  const onDragOver = (e: React.DragEvent, idx: number) => {
+    if (!dragEnabled || dragSrc === null || dragSrc === idx) return;
+    e.preventDefault();
+  };
+  const onDrop = (idx: number) => {
+    if (!dragEnabled || dragSrc === null || dragSrc === idx) return;
+    setDragSrc(null);
+    const next = [...order];
+    const [moved] = next.splice(dragSrc, 1);
+    next.splice(idx, 0, moved);
+    setOrder(next);
+    setToolOrder(next);
+  };
+  const onDragEnd = () => {
+    setDragSrc(null);
   };
 
   // Неделя: 7 дней, сегодняшний подсвечен
@@ -111,7 +136,7 @@ export function HubPage() {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="text-[36px] font-bold leading-none"
-              style={{ color: 'var(--p-labels)', textShadow: '1px 1px 2px rgba(0,0,0,0.2)' }}>
+              style={{ color: 'var(--p-on-circle)', textShadow: '1px 1px 2px rgba(0,0,0,0.2)' }}>
               {timeStr}
             </div>
             <div className="mt-0.5 text-[13px] capitalize" style={{ color: 'var(--color-text-secondary)' }}>
@@ -123,7 +148,7 @@ export function HubPage() {
               <span className="text-[26px]">·</span>
             ) : weather.temp !== null ? (
               <>
-                <span className="text-[26px] font-bold" style={{ color: 'var(--p-labels)' }}>
+                <span className="text-[26px] font-bold" style={{ color: 'var(--p-on-circle)' }}>
                   {weather.temp > 0 ? '+' : ''}{Math.round(weather.temp)}°C
                 </span>
                 <span className="text-[26px]">{weather.emoji}</span>
@@ -163,7 +188,7 @@ export function HubPage() {
                 </span>
                 {hasSession && (
                   <span className="mt-0.5 w-1 h-1 rounded-full"
-                    style={{ background: 'var(--p-labels)' }} />
+                    style={{ background: 'var(--p-circle)' }} />
                 )}
               </div>
             );
@@ -171,23 +196,34 @@ export function HubPage() {
         </div>
       </div>
 
-      {/* Поиск */}
-      <div
-        onKeyDown={e => { if (e.key === 'Enter') submitSearch(); }}
-      >
-        <SearchField
-          value={query}
-          onChange={handleSearch}
-          placeholder="Поиск упражнений, мышц…"
-        />
-      </div>
+      {/* Поиск — скрыт если выключено в настройках */}
+      {searchEnabled && (
+        <div
+          onKeyDown={e => { if (e.key === 'Enter') submitSearch(); }}
+        >
+          <SearchField
+            value={query}
+            onChange={handleSearch}
+            placeholder="Поиск упражнений, мышц…"
+          />
+        </div>
+      )}
 
       {/* Сетка ярлыков */}
       <div className="flex-1 fg-scroll px-2 pt-1 pb-4">
         <div className="grid grid-cols-2 gap-0">
-          {tools.map(tool => (
+          {tools.map((tool, idx) => (
             <div key={tool.key} className="p-2">
-              <ToolTile tool={tool} />
+              <div
+                draggable={dragEnabled}
+                onDragStart={() => onDragStart(idx)}
+                onDragOver={e => onDragOver(e, idx)}
+                onDrop={() => onDrop(idx)}
+                onDragEnd={onDragEnd}
+                style={{ opacity: dragSrc === idx ? 0.5 : 1 }}
+              >
+                <ToolTile tool={tool} />
+              </div>
             </div>
           ))}
         </div>
