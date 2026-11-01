@@ -80,7 +80,6 @@ function AnalogClockSplash({ size = 170, style = 'classic' }: { size?: number; s
 
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block' }}>
-      {/* Циферблат */}
       {!isMinimal && (
         <circle cx={center} cy={center} r={radius} fill="none" stroke={strokeColor} strokeWidth={isSport ? 3 : 2} />
       )}
@@ -98,17 +97,14 @@ function AnalogClockSplash({ size = 170, style = 'classic' }: { size?: number; s
           />
         );
       })}
-      {/* Часовая */}
       <line x1={center} y1={center}
         x2={center + hourHandLen * Math.cos((hourAngle - 90) * (Math.PI / 180))}
         y2={center + hourHandLen * Math.sin((hourAngle - 90) * (Math.PI / 180))}
         stroke={handColor} strokeWidth={isSport ? 5 : 4} strokeLinecap="round" />
-      {/* Минутная */}
       <line x1={center} y1={center}
         x2={center + minHandLen * Math.cos((minAngle - 90) * (Math.PI / 180))}
         y2={center + minHandLen * Math.sin((minAngle - 90) * (Math.PI / 180))}
         stroke={handColor} strokeWidth={isSport ? 4 : 3} strokeLinecap="round" />
-      {/* Секундная */}
       {!isMinimal && (
         <line x1={center} y1={center}
           x2={center + secHandLen * Math.cos((secAngle - 90) * (Math.PI / 180))}
@@ -156,16 +152,15 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
   // Состояние
   const [loaded, setLoaded] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [runnerPos, setRunnerPos] = useState(0); // 0-100
+  const [runnerPos, setRunnerPos] = useState(0);
   const [bgIndex, setBgIndex] = useState(1);
   const [quote, setQuote] = useState(WISHES[0]);
   const [now, setNow] = useState(new Date());
   const [mySplashBgs, setMySplashBgs] = useState<string[]>([]);
   const [smearMode, setSmearMode] = useState(false);
   const [showGreeting, setShowGreeting] = useState(false);
+  const [startButtonVisible, setStartButtonVisible] = useState(false);
   const [started, setStarted] = useState(false);
-  const progressRef = useRef(0);
-  const runnerRef = useRef(0);
   const animFrameRef = useRef<number | null>(null);
 
   // Настройки из storage
@@ -192,24 +187,14 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
     setSmearMode(mode === 'smear');
   }, []);
 
-  const toggleBgMode = useCallback(() => {
-    const next = !smearMode;
-    setSmearMode(next);
-    setString('splash_bg_mode', next ? 'smear' : 'crop');
-    // Перезагрузить фон
-    loadBackground();
-  }, [smearMode]);
-
   // --- Выбор фона: свои (ротация по дню) > фиксированный > случайный день ---
   const loadBackground = useCallback(() => {
-    // 1. Свои картинки — приоритетнее всего, ротация по dayOfYear
     if (mySplashBgs.length > 0) {
       const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
       const idx = dayOfYear % mySplashBgs.length;
       setBgIndex(-1 - idx); // отрицательный = свои картинки
       return;
     }
-    // 2. Фиксированный фон из настроек
     if (fixedBg && fixedBg !== '') {
       const idx = parseInt(fixedBg, 10);
       if (!isNaN(idx) && idx >= 1 && idx <= 5) {
@@ -217,7 +202,6 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
         return;
       }
     }
-    // 3. Случайный день (сохраняем на день)
     const dayKey = new Date().toDateString();
     const stored = getJSON<{ day: string; index: number }>(KEYS.SPLASH_BG, { day: '', index: 0 });
     if (stored.day === dayKey) {
@@ -228,6 +212,14 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
       setJSON(KEYS.SPLASH_BG, { day: dayKey, index: idx });
     }
   }, [mySplashBgs, fixedBg]);
+
+  // --- Режим фона (crop/smear) ---
+  const toggleBgMode = useCallback(() => {
+    const next = !smearMode;
+    setSmearMode(next);
+    setString('splash_bg_mode', next ? 'smear' : 'crop');
+    loadBackground();
+  }, [smearMode, loadBackground]);
 
   useEffect(() => { loadBackground(); }, [loadBackground]);
 
@@ -263,33 +255,25 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
       const p = Math.min(elapsed / duration, 1);
       // DecelerateInterpolator: 1 - (1 - t)^2
       const eased = 1 - Math.pow(1 - p, 2);
-      progressRef.current = eased * 100;
-      runnerRef.current = eased * 100;
-      setProgress(progressRef.current);
-      setRunnerPos(runnerRef.current);
+      setProgress(eased * 100);
+      setRunnerPos(eased * 100);
       if (p < 1) {
         animFrameRef.current = requestAnimationFrame(animate);
       } else {
         setLoaded(true);
+        setShowGreeting(true);
+        setStartButtonVisible(true); // Показываем кнопку Старт после завершения анимации
       }
     };
     animFrameRef.current = requestAnimationFrame(animate);
     return () => { if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current); };
   }, [loaded, started]);
 
-  // --- Таймер обновления фона при смене режима ---
-  useEffect(() => {
-    if (smearMode !== undefined) {
-      // При смене режима фон перезагрузится через loadBackground в toggleBgMode
-    }
-  }, [smearMode]);
-
   const userName = profile?.name || '';
 
   const handleStart = () => {
     if (started) return;
     setStarted(true);
-    // Анимация ухода (fade out 400мс)
     const root = document.getElementById('rootSplash');
     if (root) {
       root.style.transition = 'opacity 400ms ease-out';
@@ -318,31 +302,24 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
       ? mySplashBgs[idx]
       : `${import.meta.env.BASE_URL}splash/splash_${idx}.jpg`;
 
-    // CSS для режима smear: используем контейнер с фоном, который растягивается
-    // и заполняет пустоты краями (CLAMP)
     const bgStyle: React.CSSProperties = {
       position: 'absolute',
       inset: 0,
       backgroundImage: `url(${src})`,
       backgroundSize: smearMode ? 'contain' : 'cover',
       backgroundPosition: 'center',
-      backgroundRepeat: smearMode ? 'no-repeat' : 'no-repeat',
+      backgroundRepeat: 'no-repeat',
       opacity: loaded || isOwn ? 1 : 0,
       transition: 'opacity 1600ms ease-out',
-      // Для smear: фон заполняет весь экран, пустоты заливаются краями
-      // В CSS это приблизительно делается через background-size: contain + фон под ним
-      // Но точное воспроизведение BitmapShader CLAMP требует canvas.
-      // Здесь используем трюк: два слоя — основной contain + растянутый по краям
     };
 
     if (!smearMode) {
       return <img key={src} src={src} alt="" style={bgStyle} />;
     }
 
-    // Smear режим: основной contain + фоновый слой с clamp-эффектом через CSS
+    // Smear режим: основной слой contain + растянутый слой с блюром (аппроксимация CLAMP)
     return (
       <div key={src} style={{ ...bgStyle, backgroundSize: 'cover' }}>
-        {/* Основной слой — contain по центру */}
         <div style={{
           position: 'absolute', inset: 0,
           backgroundImage: `url(${src})`,
@@ -350,7 +327,6 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
         }} />
-        {/* Расширение краёв — аппроксимация CLAMP через масштабирование */}
         <div style={{
           position: 'absolute', inset: 0,
           backgroundImage: `url(${src})`,
@@ -364,7 +340,6 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
   };
 
   if (!splashEnabled) {
-    // Если заставка выключена — сразу уходим
     useEffect(() => {
       if (onStart) { onStart(); return; }
       const onboardingDone = getJSON<boolean>('onboarding_done', false);
@@ -374,6 +349,9 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
     }, []);
     return null;
   }
+
+  const timeStr = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  const dateStr = now.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
     <div id="rootSplash" className="fixed inset-0 z-50 bg-black" onContextMenu={e => e.preventDefault()} onMouseDown={e => { if (e.button === 2) toggleBgMode(); }}>
@@ -400,7 +378,7 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
       <div
         className="absolute bottom-0 left-0 right-0"
         style={{
-          paddingBottom: '124px', // 124dp ≈ 124px на mdpi, веб используем px
+          paddingBottom: '124px',
           paddingLeft: '48px',
           paddingRight: '48px',
           pointerEvents: 'none',
@@ -412,6 +390,7 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
             style={{ width: `${progress}%` }}
           />
         </div>
+        {/* Бегунок: 26px, позиции по progress, кадры 1-3 */}
         <div
           className="absolute -top-6 left-0 w-[24px] h-[24px]"
           style={{
@@ -419,11 +398,16 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
             filter: 'brightness(0) invert(1)',
           }}
         >
-          <img src={asset(`icons/ic_runner_${Math.floor(runnerPos / 33.33) + 1}.svg`)} alt="" className="w-full h-full" />
+          <img
+            src={asset(`icons/ic_runner_${Math.min(3, Math.max(1, Math.floor(runnerPos / 34) + 1))}.svg`)}
+            alt=""
+            className="w-full h-full"
+            style={{ imageRendering: 'pixelated' }}
+          />
         </div>
       </div>
 
-      {/* Приветствие + имя + пожелание + часы */}
+      {/* Приветствие + имя + пожелание + часы (появляются после завершения анимации прогресса) */}
       <div
         className="absolute top-0 left-0 right-0 flex flex-col items-center text-center"
         style={{
@@ -455,7 +439,7 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
         )}
       </div>
 
-      {/* Кнопка СТАРТ */}
+      {/* Кнопка СТАРТ (появляется после завершения анимации прогресса) */}
       <button
         id="btnStartSplash"
         onClick={handleStart}
@@ -464,10 +448,10 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
           transform: 'translateX(-50%)',
           background: circleColor,
           color: onCircleColor,
-          opacity: loaded ? 1 : 0,
-          scale: loaded ? 1 : 0.7,
+          opacity: (loaded && startButtonVisible) ? 1 : 0,
+          scale: (loaded && startButtonVisible) ? 1 : 0.7,
           transition: 'opacity 350ms ease-out, transform 350ms ease-out',
-          pointerEvents: loaded ? 'auto' : 'none',
+          pointerEvents: (loaded && startButtonVisible) ? 'auto' : 'none',
           boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
         }}
       >
