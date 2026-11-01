@@ -100,12 +100,12 @@ img, svg, video, canvas {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
-/* ---------- Круг под иконкой (circle_icon) ---------- */
+/* ---------- Круг под иконкой (circle_icon) — сплошной цвет C ---------- */
 .fg-circle {
   width: 56px;
   height: 56px;
   border-radius: 9999px;
-  background: linear-gradient(135deg, var(--p-circle-from) 0%, var(--p-circle-to) 100%);
+  background: var(--p-circle);
   display: flex;
   align-items: center;
   justify-content: center;

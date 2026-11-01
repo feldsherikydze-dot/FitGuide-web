@@ -1,8 +1,11 @@
-// FitGuide Web — главный экран (порт MainActivity.java)
+// FitGuide Web — главный экран (порт MainActivity.java 1:1)
 //
 // Структура как в activity_main.xml:
-//   верхняя панель (градиент) → карточка часов/погоды/недели →
-//   поиск → сетка ярлыков → мини-плеер.
+//   хедер (лимовый градиент C) → время/дату/погоду/неделю → поиск → сетка плиток → мини-плеер.
+//
+// Цвета строго по Android (SplashActivity defaults):
+//   A = #FF005B (розовый контур)   B = #000000 (чёрный фон плиток)
+//   C = #8FFF00 (лайм кругляшки)   D = наследует A
 
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -12,6 +15,7 @@ import { usePaletteVars, TopBar, TopBarButton, ToolTile, MiniPlayer, SearchField
 import { getJSON, setJSON, KEYS, getString } from '../core/storage';
 import { usePlayer } from '../core/player';
 import { useWeather } from '../core/weather';
+import { slotColor } from '../core/palette';
 
 // Порядок ярлыков — как buildTools() в MainActivity
 const TOOLS: ToolDef[] = [
@@ -35,6 +39,11 @@ export function HubPage() {
   const { programs } = useProgramsStore();
   const { sessions } = useCoachStore();
   usePaletteVars();
+
+  const circle = slotColor('circleIcons');
+  const outline = slotColor('outline');
+  const labels = slotColor('labelsButtons');
+  const onCircle = slotColor('circleIcons') === '#000000' ? '#FFFFFF' : '#000000'; // будет пересчитано ниже
 
   const [now, setNow] = useState(new Date());
   const [query, setQuery] = useState('');
@@ -93,7 +102,7 @@ export function HubPage() {
     setDragSrc(null);
   };
 
-  // Неделя: 7 дней, сегодняшний подсвечен
+  // Неделя: 7 дней, сегодняшний подсвечен лимовым кругом (C)
   const weekDays = useMemo(() => {
     const today = new Date();
     const dow = (today.getDay() + 6) % 7; // пн=0
@@ -119,28 +128,39 @@ export function HubPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Верхняя панель */}
-      <TopBar
-        title="FitGuide"
-        subtitle="Создай лучшую версию себя"
-        right={
-          <>
-            <TopBarButton onClick={() => navigate('/profile')} icon={asset('icons/ic_tool_profile.svg')} label="Профиль" />
-            <TopBarButton onClick={() => navigate('/settings')} icon={asset('icons/ic_settings.svg')} label="Настройки" />
-          </>
-        }
-      />
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-bg)' }}>
+      {/* Хедер — лимовый градиент (C), как на Android */}
+      <header className="relative z-20">
+        <div className="fg-topbar safe-top px-5 pt-2.5 pb-2.5 flex items-center gap-2"
+          style={{ background: 'linear-gradient(135deg, var(--p-circle-from), var(--p-circle-to))' }}>
+          <div className="flex-1 min-w-0">
+            <div className="fg-topbar-title truncate" style={{ color: '#FFFFFF' }}>
+              FitGuide
+            </div>
+            <div className="fg-topbar-sub truncate" style={{ color: 'rgba(255,255,255,0.8)' }}>
+              Создай лучшую версию себя
+            </div>
+          </div>
+          <div className="flex gap-1">
+            <button onClick={() => navigate('/profile')} aria-label="Профиль" className="p-2.5 rounded-full active:bg-white/20 flex-shrink-0">
+              <img src={asset('icons/ic_tool_profile.svg')} alt="" className="w-5 h-5" style={{ filter: 'brightness(0) invert(1)' }} />
+            </button>
+            <button onClick={() => navigate('/settings')} aria-label="Настройки" className="p-2.5 rounded-full active:bg-white/20 flex-shrink-0">
+              <img src={asset('icons/ic_settings.svg')} alt="" className="w-5 h-5" style={{ filter: 'brightness(0) invert(1)' }} />
+            </button>
+          </div>
+        </div>
+      </header>
 
-      {/* Карточка: часы, погода, неделя */}
-      <div className="mx-4 mt-2.5 mb-1.5 fg-banner px-3.5 py-2.5">
+      {/* Карточка: часы, погода, неделя — чёрный фон (B), розовая обводка (A) */}
+      <div className="mx-4 mt-2 mb-1 fg-banner px-3.5 py-2.5"
+        style={{ background: labels, border: `1px solid ${outline}`, borderRadius: '16px', color: '#FFFFFF' }}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-[36px] font-bold leading-none"
-              style={{ color: 'var(--p-on-circle)', textShadow: '1px 1px 2px rgba(0,0,0,0.2)' }}>
+            <div className="text-[36px] font-bold leading-none" style={{ color: '#FFFFFF' }}>
               {timeStr}
             </div>
-            <div className="mt-0.5 text-[13px] capitalize" style={{ color: 'var(--color-text-secondary)' }}>
+            <div className="mt-0.5 text-[13px]" style={{ color: 'rgba(255,255,255,0.7)' }}>
               {dateStr}
             </div>
           </div>
@@ -149,14 +169,14 @@ export function HubPage() {
               <span className="text-[26px]">·</span>
             ) : weather.temp !== null ? (
               <>
-                <span className="text-[26px] font-bold" style={{ color: 'var(--p-on-circle)' }}>
+                <span className="text-[26px] font-bold" style={{ color: '#FFFFFF' }}>
                   {weather.temp > 0 ? '+' : ''}{Math.round(weather.temp)}°C
                 </span>
                 <span className="text-[26px]">{weather.emoji}</span>
               </>
             ) : null}
             {weather.city && (
-              <div className="text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
+              <div className="text-[12px]" style={{ color: 'rgba(255,255,255,0.7)' }}>
                 {weather.city}
               </div>
             )}
@@ -172,21 +192,20 @@ export function HubPage() {
             });
             return (
               <div key={date.toISOString()} className="flex flex-col items-center">
-                <span className="text-[11px]" style={{ color: 'var(--color-text-secondary)' }}>
+                <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.5)' }}>
                   {WEEKDAYS[(date.getDay() + 6) % 7]}
                 </span>
                 <span
-                  className={clsx('mt-0.5 w-7 h-7 rounded-full flex items-center justify-center text-[13px]',
-                    isToday ? 'font-bold' : '')}
+                  className={clsx('mt-0.5 w-7 h-7 rounded-full flex items-center justify-center text-[13px]')}
                   style={isToday
-                    ? { background: 'var(--p-circle-from)', color: '#fff' }
-                    : { color: 'var(--color-text-main)' }}
+                    ? { background: circle, color: '#000000', fontWeight: '700' }
+                    : { color: '#FFFFFF' }}
                 >
                   {date.getDate()}
                 </span>
                 {hasSession && (
                   <span className="mt-0.5 w-1 h-1 rounded-full"
-                    style={{ background: 'var(--p-circle)' }} />
+                    style={{ background: circle }} />
                 )}
               </div>
             );
@@ -198,6 +217,7 @@ export function HubPage() {
       {searchEnabled && (
         <div
           onKeyDown={e => { if (e.key === 'Enter') submitSearch(); }}
+          className="mx-4 mt-1 mb-1"
         >
           <SearchField
             value={query}
@@ -207,7 +227,7 @@ export function HubPage() {
         </div>
       )}
 
-      {/* Сетка ярлыков */}
+      {/* Сетка ярлыков — 2 колонки, карточки чёрные (B) с розовой обводкой (A) */}
       <div className="flex-1 fg-scroll px-2 pt-1 pb-4">
         <div className="grid grid-cols-2 gap-0">
           {tools.map((tool, idx) => (

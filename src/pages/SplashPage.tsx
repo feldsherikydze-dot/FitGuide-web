@@ -1,17 +1,20 @@
-// FitGuide Web — стартовый экран (порт SplashActivity.java)
+// FitGuide Web — стартовый экран (порт SplashActivity.java 1:1)
 //
-// Фон — картинка из public/splash (случайная из пяти, меняется по дням),
-// приветствие по времени суток, имя пользователя, пожелание дня,
-// аналоговые часы и кнопка СТАРТ цвета кругляшек.
-//
-// На десктопе экран упакован в блок с пропорциями телефона (9:16) по центру,
-// чтобы картинка не обрезалась и элементы не разъезжались — как на Android.
+// Соответствует activity_splash.xml + SplashActivity.java:
+// - Фон: свои картинки (ротация по dayOfYear) > фиксированный > случайный день
+// - Режим фона: crop (centerCrop) / smear (заливка краями CLAMP) — долгий тап переключает
+// - Приветствие по времени суток + имя пользователя
+// - Пожелание дня (индекс = dayOfYear % wishes.length, сохраняется day+index)
+// - Часы: вкл/выкл, режим analog/digital, стили classic/minimal/sport
+// - Прогресс-бар снизу + бегущий человечек (ValueAnimator 900мс + DecelerateInterpolator)
+// - Кнопка СТАРТ: фон = C (circleIcons), текст = contrastOn(C), radius 27dp, анимация появления
+// - Навигация: fresh → Onboarding, иначе MainActivity (или Settings если splash выключен)
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProfileStore } from '../core/store';
-import { getJSON, setJSON, KEYS, getString } from '../core/storage';
-import { usePaletteVars, AnalogClock, asset } from '../components/ui';
+import { getJSON, setJSON, KEYS, getString, setString } from '../core/storage';
+import { usePaletteVars, asset } from '../components/ui';
 import { slotColor, contrastOn } from '../core/palette';
 
 const WISHES = [
@@ -33,10 +36,116 @@ const WISHES = [
 ];
 
 function greetingFor(hour: number): string {
-  if (hour < 5) return 'Доброй ночи';
+  if (hour < 6) return 'Доброй ночи';
   if (hour < 12) return 'Доброе утро';
   if (hour < 18) return 'Добрый день';
   return 'Добрый вечер';
+}
+
+// Аналоговые часы — 3 стиля как в SplashClockView Android
+function AnalogClockSplash({ size = 170, style = 'classic' }: { size?: number; style?: string }) {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const h = now.getHours();
+  const m = now.getMinutes();
+  const s = now.getSeconds();
+  const secAngle = s * 6;
+  const minAngle = m * 6 + s * 0.1;
+  const hourAngle = ((h % 12) + m / 60) * 30;
+
+  const isMinimal = style === 'minimal';
+  const isSport = style === 'sport';
+  const center = size / 2;
+  const radius = size * 0.48;
+  const tickOuter = radius;
+  const tickInnerHour = radius - (isMinimal ? 6 : 12);
+  const tickInnerMin = radius - (isMinimal ? 4 : 5);
+  const hourHandLen = radius * 0.45;
+  const minHandLen = radius * 0.7;
+  const secHandLen = radius * 0.78;
+
+  const ticks = Array.from({ length: 60 }, (_, i) => {
+    const isHour = i % 5 === 0;
+    return { i, isHour };
+  });
+
+  const strokeColor = isSport ? 'rgba(255,138,61,0.9)' : 'rgba(255,255,255,0.95)';
+  const handColor = isSport ? '#FF8A3D' : '#fff';
+  const secColor = isSport ? 'rgba(255,138,61,0.6)' : 'rgba(255,255,255,0.6)';
+  const centerColor = isSport ? '#FF8A3D' : '#fff';
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block' }}>
+      {/* Циферблат */}
+      {!isMinimal && (
+        <circle cx={center} cy={center} r={radius} fill="none" stroke={strokeColor} strokeWidth={isSport ? 3 : 2} />
+      )}
+      {ticks.map(t => {
+        const a = (t.i * 6 - 90) * (Math.PI / 180);
+        const r1 = tickOuter;
+        const r2 = t.isHour ? tickInnerHour : tickInnerMin;
+        const w = t.isHour ? (isMinimal ? 1.5 : 2) : 1;
+        return (
+          <line
+            key={t.i}
+            x1={center + r1 * Math.cos(a)} y1={center + r1 * Math.sin(a)}
+            x2={center + r2 * Math.cos(a)} y2={center + r2 * Math.sin(a)}
+            stroke={strokeColor} strokeWidth={w} strokeLinecap="round"
+          />
+        );
+      })}
+      {/* Часовая */}
+      <line x1={center} y1={center}
+        x2={center + hourHandLen * Math.cos((hourAngle - 90) * (Math.PI / 180))}
+        y2={center + hourHandLen * Math.sin((hourAngle - 90) * (Math.PI / 180))}
+        stroke={handColor} strokeWidth={isSport ? 5 : 4} strokeLinecap="round" />
+      {/* Минутная */}
+      <line x1={center} y1={center}
+        x2={center + minHandLen * Math.cos((minAngle - 90) * (Math.PI / 180))}
+        y2={center + minHandLen * Math.sin((minAngle - 90) * (Math.PI / 180))}
+        stroke={handColor} strokeWidth={isSport ? 4 : 3} strokeLinecap="round" />
+      {/* Секундная */}
+      {!isMinimal && (
+        <line x1={center} y1={center}
+          x2={center + secHandLen * Math.cos((secAngle - 90) * (Math.PI / 180))}
+          y2={center + secHandLen * Math.sin((secAngle - 90) * (Math.PI / 180))}
+          stroke={secColor} strokeWidth={2} strokeLinecap="round" />
+      )}
+      <circle cx={center} cy={center} r={isSport ? 6 : 4} fill={centerColor} />
+    </svg>
+  );
+}
+
+// Цифровые часы — 3 стиля как в Android applyDigitalClockStyle
+function DigitalClockSplash({ style = 'classic' }: { style?: string }) {
+  const [time, setTime] = useState(() => new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }));
+  useEffect(() => {
+    const t = setInterval(() => setTime(new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const isMinimal = style === 'minimal';
+  const isSport = style === 'sport';
+  const fontSize = isMinimal ? 48 : isSport ? 58 : 64;
+  const fontWeight = isMinimal ? 'normal' : 'bold';
+  const fontFamily = isMinimal ? 'sans-serif' : isSport ? 'sans-serif-medium' : 'sans-serif-light';
+  const color = isMinimal ? 'rgba(255,255,255,0.8)' : isSport ? '#FF8A3D' : '#FFFFFF';
+
+  return (
+    <div
+      style={{
+        fontSize: `${fontSize}px`, fontWeight, fontFamily,
+        color, textShadow: '0 2px 8px rgba(0,0,0,0.3)',
+        letterSpacing: isSport ? '2px' : '0',
+      }}
+    >
+      {time}
+    </div>
+  );
 }
 
 export function SplashPage({ onStart }: { onStart?: () => void }) {
@@ -44,51 +153,71 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
   const { profile } = useProfileStore();
   usePaletteVars();
 
+  // Состояние
   const [loaded, setLoaded] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [runnerPos, setRunnerPos] = useState(0); // 0-100
   const [bgIndex, setBgIndex] = useState(1);
   const [quote, setQuote] = useState(WISHES[0]);
   const [now, setNow] = useState(new Date());
-  const [runnerFrame, setRunnerFrame] = useState(1);
   const [mySplashBgs, setMySplashBgs] = useState<string[]>([]);
+  const [smearMode, setSmearMode] = useState(false);
+  const [showGreeting, setShowGreeting] = useState(false);
+  const [started, setStarted] = useState(false);
+  const progressRef = useRef(0);
+  const runnerRef = useRef(0);
+  const animFrameRef = useRef<number | null>(null);
 
-  // Бегущий человечек: три кадра по 130 мс (как animation-list в Android)
-  useEffect(() => {
-    const t = setInterval(() => {
-      setRunnerFrame(f => (f % 3) + 1);
-    }, 130);
-    return () => clearInterval(t);
-  }, []);
+  // Настройки из storage
+  const splashEnabled = getString('splash_enabled', '1') === '1';
+  const clockEnabled = getString('splash_clock_enabled', '1') === '1';
+  const clockMode = getString('splash_clock', 'analog'); // 'analog' | 'digital'
+  const clockStyleAnalog = getString('splash_clock_style_analog', 'classic');
+  const clockStyleDigital = getString('splash_clock_style_digital', 'classic');
+  const fixedBg = getString('splash_bg_fixed', '');
 
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(t);
-  }, []);
+  // Цвета
+  const circleColor = slotColor('circleIcons');
+  const onCircleColor = contrastOn(circleColor);
 
-  // Сохранённые свои фоны заставки
+  // --- Загрузка своих фонов ---
   useEffect(() => {
     const raw = getJSON<string[]>('splash_my_bgs', []);
     setMySplashBgs(Array.isArray(raw) ? raw : []);
   }, []);
 
-  // Фон: фиксированный из настроек, свои картинки, или случайный по дням
+  // --- Режим фона (crop/smear) ---
   useEffect(() => {
-    const fixed = getString('splash_bg_fixed', '');
-    if (fixed && fixed !== '') {
-      // fixeд фон: "1".."5" → splash_1.jpg .. splash_5.jpg
-      const idx = parseInt(fixed, 10);
+    const mode = getString('splash_bg_mode', 'crop');
+    setSmearMode(mode === 'smear');
+  }, []);
+
+  const toggleBgMode = useCallback(() => {
+    const next = !smearMode;
+    setSmearMode(next);
+    setString('splash_bg_mode', next ? 'smear' : 'crop');
+    // Перезагрузить фон
+    loadBackground();
+  }, [smearMode]);
+
+  // --- Выбор фона: свои (ротация по дню) > фиксированный > случайный день ---
+  const loadBackground = useCallback(() => {
+    // 1. Свои картинки — приоритетнее всего, ротация по dayOfYear
+    if (mySplashBgs.length > 0) {
+      const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+      const idx = dayOfYear % mySplashBgs.length;
+      setBgIndex(-1 - idx); // отрицательный = свои картинки
+      return;
+    }
+    // 2. Фиксированный фон из настроек
+    if (fixedBg && fixedBg !== '') {
+      const idx = parseInt(fixedBg, 10);
       if (!isNaN(idx) && idx >= 1 && idx <= 5) {
         setBgIndex(idx);
         return;
       }
     }
-    // Свои картинки: если есть, показываем первую
-    if (mySplashBgs.length > 0) {
-      // Свои картинки — ObjectURL, показываем как фон
-      setBgIndex(0);
-      return;
-    }
-    // Иначе случайная картинка, запоминаем на день
+    // 3. Случайный день (сохраняем на день)
     const dayKey = new Date().toDateString();
     const stored = getJSON<{ day: string; index: number }>(KEYS.SPLASH_BG, { day: '', index: 0 });
     if (stored.day === dayKey) {
@@ -98,121 +227,252 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
       setBgIndex(idx);
       setJSON(KEYS.SPLASH_BG, { day: dayKey, index: idx });
     }
-  }, [mySplashBgs]);
+  }, [mySplashBgs, fixedBg]);
 
-  // Пожелание дня — по индексу дня, не повторяется
+  useEffect(() => { loadBackground(); }, [loadBackground]);
+
+  // --- Пожелание дня: dayOfYear, сохраняем day+index ---
   useEffect(() => {
+    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
     const dayKey = new Date().toDateString();
     const stored = getJSON<{ day: string; index: number }>(KEYS.SPLASH_QUOTE, { day: '', index: 0 });
+    let idx: number;
     if (stored.day === dayKey) {
-      setQuote(WISHES[stored.index % WISHES.length]);
+      idx = stored.index % WISHES.length;
     } else {
-      const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
-      const idx = dayOfYear % WISHES.length;
-      setQuote(WISHES[idx]);
+      idx = dayOfYear % WISHES.length;
       setJSON(KEYS.SPLASH_QUOTE, { day: dayKey, index: idx });
     }
+    setQuote(WISHES[idx]);
   }, []);
 
-  // Имитация загрузки, затем показываем приветствие
+  // --- Время ---
   useEffect(() => {
-    let p = 0;
-    const t = setInterval(() => {
-      p += 4;
-      setProgress(p);
-      if (p >= 100) {
-        clearInterval(t);
-        setLoaded(true);
-      }
-    }, 60);
+    const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  const btnColor = slotColor('circleIcons');
+  // --- Анимация прогресса + бегунка (900мс, DecelerateInterpolator) ---
+  useEffect(() => {
+    if (loaded || started) return;
+    let start: number | null = null;
+    const duration = 900;
+    const animate = (ts: number) => {
+      if (!start) start = ts;
+      const elapsed = ts - start;
+      const p = Math.min(elapsed / duration, 1);
+      // DecelerateInterpolator: 1 - (1 - t)^2
+      const eased = 1 - Math.pow(1 - p, 2);
+      progressRef.current = eased * 100;
+      runnerRef.current = eased * 100;
+      setProgress(progressRef.current);
+      setRunnerPos(runnerRef.current);
+      if (p < 1) {
+        animFrameRef.current = requestAnimationFrame(animate);
+      } else {
+        setLoaded(true);
+      }
+    };
+    animFrameRef.current = requestAnimationFrame(animate);
+    return () => { if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current); };
+  }, [loaded, started]);
+
+  // --- Таймер обновления фона при смене режима ---
+  useEffect(() => {
+    if (smearMode !== undefined) {
+      // При смене режима фон перезагрузится через loadBackground в toggleBgMode
+    }
+  }, [smearMode]);
+
   const userName = profile?.name || '';
 
-  // Часы включены?
-  const clockEnabled = getString('splash_clock_enabled', '1') === '1';
+  const handleStart = () => {
+    if (started) return;
+    setStarted(true);
+    // Анимация ухода (fade out 400мс)
+    const root = document.getElementById('rootSplash');
+    if (root) {
+      root.style.transition = 'opacity 400ms ease-out';
+      root.style.opacity = '0';
+    }
+    setTimeout(() => {
+      if (onStart) { onStart(); return; }
+      const onboardingDone = getJSON<boolean>('onboarding_done', false);
+      const hasRequired = profile?.gender && profile?.age > 0 && profile?.heightCm > 0 && profile?.weightKg > 0;
+      const fresh = !onboardingDone && !hasRequired;
+      if (fresh) {
+        navigate('/onboarding', { replace: true });
+      } else if (!splashEnabled) {
+        navigate('/settings', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
+    }, 400);
+  };
+
+  // --- Рендер фона ---
+  const renderBg = () => {
+    const isOwn = bgIndex < 0;
+    const idx = isOwn ? -bgIndex - 1 : bgIndex;
+    const src = isOwn
+      ? mySplashBgs[idx]
+      : `${import.meta.env.BASE_URL}splash/splash_${idx}.jpg`;
+
+    // CSS для режима smear: используем контейнер с фоном, который растягивается
+    // и заполняет пустоты краями (CLAMP)
+    const bgStyle: React.CSSProperties = {
+      position: 'absolute',
+      inset: 0,
+      backgroundImage: `url(${src})`,
+      backgroundSize: smearMode ? 'contain' : 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: smearMode ? 'no-repeat' : 'no-repeat',
+      opacity: loaded || isOwn ? 1 : 0,
+      transition: 'opacity 1600ms ease-out',
+      // Для smear: фон заполняет весь экран, пустоты заливаются краями
+      // В CSS это приблизительно делается через background-size: contain + фон под ним
+      // Но точное воспроизведение BitmapShader CLAMP требует canvas.
+      // Здесь используем трюк: два слоя — основной contain + растянутый по краям
+    };
+
+    if (!smearMode) {
+      return <img key={src} src={src} alt="" style={bgStyle} />;
+    }
+
+    // Smear режим: основной contain + фоновый слой с clamp-эффектом через CSS
+    return (
+      <div key={src} style={{ ...bgStyle, backgroundSize: 'cover' }}>
+        {/* Основной слой — contain по центру */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: `url(${src})`,
+          backgroundSize: 'contain',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }} />
+        {/* Расширение краёв — аппроксимация CLAMP через масштабирование */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: `url(${src})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          filter: 'blur(40px)',
+          opacity: 0.3,
+        }} />
+      </div>
+    );
+  };
+
+  if (!splashEnabled) {
+    // Если заставка выключена — сразу уходим
+    useEffect(() => {
+      if (onStart) { onStart(); return; }
+      const onboardingDone = getJSON<boolean>('onboarding_done', false);
+      const hasRequired = profile?.gender && profile?.age > 0 && profile?.heightCm > 0 && profile?.weightKg > 0;
+      const fresh = !onboardingDone && !hasRequired;
+      navigate(fresh ? '/onboarding' : '/', { replace: true });
+    }, []);
+    return null;
+  }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
-      {/* Блок с пропорциями телефона 9:16 — картинка не обрезается, элементы компактны */}
+    <div id="rootSplash" className="fixed inset-0 z-50 bg-black" onContextMenu={e => e.preventDefault()} onMouseDown={e => { if (e.button === 2) toggleBgMode(); }}>
+      {/* Долгий тап / правый клик — переключение режима фона */}
       <div
-        className="relative w-full max-w-[430px] aspect-[9/16] max-h-[94vh]"
-        style={{ transform: 'scale(1)' }}
+        className="absolute inset-0"
+        onMouseDown={e => { if (e.button === 2) e.preventDefault(); }}
+        onContextMenu={e => { e.preventDefault(); toggleBgMode(); }}
+        onTouchStart={e => {
+          const touch = e.touches[0];
+          (window as any).__longPressTimer = setTimeout(() => {
+            toggleBgMode();
+            navigator.vibrate?.(50);
+          }, 500);
+        }}
+        onTouchEnd={e => { clearTimeout((window as any).__longPressTimer); }}
+        onTouchMove={e => { clearTimeout((window as any).__longPressTimer); }}
+      />
+
+      {/* Фон */}
+      {renderBg()}
+
+      {/* Прогресс-бар + бегунок (снизу, margins как в XML: 48dp start/end, 124dp bottom) */}
+      <div
+        className="absolute bottom-0 left-0 right-0"
+        style={{
+          paddingBottom: '124px', // 124dp ≈ 124px на mdpi, веб используем px
+          paddingLeft: '48px',
+          paddingRight: '48px',
+          pointerEvents: 'none',
+        }}
       >
-        {/* Фон — относительный путь, приложение может лежать в подпапке */}
-        {mySplashBgs.length > 0 ? (
-          // Своя картинка на заставке
-          <img
-            src={mySplashBgs[0]}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000"
-            style={{ opacity: loaded ? 1 : 0 }}
+        <div className="w-full h-[5px] rounded-full bg-white/20 overflow-hidden">
+          <div
+            className="h-full bg-white transition-all duration-100"
+            style={{ width: `${progress}%` }}
           />
-        ) : (
-          <img
-            src={`${import.meta.env.BASE_URL}splash/splash_${bgIndex}.jpg`}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000"
-            style={{ opacity: loaded ? 1 : 0 }}
-          />
-        )}
-
-        {/* Приветствие — упаковано компактно, как на телефоне */}
-        <div className="absolute inset-0 z-10 flex flex-col items-center text-center pt-4 pb-2 gap-3 px-4">
-          <h1 className="text-[24px] font-bold text-white leading-tight">
-            {greetingFor(now.getHours())}
-          </h1>
-          {userName && (
-            <div className="mt-0.5 text-[16px] text-white/90">{userName}</div>
-          )}
-          <p className="px-3 text-[13px] text-white/85 leading-snug max-w-[360px]">
-            {quote}
-          </p>
-          {clockEnabled && (
-            <div className="mt-1">
-              <AnalogClock size={130} />
-            </div>
-          )}
         </div>
+        <div
+          className="absolute -top-6 left-0 w-[24px] h-[24px]"
+          style={{
+            transform: `translateX(${Math.max(0, (progress / 100) * (window.innerWidth - 96 - 24))}px)`,
+            filter: 'brightness(0) invert(1)',
+          }}
+        >
+          <img src={asset(`icons/ic_runner_${Math.floor(runnerPos / 33.33) + 1}.svg`)} alt="" className="w-full h-full" />
+        </div>
+      </div>
 
-        {/* Кнопка СТАРТ — внутри блока с картинкой, над контентом */}
-        {loaded && (
-          <button
-            onClick={() => {
-              if (onStart) { onStart(); return; }
-              navigate(profile ? '/' : '/onboarding', { replace: true });
-            }}
-            className="absolute bottom-4 left-1/2 w-[200px] h-[48px] rounded-[24px] text-[17px] font-bold transition-all duration-300 z-20 pointer-events-auto"
-            style={{
-              background: btnColor,
-              color: contrastOn(btnColor),
-              transform: 'translateX(-50%) scale(1)',
-            }}
-          >
-            Старт
-          </button>
+      {/* Приветствие + имя + пожелание + часы */}
+      <div
+        className="absolute top-0 left-0 right-0 flex flex-col items-center text-center"
+        style={{
+          paddingTop: '56px',
+          paddingLeft: '32px',
+          paddingRight: '32px',
+          opacity: showGreeting ? 1 : 0,
+          transition: 'opacity 400ms ease-out',
+          pointerEvents: 'none',
+        }}
+      >
+        <h1 className="text-[30px] font-bold text-white leading-tight">
+          {greetingFor(now.getHours())}
+        </h1>
+        {userName && (
+          <div className="mt-1 text-[18px] text-white/80">{userName}</div>
         )}
-
-        {/* Прогресс — над кнопкой */}
-        {!loaded && (
-          <div className="absolute bottom-[70px] left-4 right-4 flex flex-col items-end gap-1">
-            <div className="w-full h-[5px] rounded-full bg-white/20 overflow-hidden">
-              <div
-                className="h-full bg-white transition-all duration-100"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <img
-              src={asset(`icons/ic_runner_${runnerFrame}.svg`)}
-              alt=""
-              className="w-[24px] h-[24px] brightness-0 invert"
-              style={{ transform: `translateX(${(progress / 100) * (360 - 32 - 24)}px)` }}
-            />
+        <p className="mt-3 text-[15px] text-white/85 leading-snug max-w-[90%]">
+          {quote}
+        </p>
+        {clockEnabled && (
+          <div className="mt-4">
+            {clockMode === 'digital' ? (
+              <DigitalClockSplash style={clockStyleDigital} />
+            ) : (
+              <AnalogClockSplash size={170} style={clockStyleAnalog} />
+            )}
           </div>
         )}
       </div>
+
+      {/* Кнопка СТАРТ */}
+      <button
+        id="btnStartSplash"
+        onClick={handleStart}
+        className="absolute bottom-0 left-1/2 mb-[40px] w-[220px] h-[54px] rounded-[27px] text-[18px] font-bold"
+        style={{
+          transform: 'translateX(-50%)',
+          background: circleColor,
+          color: onCircleColor,
+          opacity: loaded ? 1 : 0,
+          scale: loaded ? 1 : 0.7,
+          transition: 'opacity 350ms ease-out, transform 350ms ease-out',
+          pointerEvents: loaded ? 'auto' : 'none',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+        }}
+      >
+        Старт
+      </button>
     </div>
   );
 }
