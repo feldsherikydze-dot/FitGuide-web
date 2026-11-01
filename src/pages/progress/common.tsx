@@ -9,7 +9,7 @@ export function Card({ children, className }: { children: ReactNode; className?:
   return (
     <div
       className={clsx('rounded-[16px] p-4', className)}
-      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-outline)' }}
+      style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
     >
       {children}
     </div>
@@ -56,7 +56,7 @@ export function OutlineButton({ children, onClick, className }: {
       type="button"
       onClick={onClick}
       className={clsx('w-full h-11 rounded-[22px] text-[14px] font-semibold active:opacity-80', className)}
-      style={{ border: '1px solid var(--p-labels)', color: 'var(--p-labels)', background: 'var(--color-surface-variant)' }}
+      style={{ border: '1px solid var(--p-outline)', color: 'var(--p-labels-text)', background: 'transparent' }}
     >
       {children}
     </button>
@@ -75,7 +75,7 @@ export function Field({ value, onChange, placeholder, inputMode = 'decimal', cla
       inputMode={inputMode}
       className={clsx('w-full h-[46px] px-4 rounded-[10px] text-[15px] outline-none', className)}
       style={{
-        background: 'var(--color-surface)', border: '1px solid var(--color-outline)',
+        background: 'var(--p-labels)', border: '1px solid var(--p-outline)',
         color: 'var(--color-text-main)',
       }}
     />
@@ -90,7 +90,7 @@ export function Dialog({ title, children, onClose, actions }: {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-black/50" onClick={onClose}>
       <div
         className="w-full max-w-md max-h-[85vh] flex flex-col rounded-[20px] overflow-hidden"
-        style={{ background: 'var(--color-surface)' }}
+        style={{ background: 'var(--p-labels)' }}
         onClick={e => e.stopPropagation()}
       >
         {title && (

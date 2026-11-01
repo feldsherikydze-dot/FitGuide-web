@@ -59,9 +59,9 @@ function ChipGroup({ options, value, onChange }: {
           <button key={o.value} onClick={() => onChange(on ? '' : o.value)}
             className="min-h-[32px] px-3 rounded-[8px] text-[13px]"
             style={{
-              background: on ? 'var(--p-labels)' : 'var(--color-surface-variant)',
-              border: `1px solid ${on ? 'var(--p-labels)' : 'var(--color-stroke)'}`,
-              color: on ? 'var(--p-on-labels)' : 'var(--color-text-main)',
+              background: on ? 'var(--p-circle)' : 'var(--p-labels)',
+              border: `1px solid ${on ? 'var(--p-circle)' : 'var(--p-outline)'}`,
+              color: on ? '#000000' : 'var(--p-labels-text)',
             }}
           >
             {o.label}
