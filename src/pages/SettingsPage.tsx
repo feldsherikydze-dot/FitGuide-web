@@ -183,7 +183,7 @@ export function SettingsPage() {
         {/* ===== ТЕМА ===== */}
         <div
           className="rounded-[18px] p-5 space-y-4"
-          style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}
+          style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
         >
           <div className="mb-1 flex items-center gap-2">
             <Palette className="w-5 h-5" style={{ color: 'var(--p-labels-text)' }} />
@@ -221,7 +221,7 @@ export function SettingsPage() {
         {/* ===== ПАЛИТРА ===== */}
         <div
           className="rounded-[18px] p-5 space-y-4"
-          style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}
+          style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
         >
           <div className="mb-1 flex items-center gap-2">
             <Palette className="w-5 h-5" style={{ color: 'var(--p-labels-text)' }} />
@@ -245,7 +245,7 @@ export function SettingsPage() {
         {/* ===== ПРИВЕТСТВИЕ ===== */}
         <div
           className="rounded-[18px] p-5 space-y-4"
-          style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}
+          style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
         >
           <div className="mb-1 flex items-center gap-2">
             <Sun className="w-5 h-5" style={{ color: 'var(--p-labels-text)' }} />
@@ -370,7 +370,7 @@ export function SettingsPage() {
         {/* ===== СИГНАЛЫ ТРЕНИРОВКИ ===== */}
         <div
           className="rounded-[18px] p-5 space-y-4"
-          style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}
+          style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
         >
           <div className="mb-1 flex items-center gap-2">
             <Zap className="w-5 h-5" style={{ color: 'var(--p-labels-text)' }} />
@@ -425,7 +425,7 @@ export function SettingsPage() {
                 setSignalVolume(v);
                 setString('signal_volume', String(v));
               }}
-              className="w-full h-2 bg-[var(--color-stroke)] rounded-lg appearance-none cursor-pointer"
+              className="w-full h-2 bg-[var(--p-outline)] rounded-lg appearance-none cursor-pointer"
               style={{ accentColor: 'var(--p-labels-text)' }}
             />
             <p className="text-[12px] mt-1" style={{ color: 'var(--color-text-secondary)' }}>
@@ -437,7 +437,7 @@ export function SettingsPage() {
         {/* ===== ГЛАВНЫЙ ЭКРАН ===== */}
         <div
           className="rounded-[18px] p-5 space-y-4"
-          style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}
+          style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
         >
           <div className="mb-1 flex items-center gap-2">
             <Smartphone className="w-5 h-5" style={{ color: 'var(--p-labels-text)' }} />
@@ -465,8 +465,8 @@ export function SettingsPage() {
               />
               <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"
                 style={{
-                  background: dragEnabled ? 'var(--p-circle)' : 'var(--color-stroke)',
-                  border: dragEnabled ? `1px solid var(--p-circle)` : '1px solid var(--color-stroke)',
+                  background: dragEnabled ? 'var(--p-circle)' : 'var(--p-outline)',
+                  border: dragEnabled ? `1px solid var(--p-circle)` : '1px solid var(--p-outline)',
                 }}
               />
             </label>
@@ -483,7 +483,7 @@ export function SettingsPage() {
         {/* ===== ИНСТРУМЕНТЫ ===== */}
         <div
           className="rounded-[18px] p-5 space-y-4"
-          style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}
+          style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
         >
           <div className="mb-1 flex items-center gap-2">
             <Database className="w-5 h-5" style={{ color: 'var(--p-labels-text)' }} />
@@ -511,8 +511,8 @@ export function SettingsPage() {
               />
               <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"
                 style={{
-                  background: searchEnabled ? 'var(--p-circle)' : 'var(--color-stroke)',
-                  border: searchEnabled ? `1px solid var(--p-circle)` : '1px solid var(--color-stroke)',
+                  background: searchEnabled ? 'var(--p-circle)' : 'var(--p-outline)',
+                  border: searchEnabled ? `1px solid var(--p-circle)` : '1px solid var(--p-outline)',
                 }}
               />
             </label>
@@ -529,7 +529,7 @@ export function SettingsPage() {
               placeholder="Красноярск"
               className="w-full h-[46px] px-4 rounded-[10px] text-[15px] outline-none"
               style={{
-                background: 'var(--color-surface)',
+                background: 'var(--p-labels)',
                 border: '1px solid var(--p-outline)',
                 color: 'var(--color-text-main)',
               }}
@@ -541,7 +541,7 @@ export function SettingsPage() {
               type="checkbox"
               checked={weatherIpDetect}
               onChange={e => { setWeatherIpDetect(e.target.checked); setString('weather_ip_detect', e.target.checked ? '1' : '0'); }}
-              className="w-4 h-4 rounded border-[var(--color-stroke)]"
+              className="w-4 h-4 rounded border-[var(--p-outline)]"
               style={{ accentColor: 'var(--p-labels-text)' }}
             />
             <div className="text-[15px] font-medium" style={{ color: 'var(--color-text-main)' }}>
@@ -553,7 +553,7 @@ export function SettingsPage() {
             При выключенном тумблере адрес никуда не отправляется, а город берётся из поля выше.
           </p>
 
-          <div className="pt-3 border-t border-[var(--color-stroke)]">
+          <div className="pt-3 border-t border-[var(--p-outline)]">
             <div className="text-[13px] font-bold mb-1" style={{ color: 'var(--color-text-secondary)' }}>
               Обновления
             </div>
@@ -564,7 +564,7 @@ export function SettingsPage() {
               placeholder="https://.../update.json"
               className="w-full h-[46px] px-4 rounded-[10px] text-[14px] outline-none mb-2"
               style={{
-                background: 'var(--color-surface)',
+                background: 'var(--p-labels)',
                 border: '1px solid var(--p-outline)',
                 color: 'var(--color-text-main)',
               }}
@@ -586,7 +586,7 @@ export function SettingsPage() {
             </p>
           </div>
 
-          <div className="pt-3 border-t border-[var(--color-stroke)] mt-4">
+          <div className="pt-3 border-t border-[var(--p-outline)] mt-4">
             <div className="text-[13px] font-bold mb-2" style={{ color: 'var(--color-text-secondary)' }}>
               Часы и датчики
             </div>
@@ -695,7 +695,7 @@ export function SettingsPage() {
                       className={`min-h-[28px] px-2.5 py-1 rounded-[6px] text-[12px] whitespace-nowrap transition-colors ${
                         clockAnalogStyle === s.key
                           ? 'bg-[var(--p-circle)] text-[var(--p-on-circle)] border-[var(--p-circle)]'
-                          : 'bg-[var(--color-surface-variant)] text-[var(--color-text-main)] border-[var(--color-stroke)]'
+                          : 'bg-[var(--color-surface-variant)] text-[var(--color-text-main)] border-[var(--p-outline)]'
                       }`}
                     >
                       {s.label}
@@ -718,7 +718,7 @@ export function SettingsPage() {
                       className={`min-h-[28px] px-2.5 py-1 rounded-[6px] text-[12px] whitespace-nowrap transition-colors ${
                         clockDigitalStyle === s.key
                           ? 'bg-[var(--p-labels)] text-[var(--p-on-labels)] border-[var(--p-labels)]'
-                          : 'bg-[var(--color-surface-variant)] text-[var(--color-text-main)] border-[var(--color-stroke)]'
+                          : 'bg-[var(--color-surface-variant)] text-[var(--color-text-main)] border-[var(--p-outline)]'
                       }`}
                     >
                       {s.label}

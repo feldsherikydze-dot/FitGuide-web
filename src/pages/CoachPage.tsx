@@ -140,11 +140,11 @@ export function CoachPage() {
       {header}
       {/* --- План на сегодня --- */}
       <div className={clsx(
-        'rounded-2xl p-5 text-white',
-        plan.kind === 'train' ? 'bg-gradient-to-br from-primary-600 to-primary-800' :
-        plan.kind === 'checkpoint' ? 'bg-gradient-to-br from-amber-500 to-orange-600' :
-        plan.kind === 'rest' ? 'bg-gradient-to-br from-emerald-600 to-teal-700' :
-        'bg-gradient-to-br from-slate-500 to-slate-700'
+        'rounded-2xl p-5 text-[#000000]',
+        plan.kind === 'train' ? 'bg-gradient-to-br from-[var(--p-circle)] to-[var(--p-circle)]/80' :
+        plan.kind === 'checkpoint' ? 'bg-gradient-to-br from-[var(--p-circle)] to-[var(--p-circle)]/80' :
+        plan.kind === 'rest' ? 'bg-gradient-to-br from-[var(--p-circle)] to-[var(--p-circle)]/80' :
+        'bg-gradient-to-br from-[var(--p-circle)] to-[var(--p-circle)]/80'
       )}>
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -165,19 +165,19 @@ export function CoachPage() {
 
         {plan.kind === 'checkpoint' && (
           <button onClick={() => navigate('/assessment?checkpoint=1')}
-            className="mt-4 w-full py-3 bg-white text-amber-700 font-semibold rounded-xl hover:bg-amber-50 transition-colors flex items-center justify-center gap-2">
+            className="mt-4 w-full py-3 bg-[var(--p-labels)] text-[var(--p-labels-text)] border border-[var(--p-outline)] font-semibold rounded-xl hover:bg-black/5 transition-colors flex items-center justify-center gap-2">
             <RotateCcw className="w-5 h-5" />
             Пройти повторные замеры
           </button>
         )}
         {plan.kind === 'nocheckin' && (
-          <div className="mt-4 bg-white/15 rounded-xl p-4 text-sm">
+          <div className="mt-4 bg-[var(--color-bg)]/50 rounded-xl p-4 text-sm">
             Отметьте самочувствие ниже — от него зависит нагрузка на сегодня.
           </div>
         )}
         {plan.kind === 'train' && plan.canStart && (
           <button onClick={() => navigate(`/workout?program=${program.id}&week=${plan.week}&day=${encodeURIComponent(plan.dayTitle)}`)}
-            className="mt-4 w-full py-3 bg-white text-primary-700 font-semibold rounded-xl hover:bg-primary-50 transition-colors flex items-center justify-center gap-2">
+            className="mt-4 w-full py-3 bg-[var(--p-labels)] text-[var(--p-labels-text)] border border-[var(--p-outline)] font-semibold rounded-xl hover:bg-black/5 transition-colors flex items-center justify-center gap-2">
             <Dumbbell className="w-5 h-5" />
             Начать тренировку
           </button>
@@ -185,15 +185,15 @@ export function CoachPage() {
       </div>
 
       {/* --- Отметка самочувствия --- */}
-      <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border p-4">
+      <div className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] p-4">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-slate-900 dark:text-white">Самочувствие сегодня</h2>
+          <h2 className="font-semibold text-[var(--p-labels-text)]">Самочувствие сегодня</h2>
           {checkin && (
             <span className={clsx(
               'px-3 py-1 rounded-full text-sm font-mono font-bold',
-              score >= 7 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-              score >= 5 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-              'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+              score >= 7 ? 'bg-[var(--p-circle)] text-[#000000] dark:bg-[var(--p-circle)] dark:text-[#000000]' :
+              score >= 5 ? 'bg-[var(--p-outline)]/20 text-[var(--p-outline)] dark:bg-[var(--p-outline)]/30 dark:text-[var(--p-outline)]' :
+              'bg-[#C0392B]/20 text-[#C0392B] dark:bg-[#C0392B]/30 dark:text-[#C0392B]'
             )}>
               {score}/9
             </span>
@@ -206,10 +206,10 @@ export function CoachPage() {
             { key: 'sore' as const, label: 'Забитость', icon: Flame, low: 'Сильная', high: 'Нет' },
             { key: 'energy' as const, label: 'Энергия', icon: Battery, low: 'Нет', high: 'Полна' },
           ]).map(({ key, label, icon: Icon, low, high }) => (
-            <div key={key} className="p-3 bg-slate-50 dark:bg-dark-bg/50 rounded-lg">
+            <div key={key} className="p-3 bg-[var(--color-bg)] rounded-lg">
               <div className="flex items-center gap-2 mb-2">
-                <Icon className="w-4 h-4 text-slate-500" />
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{label}</span>
+                <Icon className="w-4 h-4 text-[var(--color-text-secondary)]" />
+                <span className="text-sm font-medium text-[var(--color-text-secondary)]">{label}</span>
               </div>
               <div className="flex gap-1.5">
                 {[1, 2, 3].map(v => (
@@ -223,15 +223,15 @@ export function CoachPage() {
                     className={clsx(
                       'flex-1 py-2 rounded-lg text-sm font-medium transition-colors',
                       checkin?.[key] === v
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-white dark:bg-dark-bg border border-slate-200 dark:border-dark-border text-slate-600 dark:text-slate-400 hover:border-primary-300'
+                        ? 'bg-[var(--p-circle)] text-[#000000]'
+                        : 'bg-[var(--p-labels)] border border-[var(--p-outline)] text-[var(--color-text-secondary)] hover:border-[var(--p-outline)]'
                     )}
                   >
                     {v}
                   </button>
                 ))}
               </div>
-              <div className="flex justify-between text-[10px] text-slate-400 dark:text-slate-500 mt-1">
+              <div className="flex justify-between text-[10px] text-[var(--color-text-secondary)] mt-1">
                 <span>{low}</span><span>{high}</span>
               </div>
             </div>
@@ -239,7 +239,7 @@ export function CoachPage() {
         </div>
 
         {checkin && score <= 4 && (
-          <p className="text-sm text-amber-600 dark:text-amber-400 mt-3 flex items-start gap-1.5">
+          <p className="text-sm text-[var(--p-outline)] mt-3 flex items-start gap-1.5">
             <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
             Низкая готовность — веса снижены на 10%, подходов на 1 меньше.
           </p>
@@ -248,19 +248,19 @@ export function CoachPage() {
 
       {/* --- Упражнения дня --- */}
       {plan.kind === 'train' && day && (
-        <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border overflow-hidden">
-          <div className="bg-slate-50 dark:bg-dark-border/50 px-4 py-3 border-b border-slate-200 dark:border-dark-border flex items-center justify-between">
-            <h2 className="font-semibold text-slate-900 dark:text-white">
+        <div className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] overflow-hidden">
+          <div className="bg-[var(--color-bg)] px-4 py-3 border-b border-[var(--p-outline)] flex items-center justify-between">
+            <h2 className="font-semibold text-[var(--p-labels-text)]">
               {day.title} · {phase?.label}
             </h2>
             {plan.deload && (
-              <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+              <span className="px-2 py-0.5 rounded text-xs font-medium bg-[var(--p-outline)]/20 text-[var(--p-outline)]">
                 Разгрузка
               </span>
             )}
           </div>
 
-          <div className="divide-y divide-slate-200 dark:divide-dark-border">
+          <div className="divide-y divide-[var(--p-outline)]">
             {day.slots.map((slot, idx) => {
               const e1rm = oneRm.get(slot.exercise);
               const suggested = suggestWeight({
@@ -275,21 +275,21 @@ export function CoachPage() {
               const maxR = maxReps(slot.reps);
 
               return (
-                <div key={`${slot.exercise}-${idx}`} className="p-4 hover:bg-slate-50 dark:hover:bg-dark-border/50">
+                <div key={`${slot.exercise}-${idx}`} className="p-4 hover:bg-black/5">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className={clsx(
                           'px-2 py-0.5 rounded text-xs font-medium',
-                          slot.role === 'main' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-                          slot.role === 'secondary' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
-                          'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          slot.role === 'main' ? 'bg-[var(--p-circle)] text-[#000000]' :
+                          slot.role === 'secondary' ? 'bg-[var(--p-outline)]/20 text-[var(--p-outline)]' :
+                          'bg-[var(--p-outline)]/20 text-[var(--p-outline)]'
                         )}>
                           {slot.role === 'main' ? 'Основное' : slot.role === 'secondary' ? 'Вспомогательное' : 'Изоляция'}
                         </span>
                       </div>
-                      <h3 className="font-medium text-slate-900 dark:text-white truncate">{slot.exercise}</h3>
-                      <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500 dark:text-slate-400 mt-1">
+                      <h3 className="font-medium text-[var(--p-labels-text)] truncate">{slot.exercise}</h3>
+                      <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--color-text-secondary)] mt-1">
                         <span>{slot.sets} × {slot.reps}</span>
                         <span>⏱ {slot.rest}</span>
                         {maxR > 0 && <span className="text-xs">до {maxR} повторов</span>}
@@ -298,15 +298,15 @@ export function CoachPage() {
                     <div className="text-right flex-shrink-0">
                       {adjusted > 0 ? (
                         <>
-                          <div className="text-lg font-bold text-primary-600 dark:text-primary-400">{adjusted} кг</div>
+                          <div className="text-lg font-bold text-[var(--p-labels-text)]">{adjusted} кг</div>
                           {delta !== 0 && (
-                            <div className="text-xs text-amber-600 dark:text-amber-400">
+                            <div className="text-xs text-[var(--p-outline)]">
                               было {suggested} кг
                             </div>
                           )}
                         </>
                       ) : (
-                        <div className="text-sm text-slate-400">вес не подсказан</div>
+                        <div className="text-sm text-[var(--color-text-secondary)]">вес не подсказан</div>
                       )}
                     </div>
                   </div>
@@ -321,49 +321,49 @@ export function CoachPage() {
       {tip && (
         <button
           onClick={() => navigate(`/knowledge/${tip.number}`)}
-          className="w-full text-left bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border p-4 hover:border-primary-300 dark:hover:border-primary-700 transition-colors"
+          className="w-full text-left bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] p-4 hover:border-[var(--p-outline)] transition-colors"
         >
           <div className="flex items-start gap-3">
-            <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex-shrink-0">
-              <Info className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            <div className="p-2 bg-[var(--p-circle)] text-[#000000] rounded-lg flex-shrink-0">
+              <Info className="w-5 h-5 text-[var(--p-outline)]" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs text-slate-400 dark:text-slate-500 mb-1">Совет тренера · глава {tip.number}</div>
-              <h3 className="font-semibold text-slate-900 dark:text-white mb-1">{tip.title}</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-3">{tip.text}</p>
+              <div className="text-xs text-[var(--color-text-secondary)] mb-1">Совет тренера · глава {tip.number}</div>
+              <h3 className="font-semibold text-[var(--p-labels-text)] mb-1">{tip.title}</h3>
+              <p className="text-sm text-[var(--color-text-secondary)] line-clamp-3">{tip.text}</p>
             </div>
-            <ChevronRight className="w-5 h-5 text-slate-400 flex-shrink-0" />
+            <ChevronRight className="w-5 h-5 text-[var(--color-text-secondary)] flex-shrink-0" />
           </div>
         </button>
       )}
 
       {/* --- Состояние блока --- */}
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border p-4">
-          <h3 className="font-semibold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-primary-600" />
+        <div className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] p-4">
+          <h3 className="font-semibold text-[var(--p-labels-text)] mb-2 flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-[var(--p-labels-text)]" />
             Программа
           </h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400">{program.name}</p>
-          <div className="flex flex-wrap gap-3 text-sm text-slate-500 dark:text-slate-400 mt-2">
+          <p className="text-sm text-[var(--color-text-secondary)]">{program.name}</p>
+          <div className="flex flex-wrap gap-3 text-sm text-[var(--color-text-secondary)] mt-2">
             <span>Неделя {plan.week} / {program.weeks}</span>
             <span>Круг {plan.cycle}</span>
             {coach.compPhase && <span>Сезон: {COMP_PHASE_LABELS[coach.compPhase]}</span>}
           </div>
         </div>
-        <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border p-4">
-          <h3 className="font-semibold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
-            <RotateCcw className="w-4 h-4 text-primary-600" />
+        <div className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] p-4">
+          <h3 className="font-semibold text-[var(--p-labels-text)] mb-2 flex items-center gap-2">
+            <RotateCcw className="w-4 h-4 text-[var(--p-labels-text)]" />
             Чекпоинт
           </h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <p className="text-sm text-[var(--color-text-secondary)]">
             {assessment
               ? `Замеры ${days} ${plural(days, 'день', 'дня', 'дней')} назад. Следующий через ${Math.max(0, CHECKPOINT_DAYS - days)} ${plural(Math.max(0, CHECKPOINT_DAYS - days), 'день', 'дня', 'дней')}.`
               : 'Замеров ещё не было — тренер не может подобрать веса.'}
           </p>
           {assessment && (
             <button onClick={() => navigate('/assessment?checkpoint=1')}
-              className="mt-2 text-sm text-primary-600 dark:text-primary-400 hover:underline">
+              className="mt-2 text-sm text-[var(--p-labels-text)] hover:underline">
               Повторные замеры
             </button>
           )}
@@ -379,12 +379,12 @@ export function CoachPage() {
           { to: '/knowledge', icon: Trophy, title: 'Знания', desc: 'База по тренировкам' },
         ].map(({ to, icon: Icon, title, desc }) => (
           <button key={to} onClick={() => navigate(to)}
-            className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border p-4 text-left hover:border-primary-300 dark:hover:border-primary-700 transition-colors">
-            <div className="p-2 bg-primary-100 dark:bg-primary-900/30 rounded-lg w-fit mb-3">
-              <Icon className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+            className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] p-4 text-left hover:border-[var(--p-outline)] transition-colors">
+            <div className="p-2 bg-[var(--p-circle)] text-[#000000] rounded-lg w-fit mb-3">
+              <Icon className="w-5 h-5 text-[var(--p-labels-text)]" />
             </div>
-            <h3 className="font-semibold text-slate-900 dark:text-white mb-1">{title}</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">{desc}</p>
+            <h3 className="font-semibold text-[var(--p-labels-text)] mb-1">{title}</h3>
+            <p className="text-sm text-[var(--color-text-secondary)]">{desc}</p>
           </button>
         ))}
       </div>
