@@ -87,22 +87,22 @@ export function ProgramsPage() {
     <div className="max-w-4xl mx-auto space-y-5 w-full max-w-full">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Программы</h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm">
+          <h1 className="text-2xl font-bold text-[var(--p-labels-text)]">Программы</h1>
+          <p className="text-[var(--color-text-secondary)] text-sm">
             {programs.length} сохранено
           </p>
         </div>
         <button onClick={() => setShowGen(true)}
-          className="px-4 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 flex items-center gap-2">
+          className="px-4 py-2 bg-[var(--p-circle)] text-[#000000] rounded-lg font-medium hover:bg-primary-700 flex items-center gap-2">
           <Plus className="w-4 h-4" /> Новая программа
         </button>
       </div>
 
       {showGen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white dark:bg-dark-card rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white dark:bg-dark-card border-b border-slate-200 dark:border-dark-border p-4 rounded-t-2xl flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Генератор программ</h2>
+          <div className="bg-[var(--p-labels)] rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-[var(--p-labels)] border-b border-[var(--p-outline)] p-4 rounded-t-2xl flex items-center justify-between">
+              <h2 className="text-xl font-bold text-[var(--p-labels-text)]">Генератор программ</h2>
               <button onClick={() => setShowGen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-dark-border rounded-lg">
                 <X className="w-5 h-5" />
               </button>
@@ -116,12 +116,12 @@ export function ProgramsPage() {
                       className={clsx('px-3 py-1.5 rounded-lg border text-sm transition-colors',
                         form.goal === g
                           ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
-                          : 'border-slate-200 dark:border-dark-border text-slate-600 dark:text-slate-400')}>
+                          : 'border-[var(--p-outline)] text-[var(--color-text-secondary)]')}>
                       {GOAL_LABELS[g]}
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5">{GOAL_DESCRIPTIONS[form.goal]}</p>
+                <p className="text-xs text-[var(--color-text-secondary)] mt-1.5">{GOAL_DESCRIPTIONS[form.goal]}</p>
               </Field>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -150,9 +150,9 @@ export function ProgramsPage() {
                       className={clsx('p-3 rounded-lg border text-left transition-colors',
                         form.type === t.value
                           ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
-                          : 'border-slate-200 dark:border-dark-border hover:border-primary-300')}>
-                      <div className="font-medium text-slate-900 dark:text-white">{t.label}</div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">{t.desc}</div>
+                          : 'border-[var(--p-outline)] hover:border-primary-300')}>
+                      <div className="font-medium text-[var(--p-labels-text)]">{t.label}</div>
+                      <div className="text-xs text-[var(--color-text-secondary)]">{t.desc}</div>
                     </button>
                   ))}
                 </div>
@@ -186,9 +186,9 @@ export function ProgramsPage() {
                       className={clsx('flex-1 p-3 rounded-lg border text-left transition-colors',
                         form.place === p.v
                           ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
-                          : 'border-slate-200 dark:border-dark-border hover:border-primary-300')}>
-                      <div className="font-medium text-slate-900 dark:text-white">{p.l}</div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">{p.d}</div>
+                          : 'border-[var(--p-outline)] hover:border-primary-300')}>
+                      <div className="font-medium text-[var(--p-labels-text)]">{p.l}</div>
+                      <div className="text-xs text-[var(--color-text-secondary)]">{p.d}</div>
                     </button>
                   ))}
                 </div>
@@ -205,7 +205,7 @@ export function ProgramsPage() {
                         className={clsx('px-3 py-1.5 rounded-lg border text-sm transition-colors',
                           form.equipment.includes(eq)
                             ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
-                            : 'border-slate-200 dark:border-dark-border text-slate-600 dark:text-slate-400')}>
+                            : 'border-[var(--p-outline)] text-[var(--color-text-secondary)]')}>
                         {eq.charAt(0).toUpperCase() + eq.slice(1)}
                       </button>
                     ))}
@@ -213,13 +213,13 @@ export function ProgramsPage() {
                 </Field>
               )}
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-dark-border">
+              <div className="flex justify-end gap-3 pt-4 border-t border-[var(--p-outline)]">
                 <button onClick={() => setShowGen(false)}
-                  className="px-4 py-2 border border-slate-200 dark:border-dark-border rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-dark-border">
+                  className="px-4 py-2 border border-[var(--p-outline)] rounded-lg text-[var(--color-text-secondary)] hover:bg-slate-100 dark:hover:bg-dark-border">
                   Отмена
                 </button>
                 <button onClick={generate} disabled={!db}
-                  className="px-4 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50 flex items-center gap-1.5">
+                  className="px-4 py-2 bg-[var(--p-circle)] text-[#000000] rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50 flex items-center gap-1.5">
                   <Zap className="w-4 h-4" /> Сгенерировать
                 </button>
               </div>
@@ -229,24 +229,24 @@ export function ProgramsPage() {
       )}
 
       {programs.length === 0 && !showGen ? (
-        <div className="text-center py-12 bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border">
+        <div className="text-center py-12 bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)]">
           <Dumbbell className="w-16 h-16 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">Программ пока нет</h3>
-          <p className="text-slate-500 dark:text-slate-400 mb-6">Сгенерируй первую под свою цель</p>
+          <h3 className="text-lg font-medium text-[var(--p-labels-text)] mb-2">Программ пока нет</h3>
+          <p className="text-[var(--color-text-secondary)] mb-6">Сгенерируй первую под свою цель</p>
           <button onClick={() => setShowGen(true)}
-            className="px-6 py-3 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 inline-flex items-center gap-2">
+            className="px-6 py-3 bg-[var(--p-circle)] text-[#000000] rounded-lg font-medium hover:bg-primary-700 inline-flex items-center gap-2">
             <Plus className="w-4 h-4" /> Создать
           </button>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {programs.map(p => (
-            <div key={p.id} className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border overflow-hidden hover:border-primary-300 dark:hover:border-primary-700 transition-colors">
+            <div key={p.id} className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] overflow-hidden hover:border-[var(--p-outline)] transition-colors">
               <div className="p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h3 className="font-semibold text-slate-900 dark:text-white truncate">{p.name}</h3>
-                    <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    <h3 className="font-semibold text-[var(--p-labels-text)] truncate">{p.name}</h3>
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-[var(--color-text-secondary)] mt-1">
                       <span>{p.daysPerWeek} дн/нед</span><span>·</span>
                       <span>{p.weeks} нед</span><span>·</span>
                       <span>{p.phases.length} фаз</span>
@@ -289,7 +289,7 @@ export function ProgramsPage() {
   );
 }
 
-const inputCls = 'w-full px-3 py-2 border border-slate-200 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-slate-900 dark:text-white';
+const inputCls = 'w-full px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-[var(--p-labels-text)]';
 
 // ---------------------------------------------------------------- деталь программы
 
@@ -932,7 +932,7 @@ export function ProgramDetailPage() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{label}</label>
+      <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">{label}</label>
       {children}
     </div>
   );

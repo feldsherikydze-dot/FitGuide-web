@@ -68,15 +68,15 @@ export function ExercisesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">База упражнений</h1>
-          <p className="text-slate-500 dark:text-slate-400">
+          <h1 className="text-2xl font-bold text-[var(--p-labels-text)]">База упражнений</h1>
+          <p className="text-[var(--color-text-secondary)]">
             {exercises.length} упражнений · {muscleGroups.length} мышечных групп
           </p>
         </div>
       </div>
 
       {/* Search & Filters */}
-      <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border p-4 space-y-4">
+      <div className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] p-4 space-y-4">
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -85,7 +85,7 @@ export function ExercisesPage() {
             placeholder="Поиск по названию, мышце, инвентарю..."
             value={query}
             onChange={e => setQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
+            className="w-full pl-10 pr-4 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-[var(--p-labels-text)] focus:ring-2 focus:ring-primary-500"
           />
         </div>
 
@@ -96,7 +96,7 @@ export function ExercisesPage() {
             <select
               value={selectedGroup}
               onChange={e => setSelectedGroup(e.target.value)}
-              className="px-3 py-2 border border-slate-200 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-slate-900 dark:text-white text-sm min-w-[200px]"
+              className="px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-[var(--p-labels-text)] text-sm min-w-[200px]"
             >
               <option value="all">Все группы мышц</option>
               {muscleGroups.map(g => (
@@ -108,18 +108,18 @@ export function ExercisesPage() {
             <select
               value={selectedEquip}
               onChange={e => setSelectedEquip(e.target.value)}
-              className="px-3 py-2 border border-slate-200 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-slate-900 dark:text-white text-sm min-w-[180px]"
+              className="px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-[var(--p-labels-text)] text-sm min-w-[180px]"
             >
               {EQUIPMENT_FILTERS.map(f => (
                 <option key={f.id} value={f.id}>{f.label}</option>
               ))}
             </select>
           </div>
-          <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-dark-border/50">
+          <label className="flex items-center gap-2 px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-dark-border/50">
             <input type="checkbox" checked={showBasic} onChange={e => setShowBasic(e.target.checked)} className="w-4 h-4 text-primary-600 rounded border-slate-300" />
             Только базовые
           </label>
-          <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-dark-border/50">
+          <label className="flex items-center gap-2 px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-dark-border/50">
             <input type="checkbox" checked={showIsolation} onChange={e => setShowIsolation(e.target.checked)} className="w-4 h-4 text-primary-600 rounded border-slate-300" />
             Только изолирующие
           </label>
@@ -130,13 +130,13 @@ export function ExercisesPage() {
       {loading ? (
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-2" />
-          <p className="text-slate-500 dark:text-slate-400">Загрузка базы упражнений...</p>
+          <p className="text-[var(--color-text-secondary)]">Загрузка базы упражнений...</p>
         </div>
       ) : filteredExercises.length === 0 ? (
-        <div className="text-center py-12 bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border">
+        <div className="text-center py-12 bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)]">
           <Dumbbell className="w-16 h-16 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">Ничего не найдено</h3>
-          <p className="text-slate-500 dark:text-slate-400">Попробуй изменить фильтры или поисковый запрос</p>
+          <h3 className="text-lg font-medium text-[var(--p-labels-text)] mb-2">Ничего не найдено</h3>
+          <p className="text-[var(--color-text-secondary)]">Попробуй изменить фильтры или поисковый запрос</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -148,8 +148,8 @@ export function ExercisesPage() {
               <div
                 key={exercise.id}
                 className={clsx(
-                  'bg-white dark:bg-dark-card rounded-xl border overflow-hidden transition-all',
-                  isExpanded ? 'border-primary-300 dark:border-primary-700 ring-2 ring-primary-500/20' : 'border-slate-200 dark:border-dark-border'
+                  'bg-[var(--p-labels)] rounded-xl border overflow-hidden transition-all',
+                  isExpanded ? 'border-primary-300 dark:border-primary-700 ring-2 ring-primary-500/20' : 'border-[var(--p-outline)]'
                 )}
               >
                 <button
@@ -160,20 +160,20 @@ export function ExercisesPage() {
                     <div className="flex items-center gap-2 mb-1">
                       <span className={clsx(
                         'px-2 py-0.5 rounded text-xs font-medium',
-                        isBasic(exercise) ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-                        isIsolation(exercise) ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                        isBasic(exercise) ? 'bg-[var(--p-circle)] text-[#000000]' :
+                        isIsolation(exercise) ? 'bg-[var(--p-circle)] text-[#000000]' :
                         'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
                       )}>
                         {isBasic(exercise) ? 'Базовое' : isIsolation(exercise) ? 'Изолирующее' : 'Упражнение'}
                       </span>
                       {equipCat !== 'free' && (
-                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-[var(--p-circle)] text-[#000000]">
                           {equipCat.charAt(0).toUpperCase() + equipCat.slice(1)}
                         </span>
                       )}
                     </div>
-                    <h3 className="font-semibold text-slate-900 dark:text-white truncate">{exercise.name}</h3>
-                    <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    <h3 className="font-semibold text-[var(--p-labels-text)] truncate">{exercise.name}</h3>
+                    <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--color-text-secondary)] mt-1">
                       <span>{exercise.sets} × {exercise.reps}</span>
                       <span>⏱ {exercise.rest}</span>
                       {exercise.target && <span>{exercise.target}</span>}
@@ -186,18 +186,18 @@ export function ExercisesPage() {
                 </button>
 
                 {isExpanded && (
-                  <div className="border-t border-slate-200 dark:border-dark-border bg-slate-50 dark:bg-dark-bg/50 p-4 space-y-4 animate-slide-down">
+                  <div className="border-t border-[var(--p-outline)] bg-[var(--color-bg)] p-4 space-y-4 animate-slide-down">
                     <div className="prose prose-sm dark:prose-invert max-w-none">
-                      <p className="text-slate-700 dark:text-slate-300">{exercise.description}</p>
+                      <p className="text-[var(--color-text-secondary)]">{exercise.description}</p>
                     </div>
 
                     {exercise.steps.length > 0 && (
                       <div>
-                        <h4 className="font-medium text-slate-900 dark:text-white mb-2">Техника выполнения:</h4>
-                        <ol className="space-y-1 text-sm text-slate-600 dark:text-slate-400">
+                        <h4 className="font-medium text-[var(--p-labels-text)] mb-2">Техника выполнения:</h4>
+                        <ol className="space-y-1 text-sm text-[var(--color-text-secondary)]">
                           {exercise.steps.map((step, i) => (
                             <li key={i} className="flex gap-2">
-                              <span className="font-mono text-primary-600 dark:text-primary-400">{i + 1}.</span>
+                              <span className="font-mono text-[var(--p-labels-text)]">{i + 1}.</span>
                               <span>{step}</span>
                             </li>
                           ))}
@@ -236,7 +236,7 @@ export function ExercisesPage() {
                       </div>
                     )}
 
-                    <div className="flex flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200 dark:border-dark-border">
+                    <div className="flex flex-wrap gap-2 text-xs text-[var(--color-text-secondary)] pt-2 border-t border-[var(--p-outline)]">
                       <span>ID: {exercise.id}</span>
                       <span>Категория: {exercise.category || '—'}</span>
                       <span>Сложность: {exercise.difficulty || '—'}</span>

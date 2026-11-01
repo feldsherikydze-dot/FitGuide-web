@@ -67,14 +67,14 @@ export function ProgressPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Прогресс</h1>
-          <p className="text-slate-500 dark:text-slate-400">Анализ тренировок, e1RM и объёмов</p>
+          <h1 className="text-2xl font-bold text-[var(--p-labels-text)]">Прогресс</h1>
+          <p className="text-[var(--color-text-secondary)]">Анализ тренировок, e1RM и объёмов</p>
         </div>
         <div className="flex items-center gap-2">
           <select
             value={timeRange}
             onChange={e => setTimeRange(e.target.value as any)}
-            className="px-3 py-2 border border-slate-200 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-slate-900 dark:text-white text-sm"
+            className="px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-[var(--p-labels-text)] text-sm"
           >
             <option value="month">Месяц</option>
             <option value="quarter">Квартал</option>
@@ -86,44 +86,44 @@ export function ProgressPage() {
 
       {/* Summary Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border p-5">
+        <div className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Тренировок</p>
-              <p className="text-3xl font-bold text-slate-900 dark:text-white">{totalWorkouts}</p>
+              <p className="text-sm text-[var(--color-text-secondary)]">Тренировок</p>
+              <p className="text-3xl font-bold text-[var(--p-labels-text)]">{totalWorkouts}</p>
             </div>
             <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
               <Dumbbell className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
         </div>
-        <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border p-5">
+        <div className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Упражнений</p>
-              <p className="text-3xl font-bold text-slate-900 dark:text-white">{uniqueExercises}</p>
+              <p className="text-sm text-[var(--color-text-secondary)]">Упражнений</p>
+              <p className="text-3xl font-bold text-[var(--p-labels-text)]">{uniqueExercises}</p>
             </div>
             <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
               <Target className="w-6 h-6 text-purple-600 dark:text-purple-400" />
             </div>
           </div>
         </div>
-        <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border p-5">
+        <div className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Общий объём</p>
-              <p className="text-3xl font-bold text-slate-900 dark:text-white">{Math.round(totalVolume / 1000)}т</p>
+              <p className="text-sm text-[var(--color-text-secondary)]">Общий объём</p>
+              <p className="text-3xl font-bold text-[var(--p-labels-text)]">{Math.round(totalVolume / 1000)}т</p>
             </div>
             <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
               <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400" />
             </div>
           </div>
         </div>
-        <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border p-5">
+        <div className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Период</p>
-              <p className="text-3xl font-bold text-slate-900 dark:text-white">
+              <p className="text-sm text-[var(--color-text-secondary)]">Период</p>
+              <p className="text-3xl font-bold text-[var(--p-labels-text)]">
                 {timeRange === 'month' ? '30 дн' : timeRange === 'quarter' ? '90 дн' : timeRange === 'year' ? '365 дн' : 'Все'}
               </p>
             </div>
@@ -135,15 +135,15 @@ export function ProgressPage() {
       </div>
 
       {/* Exercise Selector + Chart */}
-      <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border overflow-hidden">
-        <div className="p-4 border-b border-slate-200 dark:border-dark-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h2 className="font-semibold text-slate-900 dark:text-white">Динамика e1RM</h2>
+      <div className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] overflow-hidden">
+        <div className="p-4 border-b border-[var(--p-outline)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <h2 className="font-semibold text-[var(--p-labels-text)]">Динамика e1RM</h2>
           <div className="flex items-center gap-2">
-            <label className="text-sm text-slate-500 dark:text-slate-400">Упражнение:</label>
+            <label className="text-sm text-[var(--color-text-secondary)]">Упражнение:</label>
             <select
               value={selectedExercise}
               onChange={e => setSelectedExercise(e.target.value)}
-              className="px-3 py-2 border border-slate-200 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-slate-900 dark:text-white min-w-[250px]"
+              className="px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-[var(--p-labels-text)] min-w-[250px]"
             >
               <option value="">Выбери упражнение</option>
               {exercisedNames.map(name => (
@@ -254,25 +254,25 @@ export function ProgressPage() {
                 </svg>
               </div>
             ) : (
-              <div className="h-full flex items-center justify-center text-slate-500 dark:text-slate-400">
+              <div className="h-full flex items-center justify-center text-[var(--color-text-secondary)]">
                 Нет данных по этому упражнению за выбранный период
               </div>
             )}
           </div>
         ) : (
-          <div className="h-80 flex items-center justify-center text-slate-500 dark:text-slate-400">
+          <div className="h-80 flex items-center justify-center text-[var(--color-text-secondary)]">
             Выбери упражнение выше, чтобы увидеть график прогресса
           </div>
         )}
 
         {/* Last session details */}
         {selectedExercise && e1rmData.length > 0 && (
-          <div className="border-t border-slate-200 dark:border-dark-border p-4">
-            <h3 className="font-medium text-slate-900 dark:text-white mb-3">Последние замеры</h3>
+          <div className="border-t border-[var(--p-outline)] p-4">
+            <h3 className="font-medium text-[var(--p-labels-text)] mb-3">Последние замеры</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-dark-border">
+                  <tr className="text-left text-[var(--color-text-secondary)] border-b border-[var(--p-outline)]">
                     <th className="pb-2">Дата</th>
                     <th className="pb-2">Вес</th>
                     <th className="pb-2">Повторы</th>
@@ -286,7 +286,7 @@ export function ProgressPage() {
                       <td className="py-2">{new Date(d.date).toLocaleDateString('ru-RU')}</td>
                       <td className="py-2 font-mono">{d.weight} кг</td>
                       <td className="py-2 font-mono">{d.reps}</td>
-                      <td className="py-2 font-mono font-semibold text-primary-600 dark:text-primary-400">{d.e1rm} кг</td>
+                      <td className="py-2 font-mono font-semibold text-[var(--p-labels-text)]">{d.e1rm} кг</td>
                       <td className="py-2 font-mono">{Math.round(d.volume / 100) / 10} т</td>
                     </tr>
                   ))}
@@ -298,9 +298,9 @@ export function ProgressPage() {
       </div>
 
       {/* Personal Records */}
-      <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border overflow-hidden">
-        <div className="p-4 border-b border-slate-200 dark:border-dark-border">
-          <h2 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+      <div className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] overflow-hidden">
+        <div className="p-4 border-b border-[var(--p-outline)]">
+          <h2 className="font-semibold text-[var(--p-labels-text)] flex items-center gap-2">
             <Trophy className="w-5 h-5 text-amber-500" />
             Личные рекорды (e1RM)
           </h2>
@@ -324,15 +324,15 @@ export function ProgressPage() {
               .map(([ex, e1rm], i) => (
                 <div key={ex} className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-dark-border/50 last:border-0">
                   <div className="flex items-center gap-3">
-                    <span className="w-8 text-center text-slate-400 dark:text-slate-500 font-bold">{i + 1}</span>
-                    <span className="font-medium text-slate-900 dark:text-white truncate max-w-[200px]">{ex}</span>
+                    <span className="w-8 text-center text-[var(--color-text-secondary)] font-bold">{i + 1}</span>
+                    <span className="font-medium text-[var(--p-labels-text)] truncate max-w-[200px]">{ex}</span>
                   </div>
-                  <span className="font-mono font-bold text-primary-600 dark:text-primary-400">{Math.round(e1rm)} кг</span>
+                  <span className="font-mono font-bold text-[var(--p-labels-text)]">{Math.round(e1rm)} кг</span>
                 </div>
               ));
           })()}
           {Object.keys({}).length === 0 && (
-            <p className="text-slate-500 dark:text-slate-400 text-center py-8">Нет данных для рекордов. Начни тренироваться!</p>
+            <p className="text-[var(--color-text-secondary)] text-center py-8">Нет данных для рекордов. Начни тренироваться!</p>
           )}
         </div>
       </div>

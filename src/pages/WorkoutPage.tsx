@@ -524,7 +524,7 @@ export function WorkoutPage() {
       {/* ---------- Завершение ---------- */}
       {finishOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-6">
-          <div className="w-full max-w-md rounded-2xl p-5" style={{ background: 'var(--color-surface)' }}>
+          <div className="w-full max-w-md rounded-2xl p-5" style={{ background: 'var(--p-labels)' }}>
             <h3 className="text-[18px] font-bold mb-1" style={{ color: 'var(--color-text-main)' }}>
               Как прошла тренировка?
             </h3>
@@ -557,7 +557,7 @@ export function WorkoutPage() {
         <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center"
           onClick={() => setSwapOpen(false)}>
           <div className="w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 max-h-[70vh] overflow-y-auto"
-            style={{ background: 'var(--color-surface)' }} onClick={e => e.stopPropagation()}>
+            style={{ background: 'var(--p-labels)' }} onClick={e => e.stopPropagation()}>
             <h3 className="text-[18px] font-bold mb-2" style={{ color: 'var(--color-text-main)' }}>Заменить на…</h3>
             {alt.length === 0 && (
               <p className="text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
@@ -568,7 +568,7 @@ export function WorkoutPage() {
               {alt.map(e => (
                 <button key={e.id} onClick={() => swapTo(e.name)}
                   className="w-full text-left px-3 py-3 rounded-xl border"
-                  style={{ borderColor: 'var(--color-outline)', color: 'var(--color-text-main)' }}>
+                  style={{ borderColor: 'var(--p-outline)', color: 'var(--color-text-main)' }}>
                   <div className="font-medium">{e.name}</div>
                   <div className="text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
                     {e.muscleGroup} · {e.equipmentType}
@@ -585,7 +585,7 @@ export function WorkoutPage() {
       {weightsOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-6"
           onClick={() => setWeightsOpen(false)}>
-          <div className="w-full max-w-md rounded-2xl p-5" style={{ background: 'var(--color-surface)' }}
+          <div className="w-full max-w-md rounded-2xl p-5" style={{ background: 'var(--p-labels)' }}
             onClick={e => e.stopPropagation()}>
             <h3 className="text-[18px] font-bold mb-1" style={{ color: 'var(--color-text-main)' }}>
               Рабочие веса от 1ПМ

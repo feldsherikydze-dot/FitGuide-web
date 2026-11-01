@@ -237,10 +237,10 @@ export function AssessmentPage() {
       {/* Заголовок */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+          <h1 className="text-2xl font-bold text-[var(--p-labels-text)]">
             {isCheckpoint ? 'Повторные замеры' : 'Замеры и калибровка'}
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm">
+          <p className="text-[var(--color-text-secondary)] text-sm">
             {isCheckpoint
               ? 'Веса подставлены из тренировок — поправь под сегодняшнее состояние'
               : 'Точка отсчёта: тренер подберёт стартовые веса под твою силу'}
@@ -254,7 +254,7 @@ export function AssessmentPage() {
       </div>
 
       {/* Шаги */}
-      <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border p-4">
+      <div className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] p-4">
         <div className="flex items-center justify-between gap-1">
           {STEPS.map((s, i) => (
             <button
@@ -265,7 +265,7 @@ export function AssessmentPage() {
             >
               <div className={clsx(
                 'w-9 h-9 rounded-full flex items-center justify-center transition-all',
-                i < stepIndex ? 'bg-primary-600 text-white' :
+                i < stepIndex ? 'bg-[var(--p-circle)] text-[#000000]' :
                 i === stepIndex ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300 ring-2 ring-primary-500' :
                 'bg-slate-100 text-slate-400 dark:bg-dark-border dark:text-slate-500'
               )}>
@@ -273,7 +273,7 @@ export function AssessmentPage() {
               </div>
               <span className={clsx(
                 'text-[10px] text-center leading-tight',
-                i === stepIndex ? 'text-primary-600 dark:text-primary-400 font-medium' : 'text-slate-400 dark:text-slate-500'
+                i === stepIndex ? 'text-[var(--p-labels-text)] font-medium' : 'text-[var(--color-text-secondary)]'
               )}>
                 {s.label}
               </span>
@@ -283,21 +283,21 @@ export function AssessmentPage() {
       </div>
 
       {/* Содержимое шага */}
-      <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border p-5">
+      <div className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] p-5">
         {step === 'measure' && (
           <div className="space-y-5">
-            <h2 className="font-semibold text-slate-900 dark:text-white">Основные параметры</h2>
+            <h2 className="font-semibold text-[var(--p-labels-text)]">Основные параметры</h2>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Вес, кг" value={form.weightKg} step="0.1" onChange={v => set('weightKg', v)} />
               <Field label="Рост, см" value={form.heightCm} step="1" onChange={v => set('heightCm', v)} />
               <Field label="Возраст" value={form.age} step="1" onChange={v => set('age', v)} />
               <div>
-                <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1">Пол</label>
+                <label className="block text-sm text-[var(--color-text-secondary)] mb-1">Пол</label>
                 <div className="flex gap-2">
                   {[{ v: false, l: 'Мужской' }, { v: true, l: 'Женский' }].map(o => (
                     <button key={o.l} onClick={() => set('female', o.v)}
                       className={clsx('flex-1 py-2 rounded-lg text-sm font-medium transition-colors',
-                        form.female === o.v ? 'bg-primary-600 text-white' : 'bg-slate-100 dark:bg-dark-border text-slate-600 dark:text-slate-400')}>
+                        form.female === o.v ? 'bg-[var(--p-circle)] text-[#000000]' : 'bg-slate-100 dark:bg-dark-border text-[var(--color-text-secondary)]')}>
                       {o.l}
                     </button>
                   ))}
@@ -306,7 +306,7 @@ export function AssessmentPage() {
             </div>
 
             <div>
-              <h3 className="font-medium text-slate-900 dark:text-white mb-2">Обхваты, см</h3>
+              <h3 className="font-medium text-[var(--p-labels-text)] mb-2">Обхваты, см</h3>
               <div className="grid gap-3 sm:grid-cols-2">
                 {MEASURE_SITES.map(s => (
                   <Field key={s.key} label={s.label} value={form[s.key]} step="0.5"
@@ -329,8 +329,8 @@ export function AssessmentPage() {
         {step === 'skin' && (
           <div className="space-y-4">
             <div>
-              <h2 className="font-semibold text-slate-900 dark:text-white">Складки, мм</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <h2 className="font-semibold text-[var(--p-labels-text)]">Складки, мм</h2>
+              <p className="text-sm text-[var(--color-text-secondary)]">
                 Калипером, 3 замера — вносим среднее. 7 точек для мужчин, 3 для женщин.
               </p>
             </div>
@@ -339,12 +339,12 @@ export function AssessmentPage() {
                 const disabled = s.male && form.female;
                 return (
                   <div key={s.key} className={clsx('flex items-center gap-2', disabled && 'opacity-40')}>
-                    <label className="w-32 text-sm text-slate-600 dark:text-slate-400 flex-shrink-0">{s.label}</label>
+                    <label className="w-32 text-sm text-[var(--color-text-secondary)] flex-shrink-0">{s.label}</label>
                     <input
                       type="number" step="0.1" min="0" max="80" disabled={disabled}
                       value={form[s.key]}
                       onChange={e => set(s.key, parseFloat(e.target.value) || 0)}
-                      className="flex-1 px-3 py-2 border border-slate-200 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-slate-900 dark:text-white text-center"
+                      className="flex-1 px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-[var(--p-labels-text)] text-center"
                     />
                   </div>
                 );
@@ -355,13 +355,13 @@ export function AssessmentPage() {
 
         {step === 'move' && (
           <div className="space-y-3">
-            <h2 className="font-semibold text-slate-900 dark:text-white">Проверка движений</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <h2 className="font-semibold text-[var(--p-labels-text)]">Проверка движений</h2>
+            <p className="text-sm text-[var(--color-text-secondary)]">
               0 — не могу, 1 — с ошибками, 2 — чисто
             </p>
             {MOVEMENT_NAMES.map((name, i) => (
-              <div key={name} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-dark-bg/50 rounded-lg">
-                <span className="font-medium text-slate-900 dark:text-white">{name}</span>
+              <div key={name} className="flex items-center justify-between p-3 bg-[var(--color-bg)] rounded-lg">
+                <span className="font-medium text-[var(--p-labels-text)]">{name}</span>
                 <div className="flex gap-2">
                   {[0, 1, 2].map(v => (
                     <button key={v} onClick={() => {
@@ -372,7 +372,7 @@ export function AssessmentPage() {
                       className={clsx('w-10 h-10 rounded-lg font-medium text-sm transition-colors',
                         form.movementScores[i] === v
                           ? (v === 0 ? 'bg-red-500 text-white' : v === 1 ? 'bg-amber-500 text-white' : 'bg-green-500 text-white')
-                          : 'bg-white dark:bg-dark-bg border border-slate-200 dark:border-dark-border text-slate-500')}>
+                          : 'bg-[var(--p-labels)] border border-[var(--p-outline)] text-slate-500')}>
                       {v}
                     </button>
                   ))}
@@ -385,26 +385,26 @@ export function AssessmentPage() {
         {step === 'test' && (
           <div className="space-y-4">
             <div>
-              <h2 className="font-semibold text-slate-900 dark:text-white">Силовые тесты</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <h2 className="font-semibold text-[var(--p-labels-text)]">Силовые тесты</h2>
+              <p className="text-sm text-[var(--color-text-secondary)]">
                 Рабочий вес и число повторов. Пусто — не тестировал.
               </p>
             </div>
             <div className="space-y-2">
               {TEST_MOVEMENTS.map((m, i) => (
                 <div key={m.idx} className="grid grid-cols-[1fr_90px_70px] gap-2 items-center">
-                  <span className="text-sm text-slate-700 dark:text-slate-300 truncate">{m.label}</span>
+                  <span className="text-sm text-[var(--color-text-secondary)] truncate">{m.label}</span>
                   <input
                     type="number" step="0.5" min="0" max="500" placeholder="кг"
                     value={form.testWeights[i] || ''}
                     onChange={e => { const a = [...form.testWeights]; a[i] = parseFloat(e.target.value) || 0; set('testWeights', a); }}
-                    className="px-2 py-2 border border-slate-200 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-slate-900 dark:text-white text-center"
+                    className="px-2 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-[var(--p-labels-text)] text-center"
                   />
                   <input
                     type="number" min="1" max="20"
                     value={form.testReps[i]}
                     onChange={e => { const a = [...form.testReps]; a[i] = parseInt(e.target.value) || 0; set('testReps', a); }}
-                    className="px-2 py-2 border border-slate-200 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-slate-900 dark:text-white text-center"
+                    className="px-2 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-[var(--p-labels-text)] text-center"
                   />
                 </div>
               ))}
@@ -415,8 +415,8 @@ export function AssessmentPage() {
                 <div className="grid gap-1 sm:grid-cols-2">
                   {TEST_MOVEMENTS.map((m, i) => e1rms[i] > 0 && (
                     <div key={m.idx} className="flex justify-between text-sm">
-                      <span className="text-slate-600 dark:text-slate-400">{m.label}</span>
-                      <strong className="text-slate-900 dark:text-white">{Math.round(e1rms[i])} кг</strong>
+                      <span className="text-[var(--color-text-secondary)]">{m.label}</span>
+                      <strong className="text-[var(--p-labels-text)]">{Math.round(e1rms[i])} кг</strong>
                     </div>
                   ))}
                 </div>
@@ -427,16 +427,16 @@ export function AssessmentPage() {
 
         {step === 'amrap' && (
           <div className="space-y-3">
-            <h2 className="font-semibold text-slate-900 dark:text-white">AMRAP</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Сколько раз за один подход с собственным весом</p>
+            <h2 className="font-semibold text-[var(--p-labels-text)]">AMRAP</h2>
+            <p className="text-sm text-[var(--color-text-secondary)]">Сколько раз за один подход с собственным весом</p>
             {AMRAP_MOVEMENTS.map((name, i) => (
-              <div key={name} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-dark-bg/50 rounded-lg gap-3">
-                <span className="text-sm text-slate-700 dark:text-slate-300">{name}</span>
+              <div key={name} className="flex items-center justify-between p-3 bg-[var(--color-bg)] rounded-lg gap-3">
+                <span className="text-sm text-[var(--color-text-secondary)]">{name}</span>
                 <input
                   type="number" min="0" max="200"
                   value={form.amrap[i] || ''}
                   onChange={e => { const a = [...form.amrap]; a[i] = parseInt(e.target.value) || 0; set('amrap', a); }}
-                  className="w-20 px-3 py-2 border border-slate-200 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-slate-900 dark:text-white text-center"
+                  className="w-20 px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-[var(--p-labels-text)] text-center"
                 />
               </div>
             ))}
@@ -446,8 +446,8 @@ export function AssessmentPage() {
         {step === 'pain' && (
           <div className="space-y-6">
             <div>
-              <h2 className="font-semibold text-slate-900 dark:text-white">Боль, 0–10</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">0 — нет боли, 10 — невыносимо</p>
+              <h2 className="font-semibold text-[var(--p-labels-text)]">Боль, 0–10</h2>
+              <p className="text-sm text-[var(--color-text-secondary)] mb-2">0 — нет боли, 10 — невыносимо</p>
               <div className="flex gap-1.5 flex-wrap">
                 {Array.from({ length: 11 }, (_, i) => i).map(v => (
                   <button key={v} onClick={() => set('pain', v)}
@@ -462,12 +462,12 @@ export function AssessmentPage() {
             </div>
 
             <div>
-              <h2 className="font-semibold text-slate-900 dark:text-white mb-2">Мышечно-умственная связь, 1–5</h2>
+              <h2 className="font-semibold text-[var(--p-labels-text)] mb-2">Мышечно-умственная связь, 1–5</h2>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map(v => (
                   <button key={v} onClick={() => set('mmc', v)}
                     className={clsx('w-12 h-12 rounded-lg font-bold transition-colors',
-                      form.mmc === v ? 'bg-primary-600 text-white' : 'bg-slate-100 dark:bg-dark-border text-slate-500')}>
+                      form.mmc === v ? 'bg-[var(--p-circle)] text-[#000000]' : 'bg-slate-100 dark:bg-dark-border text-slate-500')}>
                     {v}
                   </button>
                 ))}
@@ -475,12 +475,12 @@ export function AssessmentPage() {
             </div>
 
             <div>
-              <h2 className="font-semibold text-slate-900 dark:text-white mb-2">Техника, 1–5</h2>
+              <h2 className="font-semibold text-[var(--p-labels-text)] mb-2">Техника, 1–5</h2>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map(v => (
                   <button key={v} onClick={() => set('tech', v)}
                     className={clsx('w-12 h-12 rounded-lg font-bold transition-colors',
-                      form.tech === v ? 'bg-primary-600 text-white' : 'bg-slate-100 dark:bg-dark-border text-slate-500')}>
+                      form.tech === v ? 'bg-[var(--p-circle)] text-[#000000]' : 'bg-slate-100 dark:bg-dark-border text-slate-500')}>
                     {v}
                   </button>
                 ))}
@@ -491,7 +491,7 @@ export function AssessmentPage() {
 
         {step === 'summary' && (
           <div className="space-y-4">
-            <h2 className="font-semibold text-slate-900 dark:text-white">Итог калибровки</h2>
+            <h2 className="font-semibold text-[var(--p-labels-text)]">Итог калибровки</h2>
 
             {bodyComp.bodyFatPct > 0 && (
               <div className="grid grid-cols-3 gap-2">
@@ -507,8 +507,8 @@ export function AssessmentPage() {
                 <div className="grid gap-1 sm:grid-cols-2">
                   {TEST_MOVEMENTS.map((m, i) => e1rms[i] > 0 && (
                     <div key={m.idx} className="flex justify-between text-sm">
-                      <span className="text-slate-600 dark:text-slate-400">{m.label}</span>
-                      <strong className="text-slate-900 dark:text-white">{startWeight(e1rms[i])} кг</strong>
+                      <span className="text-[var(--color-text-secondary)]">{m.label}</span>
+                      <strong className="text-[var(--p-labels-text)]">{startWeight(e1rms[i])} кг</strong>
                     </div>
                   ))}
                 </div>
@@ -521,7 +521,7 @@ export function AssessmentPage() {
                   <Sparkles className="w-4 h-4" />
                   Что будет дальше
                 </h3>
-                <ul className="space-y-1 text-sm text-slate-600 dark:text-slate-400">
+                <ul className="space-y-1 text-sm text-[var(--color-text-secondary)]">
                   <li>• Соберётся программа на 12 недель с периодизацией</li>
                   <li>• Стартовые веса = 85% от твоих 1ПМ</li>
                   <li>• Тренер будет вести прогрессию и давать разгрузки</li>
@@ -531,7 +531,7 @@ export function AssessmentPage() {
             )}
 
             <button onClick={finish}
-              className="w-full py-3 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors">
+              className="w-full py-3 bg-[var(--p-circle)] text-[#000000] rounded-lg font-semibold hover:bg-primary-700 transition-colors">
               {isCheckpoint ? 'Сохранить чекпоинт' : 'Сохранить и начать тренироваться'}
             </button>
           </div>
@@ -541,11 +541,11 @@ export function AssessmentPage() {
       {/* Навигация */}
       <div className="flex items-center justify-between">
         <button onClick={goBack} disabled={history.length <= 1}
-          className="px-4 py-2 border border-slate-200 dark:border-dark-border rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-dark-border disabled:opacity-50 flex items-center gap-2">
+          className="px-4 py-2 border border-[var(--p-outline)] rounded-lg text-[var(--color-text-secondary)] hover:bg-slate-100 dark:hover:bg-dark-border disabled:opacity-50 flex items-center gap-2">
           <ChevronLeft className="w-4 h-4" /> Назад
         </button>
         <button onClick={goNext} disabled={!canNext || step === 'summary'}
-          className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 flex items-center gap-2">
+          className="px-4 py-2 bg-[var(--p-circle)] text-[#000000] rounded-lg hover:bg-primary-700 disabled:opacity-50 flex items-center gap-2">
           Далее <ChevronRight className="w-4 h-4" />
         </button>
       </div>
@@ -556,12 +556,12 @@ export function AssessmentPage() {
 function Field({ label, value, step, onChange }: { label: string; value: number; step: string; onChange: (v: number) => void }) {
   return (
     <div>
-      <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1">{label}</label>
+      <label className="block text-sm text-[var(--color-text-secondary)] mb-1">{label}</label>
       <input
         type="number" step={step} min="0"
         value={value || ''}
         onChange={e => onChange(parseFloat(e.target.value) || 0)}
-        className="w-full px-3 py-2 border border-slate-200 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-slate-900 dark:text-white text-center"
+        className="w-full px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-[var(--p-labels-text)] text-center"
       />
     </div>
   );
@@ -569,9 +569,9 @@ function Field({ label, value, step, onChange }: { label: string; value: number;
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="p-3 bg-slate-50 dark:bg-dark-bg/50 rounded-lg text-center">
-      <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
-      <p className="font-bold text-slate-900 dark:text-white">{value}</p>
+    <div className="p-3 bg-[var(--color-bg)] rounded-lg text-center">
+      <p className="text-xs text-[var(--color-text-secondary)]">{label}</p>
+      <p className="font-bold text-[var(--p-labels-text)]">{value}</p>
     </div>
   );
 }
