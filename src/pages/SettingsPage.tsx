@@ -463,7 +463,7 @@ export function SettingsPage() {
                 onChange={e => { setDragEnabled(e.target.checked); setString('home_drag_enabled', e.target.checked ? '1' : '0'); }}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#FFFFFF] after:border-[var(--p-outline)] after:border after:rounded-full after:h-5 after:w-5 after:transition-all"
+              <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-[var(--p-outline)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#FFFFFF] after:border-[var(--p-outline)] after:border after:rounded-full after:h-5 after:w-5 after:transition-all"
                 style={{
                   background: dragEnabled ? 'var(--p-circle)' : 'var(--p-outline)',
                   border: dragEnabled ? `1px solid var(--p-circle)` : '1px solid var(--p-outline)',
@@ -509,7 +509,7 @@ export function SettingsPage() {
                 onChange={e => { setSearchEnabled(e.target.checked); setString('home_search_enabled', e.target.checked ? '1' : '0'); }}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#FFFFFF] after:border-[var(--p-outline)] after:border after:rounded-full after:h-5 after:w-5 after:transition-all"
+              <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-[var(--p-outline)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#FFFFFF] after:border-[var(--p-outline)] after:border after:rounded-full after:h-5 after:w-5 after:transition-all"
                 style={{
                   background: searchEnabled ? 'var(--p-circle)' : 'var(--p-outline)',
                   border: searchEnabled ? `1px solid var(--p-circle)` : '1px solid var(--p-outline)',
@@ -627,7 +627,7 @@ export function SettingsPage() {
         {toast && (
           <div
             className="fixed left-1/2 -translate-x-1/2 bottom-24 px-4 py-2 rounded-full text-[13px] font-medium text-white z-[60] max-w-[90vw] text-center"
-            style={{ background: 'rgba(0,0,0,0.85)' }}
+            style={{ background: 'var(--p-labels)' }}
           >
             {toast.message}
           </div>

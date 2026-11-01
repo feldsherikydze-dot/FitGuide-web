@@ -162,7 +162,7 @@ export function ExercisesPage() {
                         'px-2 py-0.5 rounded text-xs font-medium',
                         isBasic(exercise) ? 'bg-[var(--p-circle)] text-[#000000]' :
                         isIsolation(exercise) ? 'bg-[var(--p-circle)] text-[#000000]' :
-                        'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                        'bg-[var(--p-outline)]/20 text-[var(--p-outline)]'
                       )}>
                         {isBasic(exercise) ? 'Базовое' : isIsolation(exercise) ? 'Изолирующее' : 'Упражнение'}
                       </span>

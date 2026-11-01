@@ -272,7 +272,7 @@ export function ProgramsPage() {
                     {GOAL_LABELS[normalizeGoal(p.goal)] || p.goal}
                   </span>
                   {p.template && (
-                    <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded text-xs">
+                    <span className="px-2 py-0.5 bg-[var(--p-outline)]/20 text-[var(--p-outline)] rounded text-xs">
                       {p.template}
                     </span>
                   )}

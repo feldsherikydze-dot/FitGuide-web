@@ -84,9 +84,9 @@ export function NutritionPage() {
             <div className="mt-4 h-2.5 bg-[var(--color-bg)] rounded-full overflow-hidden flex">
               {calories > 0 && (
                 <>
-                  <div className="bg-red-500" style={{ width: `${(protein * 4 / calories) * 100}%` }} />
-                  <div className="bg-amber-500" style={{ width: `${(fats * 9 / calories) * 100}%` }} />
-                  <div className="bg-blue-500" style={{ width: `${(carbs * 4 / calories) * 100}%` }} />
+                  <div className="bg-[#C0392B]" style={{ width: `${(protein * 4 / calories) * 100}%` }} />
+                  <div className="bg-[var(--p-outline)]" style={{ width: `${(fats * 9 / calories) * 100}%` }} />
+                  <div className="bg-[var(--p-circle)]" style={{ width: `${(carbs * 4 / calories) * 100}%` }} />
                 </>
               )}
             </div>

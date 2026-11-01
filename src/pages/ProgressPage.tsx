@@ -103,8 +103,8 @@ export function ProgressPage() {
               <p className="text-sm text-[var(--color-text-secondary)]">Упражнений</p>
               <p className="text-3xl font-bold text-[var(--p-labels-text)]">{uniqueExercises}</p>
             </div>
-            <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
-              <Target className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+            <div className="p-3 bg-[var(--p-outline)]/20 rounded-xl">
+              <Target className="w-6 h-6 text-[var(--p-outline)]" />
             </div>
           </div>
         </div>

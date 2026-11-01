@@ -125,7 +125,7 @@ export function Toast({ text }: { text: string | null }) {
   return (
     <div
       className="fixed left-1/2 -translate-x-1/2 bottom-24 px-4 py-2 rounded-full text-[13px] font-medium text-white z-[60] max-w-[90vw] text-center"
-      style={{ background: 'rgba(0,0,0,0.85)' }}
+      style={{ background: 'var(--p-labels)' }}
     >
       {text}
     </div>
