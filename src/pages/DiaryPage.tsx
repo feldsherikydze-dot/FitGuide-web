@@ -28,7 +28,7 @@ export function DiaryPage() {
         ] as const).map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={clsx('flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1.5',
-              tab === t.id ? 'bg-[var(--p-circle)] text-[#000000]' : 'text-[var(--color-text-secondary)] hover:bg-slate-100 dark:hover:bg-dark-border')}>
+              tab === t.id ? 'bg-[var(--p-circle)] text-[#000000]' : 'text-[var(--color-text-secondary)] hover:bg-black/5')}>
             <t.icon className="w-4 h-4" /> {t.label}
           </button>
         ))}
@@ -81,12 +81,12 @@ function CalendarView() {
     <div className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] p-4">
       <div className="flex items-center justify-between mb-4">
         <button onClick={() => setCursor(c => (c.m === 0 ? { y: c.y - 1, m: 11 } : { y: c.y, m: c.m - 1 }))}
-          className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-dark-border">
+          className="p-2 rounded-lg hover:bg-black/5">
           ←
         </button>
         <h2 className="font-semibold text-[var(--p-labels-text)]">{MONTHS[cursor.m]} {cursor.y}</h2>
         <button onClick={() => setCursor(c => (c.m === 11 ? { y: c.y + 1, m: 0 } : { y: c.y, m: c.m + 1 }))}
-          className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-dark-border">
+          className="p-2 rounded-lg hover:bg-black/5">
           →
         </button>
       </div>
@@ -108,9 +108,9 @@ function CalendarView() {
               className={clsx(
                 'aspect-square rounded-lg flex flex-col items-center justify-center text-sm relative',
                 list.length
-                  ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 font-semibold'
+                  ? 'bg-[var(--p-circle)]/20 text-[var(--p-outline)] font-semibold'
                   : 'text-[var(--color-text-secondary)]',
-                isToday && 'ring-2 ring-primary-500'
+                isToday && 'ring-2 ring-[var(--p-outline)]'
               )}>
               {d}
               {list.length > 0 && (
@@ -167,14 +167,14 @@ function JournalView() {
               className="w-full px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-[var(--p-labels-text)] resize-y"
             />
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setAdding(false)} className="px-3 py-1.5 rounded-lg text-[var(--color-text-secondary)] hover:bg-slate-100 dark:hover:bg-dark-border">
+              <button onClick={() => setAdding(false)} className="px-3 py-1.5 rounded-lg text-[var(--color-text-secondary)] hover:bg-black/5">
                 Отмена
               </button>
-              <button onClick={add} className="px-3 py-1.5 bg-[var(--p-circle)] text-[#000000] rounded-lg hover:bg-primary-700">Сохранить</button>
+              <button onClick={add} className="px-3 py-1.5 bg-[var(--p-circle)] text-[#000000] rounded-lg hover:bg-black/5">Сохранить</button>
             </div>
           </div>
         ) : (
-          <button onClick={() => setAdding(true)} className="w-full flex items-center justify-center gap-2 py-2 text-[var(--p-labels-text)] hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg">
+          <button onClick={() => setAdding(true)} className="w-full flex items-center justify-center gap-2 py-2 text-[var(--p-labels-text)] hover:bg-black/5 rounded-lg">
             <Plus className="w-4 h-4" /> Новая запись
           </button>
         )}
@@ -195,7 +195,7 @@ function JournalView() {
               {e.title && <h3 className="font-semibold text-[var(--p-labels-text)] mt-0.5">{e.title}</h3>}
             </div>
             <button onClick={() => { if (confirm('Удалить запись?')) removeEntry(e.id); }}
-              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg flex-shrink-0">
+              className="p-1.5 text-[var(--color-text-secondary)] hover:text-[#C0392B] hover:bg-[#C0392B]/20 rounded-lg flex-shrink-0">
               <Trash2 className="w-4 h-4" />
             </button>
           </div>
@@ -244,12 +244,12 @@ function BodyView() {
               <Field label="Бедро, см" value={form.thighCm} onChange={v => setForm(f => ({ ...f, thighCm: v }))} step="0.5" />
             </div>
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setAdding(false)} className="px-3 py-1.5 rounded-lg text-[var(--color-text-secondary)] hover:bg-slate-100 dark:hover:bg-dark-border">Отмена</button>
-              <button onClick={add} className="px-3 py-1.5 bg-[var(--p-circle)] text-[#000000] rounded-lg hover:bg-primary-700">Сохранить</button>
+              <button onClick={() => setAdding(false)} className="px-3 py-1.5 rounded-lg text-[var(--color-text-secondary)] hover:bg-black/5">Отмена</button>
+              <button onClick={add} className="px-3 py-1.5 bg-[var(--p-circle)] text-[#000000] rounded-lg hover:bg-black/5">Сохранить</button>
             </div>
           </div>
         ) : (
-          <button onClick={() => setAdding(true)} className="w-full flex items-center justify-center gap-2 py-2 text-[var(--p-labels-text)] hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg">
+          <button onClick={() => setAdding(true)} className="w-full flex items-center justify-center gap-2 py-2 text-[var(--p-labels-text)] hover:bg-black/5 rounded-lg">
             <Plus className="w-4 h-4" /> Записать замеры
           </button>
         )}
@@ -285,7 +285,7 @@ function BodyView() {
               </div>
             </div>
             <button onClick={() => { if (confirm('Удалить замер?')) removeLog(e.id); }}
-              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
+              className="p-1.5 text-[var(--color-text-secondary)] hover:text-[#C0392B] hover:bg-[#C0392B]/20 rounded-lg">
               <Trash2 className="w-4 h-4" />
             </button>
           </div>

@@ -137,7 +137,7 @@ export function MusicPage() {
             onClick={() => setActiveTab(tab.id as any)}
             className={clsx(
               'flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2',
-              activeTab === tab.id ? 'bg-[var(--p-circle)] text-[#000000]' : 'text-[var(--color-text-secondary)] hover:bg-slate-100 dark:hover:bg-dark-border'
+              activeTab === tab.id ? 'bg-[var(--p-circle)] text-[#000000]' : 'text-[var(--color-text-secondary)] hover:bg-black/5'
             )}
           >
             <tab.icon className="w-4 h-4" />
@@ -156,13 +156,13 @@ export function MusicPage() {
                 placeholder="Поиск в моей музыке..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="flex-1 px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-[var(--p-labels-text)] text-sm focus:ring-2 focus:ring-primary-500"
+                className="flex-1 px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-[var(--p-labels-text)] text-sm focus:ring-2 focus:ring-[var(--p-outline)]"
               />
-              <button className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-dark-border" title="Перемешать">
-                <Shuffle className={clsx('w-5 h-5', shuffle && 'text-primary-600')} />
+              <button className="p-2 rounded-lg text-[var(--color-text-secondary)] hover:bg-black/5" title="Перемешать">
+                <Shuffle className={clsx('w-5 h-5', shuffle && 'text-[var(--p-labels-text)]')} />
               </button>
-              <button className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-dark-border" title="Повтор">
-                <Repeat className={clsx('w-5 h-5', repeat && 'text-primary-600')} />
+              <button className="p-2 rounded-lg text-[var(--color-text-secondary)] hover:bg-black/5" title="Повтор">
+                <Repeat className={clsx('w-5 h-5', repeat && 'text-[var(--p-labels-text)]')} />
               </button>
             </div>
             <div className="divide-y divide-[var(--p-outline)]">
@@ -171,11 +171,11 @@ export function MusicPage() {
                   key={track.id}
                   onClick={() => playTrack(track)}
                   className={clsx(
-                    'w-full p-4 flex items-center gap-4 text-left hover:bg-slate-50 dark:hover:bg-dark-border/50 transition-colors',
-                    currentTrack?.id === track.id && 'bg-primary-50 dark:bg-primary-900/20 border-l-4 border-primary-500'
+                    'w-full p-4 flex items-center gap-4 text-left hover:bg-black/5 transition-colors',
+                    currentTrack?.id === track.id && 'bg-[var(--p-circle)]/20 border-l-4 border-[var(--p-circle)]'
                   )}
                 >
-                  <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-dark-border flex items-center justify-center flex-shrink-0 relative">
+                  <div className="w-12 h-12 rounded-lg bg-[var(--color-bg)] flex items-center justify-center flex-shrink-0 relative">
                     {track.artwork && (
                       <img src={track.artwork} alt="" className="w-full h-full rounded-lg object-cover" />
                     )}
@@ -185,13 +185,13 @@ export function MusicPage() {
                       </div>
                     )}
                     {currentTrack?.id !== track.id && (
-                      <Play className="w-6 h-6 text-slate-400 absolute inset-0 flex items-center justify-center" />
+                      <Play className="w-6 h-6 text-[var(--color-text-secondary)] absolute inset-0 flex items-center justify-center" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <h4 className="font-medium text-[var(--p-labels-text)] truncate">{track.title}</h4>
-                      {track.liked && <Heart className="w-4 h-4 text-red-500 fill-current" />}
+                      {track.liked && <Heart className="w-4 h-4 text-[#C0392B] fill-current" />}
                     </div>
                     <p className="text-sm text-[var(--color-text-secondary)] truncate">{track.artist}</p>
                   </div>
@@ -226,11 +226,11 @@ export function MusicPage() {
                   key={station.id}
                   onClick={() => playTrack(track)}
                   className={clsx(
-                    'w-full p-4 flex items-center gap-4 text-left hover:bg-slate-50 dark:hover:bg-dark-border/50 transition-colors',
-                    currentTrack?.id === station.id && 'bg-primary-50 dark:bg-primary-900/20 border-l-4 border-primary-500'
+                    'w-full p-4 flex items-center gap-4 text-left hover:bg-black/5 transition-colors',
+                    currentTrack?.id === station.id && 'bg-[var(--p-circle)]/20 border-l-4 border-[var(--p-circle)]'
                   )}
                 >
-                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[var(--p-circle)] to-[var(--p-outline)] flex items-center justify-center flex-shrink-0">
                     <Radio className="w-6 h-6 text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -243,7 +243,7 @@ export function MusicPage() {
                       <span className="text-xs">LIVE</span>
                     </div>
                   ) : (
-                    <Play className="w-8 h-8 text-slate-300 dark:text-slate-600 hover:text-primary-500" />
+                    <Play className="w-8 h-8 text-[var(--color-text-secondary)] hover:text-[var(--p-outline)]" />
                   )}
                 </button>
               );
@@ -253,7 +253,7 @@ export function MusicPage() {
 
         {activeTab === 'online' && (
           <div className="p-8 text-center">
-            <Mic className="w-16 h-16 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+            <Mic className="w-16 h-16 text-[var(--color-text-secondary)] mx-auto mb-4" />
             <h3 className="text-lg font-medium text-[var(--p-labels-text)] mb-2">Онлайн-поиск</h3>
             <p className="text-[var(--color-text-secondary)] mb-6 max-w-md mx-auto w-full max-w-full">
               Интеграция с YouTube Music, SoundCloud, VK Music требует API ключей.
@@ -265,7 +265,7 @@ export function MusicPage() {
                 placeholder="Поиск треков..."
                 className="px-4 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-[var(--p-labels-text)] w-64"
               />
-              <button className="px-4 py-2 bg-[var(--p-circle)] text-[#000000] rounded-lg hover:bg-primary-700">
+              <button className="px-4 py-2 bg-[var(--p-circle)] text-[#000000] rounded-lg hover:bg-black/5">
                 <Search className="w-4 h-4 inline mr-1" />
                 Найти
               </button>
@@ -280,12 +280,12 @@ export function MusicPage() {
           <div className="max-w-4xl mx-auto p-3 w-full max-w-full">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-dark-border flex items-center justify-center flex-shrink-0 relative">
+                <div className="w-12 h-12 rounded-lg bg-[var(--color-bg)] flex items-center justify-center flex-shrink-0 relative">
                   {currentTrack.artwork && (
                     <img src={currentTrack.artwork} alt="" className="w-full h-full rounded-lg object-cover" />
                   )}
                   {currentTrack.source === 'radio' && (
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
+                    <div className="absolute inset-0 bg-gradient-to-br from-[var(--p-circle)] to-[var(--p-outline)] rounded-lg flex items-center justify-center">
                       <Radio className="w-6 h-6 text-white" />
                     </div>
                   )}
@@ -298,26 +298,26 @@ export function MusicPage() {
 
               <div className="flex flex-col items-center gap-2 flex-1">
                 <div className="flex items-center gap-4">
-                  <button onClick={prevTrack} className="p-2 text-slate-500 hover:text-slate-900 dark:hover:text-white disabled:opacity-50" disabled={!currentTrack}>
+                  <button onClick={prevTrack} className="p-2 text-[var(--color-text-secondary)] hover:text-[#000000] disabled:opacity-50" disabled={!currentTrack}>
                     <SkipBack className="w-6 h-6" />
                   </button>
-                  <button onClick={togglePlay} className="p-3 rounded-full bg-[var(--p-circle)] text-[#000000] hover:bg-primary-700 transition-colors">
+                  <button onClick={togglePlay} className="p-3 rounded-full bg-[var(--p-circle)] text-[#000000] hover:bg-black/5 transition-colors">
                     {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-1" />}
                   </button>
-                  <button onClick={nextTrack} className="p-2 text-slate-500 hover:text-slate-900 dark:hover:text-white disabled:opacity-50" disabled={!currentTrack}>
+                  <button onClick={nextTrack} className="p-2 text-[var(--color-text-secondary)] hover:text-[#000000] disabled:opacity-50" disabled={!currentTrack}>
                     <SkipForward className="w-6 h-6" />
                   </button>
                 </div>
                 <div className="flex items-center gap-2 w-full max-w-xs">
                   <span className="text-xs text-[var(--color-text-secondary)] font-mono w-10 text-right">{formatTime(currentTrack.source === 'radio' ? 0 : audioRef?.currentTime || 0)}</span>
-                  <div className="flex-1 h-1.5 bg-slate-200 dark:bg-dark-border rounded-full cursor-pointer relative" onClick={e => {
+                  <div className="flex-1 h-1.5 bg-[var(--color-bg)] rounded-full cursor-pointer relative" onClick={e => {
                     if (!audioRef || !audioRef.duration) return;
                     const rect = e.currentTarget.getBoundingClientRect();
                     const percent = (e.clientX - rect.left) / rect.width;
                     audioRef.currentTime = percent * audioRef.duration;
                   }}>
                     <div
-                      className="h-full bg-primary-600 rounded-full transition-all duration-100"
+                      className="h-full bg-[var(--p-circle)] rounded-full transition-all duration-100"
                       style={{ width: `${progress * 100}%` }}
                     />
                   </div>
@@ -326,13 +326,13 @@ export function MusicPage() {
               </div>
 
               <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
-                <button onClick={() => setShuffle(!shuffle)} className={clsx('p-2 rounded-lg', shuffle ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-dark-border')}>
+                <button onClick={() => setShuffle(!shuffle)} className={clsx('p-2 rounded-lg', shuffle ? 'bg-[var(--p-circle)]/20 text-[var(--p-outline)] dark:bg-[var(--p-circle)]/30 dark:text-[var(--p-outline)]' : 'text-[var(--color-text-secondary)] hover:bg-black/5')}>
                   <Shuffle className="w-5 h-5" />
                 </button>
-                <button onClick={() => setRepeat(!repeat)} className={clsx('p-2 rounded-lg', repeat ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-dark-border')}>
+                <button onClick={() => setRepeat(!repeat)} className={clsx('p-2 rounded-lg', repeat ? 'bg-[var(--p-circle)]/20 text-[var(--p-outline)] dark:bg-[var(--p-circle)]/30 dark:text-[var(--p-outline)]' : 'text-[var(--color-text-secondary)] hover:bg-black/5')}>
                   <Repeat className="w-5 h-5" />
                 </button>
-                <button onClick={() => setVolume(volume > 0 ? 0 : 0.7)} className="p-2 text-slate-500 hover:text-slate-900 dark:hover:text-white">
+                <button onClick={() => setVolume(volume > 0 ? 0 : 0.7)} className="p-2 text-[var(--color-text-secondary)] hover:text-[#000000]">
                   {volume > 0 ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
                 </button>
                 <input
@@ -342,9 +342,9 @@ export function MusicPage() {
                   step="0.1"
                   value={volume}
                   onChange={e => { const v = parseFloat(e.target.value); setVolume(v); if (audioRef) audioRef.volume = v; }}
-                  className="w-24 h-2 accent-primary-600"
+                  className="w-24 h-2 accent-[var(--p-circle)]"
                 />
-                <button onClick={() => setShowQueue(!showQueue)} className="p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white">
+                <button onClick={() => setShowQueue(!showQueue)} className="p-2 text-[var(--color-text-secondary)] hover:text-[#000000]">
                   <Music className="w-5 h-5" />
                 </button>
               </div>

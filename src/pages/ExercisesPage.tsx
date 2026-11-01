@@ -79,20 +79,20 @@ export function ExercisesPage() {
       <div className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] p-4 space-y-4">
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-secondary)]" />
           <input
             type="text"
             placeholder="Поиск по названию, мышце, инвентарю..."
             value={query}
             onChange={e => setQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-[var(--p-labels-text)] focus:ring-2 focus:ring-primary-500"
+            className="w-full pl-10 pr-4 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-[var(--p-labels-text)] focus:ring-2 focus:ring-[var(--p-outline)]"
           />
         </div>
 
         {/* Filters */}
         <div className="flex flex-wrap gap-2">
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-slate-400" />
+            <Filter className="w-4 h-4 text-[var(--color-text-secondary)]" />
             <select
               value={selectedGroup}
               onChange={e => setSelectedGroup(e.target.value)}
@@ -115,12 +115,12 @@ export function ExercisesPage() {
               ))}
             </select>
           </div>
-          <label className="flex items-center gap-2 px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-dark-border/50">
-            <input type="checkbox" checked={showBasic} onChange={e => setShowBasic(e.target.checked)} className="w-4 h-4 text-primary-600 rounded border-slate-300" />
+          <label className="flex items-center gap-2 px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-sm cursor-pointer hover:bg-black/5">
+            <input type="checkbox" checked={showBasic} onChange={e => setShowBasic(e.target.checked)} className="w-4 h-4 text-[var(--p-labels-text)] rounded border-[var(--p-outline)]" />
             Только базовые
           </label>
-          <label className="flex items-center gap-2 px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-dark-border/50">
-            <input type="checkbox" checked={showIsolation} onChange={e => setShowIsolation(e.target.checked)} className="w-4 h-4 text-primary-600 rounded border-slate-300" />
+          <label className="flex items-center gap-2 px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-sm cursor-pointer hover:bg-black/5">
+            <input type="checkbox" checked={showIsolation} onChange={e => setShowIsolation(e.target.checked)} className="w-4 h-4 text-[var(--p-labels-text)] rounded border-[var(--p-outline)]" />
             Только изолирующие
           </label>
         </div>
@@ -129,12 +129,12 @@ export function ExercisesPage() {
       {/* Results */}
       {loading ? (
         <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-2" />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--p-outline)] mx-auto mb-2" />
           <p className="text-[var(--color-text-secondary)]">Загрузка базы упражнений...</p>
         </div>
       ) : filteredExercises.length === 0 ? (
         <div className="text-center py-12 bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)]">
-          <Dumbbell className="w-16 h-16 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+          <Dumbbell className="w-16 h-16 text-[var(--color-text-secondary)] mx-auto mb-4" />
           <h3 className="text-lg font-medium text-[var(--p-labels-text)] mb-2">Ничего не найдено</h3>
           <p className="text-[var(--color-text-secondary)]">Попробуй изменить фильтры или поисковый запрос</p>
         </div>
@@ -149,7 +149,7 @@ export function ExercisesPage() {
                 key={exercise.id}
                 className={clsx(
                   'bg-[var(--p-labels)] rounded-xl border overflow-hidden transition-all',
-                  isExpanded ? 'border-primary-300 dark:border-primary-700 ring-2 ring-primary-500/20' : 'border-[var(--p-outline)]'
+                  isExpanded ? 'border-[var(--p-outline)] ring-2 ring-[var(--p-outline)]/20' : 'border-[var(--p-outline)]'
                 )}
               >
                 <button
@@ -180,8 +180,8 @@ export function ExercisesPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <ExternalLink className="w-5 h-5 text-slate-400 hover:text-primary-600" />
-                    {isExpanded ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+                    <ExternalLink className="w-5 h-5 text-[var(--color-text-secondary)] hover:text-[var(--p-labels-text)]" />
+                    {isExpanded ? <ChevronUp className="w-5 h-5 text-[var(--color-text-secondary)]" /> : <ChevronDown className="w-5 h-5 text-[var(--color-text-secondary)]" />}
                   </div>
                 </button>
 
@@ -208,12 +208,12 @@ export function ExercisesPage() {
                     {(exercise.mistakes.length > 0 || exercise.tips.length > 0) && (
                       <div className="grid gap-4 sm:grid-cols-2">
                         {exercise.mistakes.length > 0 && (
-                          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-                            <h5 className="font-medium text-red-700 dark:text-red-400 mb-2 flex items-center gap-1">
+                          <div className="bg-[#C0392B]/20 border-[#C0392B] rounded-lg p-3">
+                            <h5 className="font-medium text-[#C0392B] mb-2 flex items-center gap-1">
                               <AlertTriangle className="w-4 h-4" />
                               Типичные ошибки
                             </h5>
-                            <ul className="space-y-1 text-sm text-red-600 dark:text-red-400">
+                            <ul className="space-y-1 text-sm text-[#C0392B]">
                               {exercise.mistakes.map((m, i) => (
                                 <li key={i} className="flex gap-1">• {m}</li>
                               ))}
@@ -221,12 +221,12 @@ export function ExercisesPage() {
                           </div>
                         )}
                         {exercise.tips.length > 0 && (
-                          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
-                            <h5 className="font-medium text-green-700 dark:text-green-400 mb-2 flex items-center gap-1">
+                          <div className="bg-[var(--p-circle)]/20 border border-[var(--p-outline)] rounded-lg p-3">
+                            <h5 className="font-medium text-[var(--p-outline)] mb-2 flex items-center gap-1">
                               <Target className="w-4 h-4" />
                               Советы
                             </h5>
-                            <ul className="space-y-1 text-sm text-green-600 dark:text-green-400">
+                            <ul className="space-y-1 text-sm text-[var(--p-outline)]">
                               {exercise.tips.map((t, i) => (
                                 <li key={i} className="flex gap-1">• {t}</li>
                               ))}

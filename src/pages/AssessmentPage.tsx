@@ -247,7 +247,7 @@ export function AssessmentPage() {
           </p>
         </div>
         {isCheckpoint && (
-          <span className="px-2 py-1 bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 rounded text-sm">
+          <span className="px-2 py-1 bg-[var(--p-outline)]/20 text-[var(--p-outline)] rounded text-sm">
             Чекпоинт
           </span>
         )}
@@ -266,8 +266,8 @@ export function AssessmentPage() {
               <div className={clsx(
                 'w-9 h-9 rounded-full flex items-center justify-center transition-all',
                 i < stepIndex ? 'bg-[var(--p-circle)] text-[#000000]' :
-                i === stepIndex ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300 ring-2 ring-primary-500' :
-                'bg-slate-100 text-slate-400 dark:bg-dark-border dark:text-slate-500'
+                i === stepIndex ? 'bg-[var(--p-circle)]/20 text-[var(--p-outline)] ring-2 ring-[var(--p-outline)]' :
+                'bg-[var(--color-bg)] text-[var(--color-text-secondary)]'
               )}>
                 {i < stepIndex ? <Check className="w-4 h-4" /> : <s.icon className="w-4 h-4" />}
               </div>
@@ -297,7 +297,7 @@ export function AssessmentPage() {
                   {[{ v: false, l: 'Мужской' }, { v: true, l: 'Женский' }].map(o => (
                     <button key={o.l} onClick={() => set('female', o.v)}
                       className={clsx('flex-1 py-2 rounded-lg text-sm font-medium transition-colors',
-                        form.female === o.v ? 'bg-[var(--p-circle)] text-[#000000]' : 'bg-slate-100 dark:bg-dark-border text-[var(--color-text-secondary)]')}>
+                        form.female === o.v ? 'bg-[var(--p-circle)] text-[#000000]' : 'bg-[var(--color-bg)] text-[var(--color-text-secondary)]')}>
                       {o.l}
                     </button>
                   ))}
@@ -316,8 +316,8 @@ export function AssessmentPage() {
             </div>
 
             {bodyComp.bodyFatPct > 0 && (
-              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-sm">
-                <Info className="w-4 h-4 inline mr-1 text-blue-600" />
+              <div className="p-3 bg-[var(--p-circle)]/20 border border-[var(--p-outline)] rounded-lg text-sm">
+                <Info className="w-4 h-4 inline mr-1 text-[var(--p-outline)]" />
                 Расчётный % жира: <strong>{bodyComp.bodyFatPct}%</strong>
                 {bodyComp.leanMassKg > 0 && <> · сухая масса <strong>{bodyComp.leanMassKg} кг</strong></>}
                 {bodyComp.ffmi > 0 && <> · FFMI <strong>{bodyComp.ffmi}</strong></>}
@@ -371,8 +371,8 @@ export function AssessmentPage() {
                     }}
                       className={clsx('w-10 h-10 rounded-lg font-medium text-sm transition-colors',
                         form.movementScores[i] === v
-                          ? (v === 0 ? 'bg-red-500 text-white' : v === 1 ? 'bg-amber-500 text-white' : 'bg-green-500 text-white')
-                          : 'bg-[var(--p-labels)] border border-[var(--p-outline)] text-slate-500')}>
+                          ? (v === 0 ? 'bg-[#C0392B] text-[#FFFFFF]' : v === 1 ? 'bg-[var(--p-outline)] text-[#FFFFFF]' : 'bg-[var(--p-circle)] text-[#000000]')
+                          : 'bg-[var(--p-labels)] border border-[var(--p-outline)] text-[var(--color-text-secondary)]')}>
                       {v}
                     </button>
                   ))}
@@ -410,8 +410,8 @@ export function AssessmentPage() {
               ))}
             </div>
             {e1rms.some(v => v > 0) && (
-              <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                <h3 className="font-medium text-green-800 dark:text-green-300 mb-2">Расчётный 1ПМ</h3>
+              <div className="p-3 bg-[var(--p-circle)]/20 border border-[var(--p-outline)] rounded-lg">
+                <h3 className="font-medium text-[var(--p-outline)] mb-2">Расчётный 1ПМ</h3>
                 <div className="grid gap-1 sm:grid-cols-2">
                   {TEST_MOVEMENTS.map((m, i) => e1rms[i] > 0 && (
                     <div key={m.idx} className="flex justify-between text-sm">
@@ -453,8 +453,8 @@ export function AssessmentPage() {
                   <button key={v} onClick={() => set('pain', v)}
                     className={clsx('w-10 h-10 rounded-lg font-medium transition-colors',
                       form.pain === v
-                        ? (v <= 2 ? 'bg-green-500 text-white' : v <= 5 ? 'bg-amber-500 text-white' : 'bg-red-500 text-white')
-                        : 'bg-slate-100 dark:bg-dark-border text-slate-500')}>
+                        ? (v <= 2 ? 'bg-[var(--p-circle)] text-[#000000]' : v <= 5 ? 'bg-[var(--p-outline)] text-[#FFFFFF]' : 'bg-[#C0392B] text-[#FFFFFF]')
+                        : 'bg-[var(--color-bg)] text-[var(--color-text-secondary)]')}>
                     {v}
                   </button>
                 ))}
@@ -467,7 +467,7 @@ export function AssessmentPage() {
                 {[1, 2, 3, 4, 5].map(v => (
                   <button key={v} onClick={() => set('mmc', v)}
                     className={clsx('w-12 h-12 rounded-lg font-bold transition-colors',
-                      form.mmc === v ? 'bg-[var(--p-circle)] text-[#000000]' : 'bg-slate-100 dark:bg-dark-border text-slate-500')}>
+                      form.mmc === v ? 'bg-[var(--p-circle)] text-[#000000]' : 'bg-[var(--color-bg)] text-[var(--color-text-secondary)]')}>
                     {v}
                   </button>
                 ))}
@@ -480,7 +480,7 @@ export function AssessmentPage() {
                 {[1, 2, 3, 4, 5].map(v => (
                   <button key={v} onClick={() => set('tech', v)}
                     className={clsx('w-12 h-12 rounded-lg font-bold transition-colors',
-                      form.tech === v ? 'bg-[var(--p-circle)] text-[#000000]' : 'bg-slate-100 dark:bg-dark-border text-slate-500')}>
+                      form.tech === v ? 'bg-[var(--p-circle)] text-[#000000]' : 'bg-[var(--color-bg)] text-[var(--color-text-secondary)]')}>
                     {v}
                   </button>
                 ))}
@@ -502,8 +502,8 @@ export function AssessmentPage() {
             )}
 
             {e1rms.some(v => v > 0) && (
-              <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                <h3 className="font-medium text-green-800 dark:text-green-300 mb-2">Стартовые веса (85% 1ПМ)</h3>
+              <div className="p-3 bg-[var(--p-circle)]/20 border border-[var(--p-outline)] rounded-lg">
+                <h3 className="font-medium text-[var(--p-outline)] mb-2">Стартовые веса (85% 1ПМ)</h3>
                 <div className="grid gap-1 sm:grid-cols-2">
                   {TEST_MOVEMENTS.map((m, i) => e1rms[i] > 0 && (
                     <div key={m.idx} className="flex justify-between text-sm">
@@ -516,8 +516,8 @@ export function AssessmentPage() {
             )}
 
             {!isCheckpoint && (
-              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                <h3 className="font-medium text-blue-800 dark:text-blue-300 mb-1.5 flex items-center gap-1.5">
+              <div className="p-3 bg-[var(--p-circle)]/20 border border-[var(--p-outline)] rounded-lg">
+                <h3 className="font-medium text-[var(--p-outline)] mb-1.5 flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4" />
                   Что будет дальше
                 </h3>
@@ -531,7 +531,7 @@ export function AssessmentPage() {
             )}
 
             <button onClick={finish}
-              className="w-full py-3 bg-[var(--p-circle)] text-[#000000] rounded-lg font-semibold hover:bg-primary-700 transition-colors">
+              className="w-full py-3 bg-[var(--p-circle)] text-[#000000] rounded-lg font-semibold hover:bg-black/5 transition-colors">
               {isCheckpoint ? 'Сохранить чекпоинт' : 'Сохранить и начать тренироваться'}
             </button>
           </div>
@@ -541,11 +541,11 @@ export function AssessmentPage() {
       {/* Навигация */}
       <div className="flex items-center justify-between">
         <button onClick={goBack} disabled={history.length <= 1}
-          className="px-4 py-2 border border-[var(--p-outline)] rounded-lg text-[var(--color-text-secondary)] hover:bg-slate-100 dark:hover:bg-dark-border disabled:opacity-50 flex items-center gap-2">
+          className="px-4 py-2 border border-[var(--p-outline)] rounded-lg text-[var(--color-text-secondary)] hover:bg-black/5 disabled:opacity-50 flex items-center gap-2">
           <ChevronLeft className="w-4 h-4" /> Назад
         </button>
         <button onClick={goNext} disabled={!canNext || step === 'summary'}
-          className="px-4 py-2 bg-[var(--p-circle)] text-[#000000] rounded-lg hover:bg-primary-700 disabled:opacity-50 flex items-center gap-2">
+          className="px-4 py-2 bg-[var(--p-circle)] text-[#000000] rounded-lg hover:bg-black/5 disabled:opacity-50 flex items-center gap-2">
           Далее <ChevronRight className="w-4 h-4" />
         </button>
       </div>

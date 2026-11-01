@@ -92,8 +92,8 @@ export function ProgressPage() {
               <p className="text-sm text-[var(--color-text-secondary)]">Тренировок</p>
               <p className="text-3xl font-bold text-[var(--p-labels-text)]">{totalWorkouts}</p>
             </div>
-            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-              <Dumbbell className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            <div className="p-3 bg-[var(--p-circle)]/20 rounded-xl">
+              <Dumbbell className="w-6 h-6 text-[var(--p-outline)] dark:text-[var(--p-outline)]" />
             </div>
           </div>
         </div>
@@ -114,8 +114,8 @@ export function ProgressPage() {
               <p className="text-sm text-[var(--color-text-secondary)]">Общий объём</p>
               <p className="text-3xl font-bold text-[var(--p-labels-text)]">{Math.round(totalVolume / 1000)}т</p>
             </div>
-            <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
-              <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400" />
+            <div className="p-3 bg-[var(--p-circle)]/20 rounded-xl">
+              <TrendingUp className="w-6 h-6 text-[var(--p-outline)]" />
             </div>
           </div>
         </div>
@@ -127,8 +127,8 @@ export function ProgressPage() {
                 {timeRange === 'month' ? '30 дн' : timeRange === 'quarter' ? '90 дн' : timeRange === 'year' ? '365 дн' : 'Все'}
               </p>
             </div>
-            <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-xl">
-              <Calendar className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+            <div className="p-3 bg-[var(--p-circle)]/20 rounded-xl">
+              <Calendar className="w-6 h-6 text-[var(--p-outline)]" />
             </div>
           </div>
         </div>
@@ -282,7 +282,7 @@ export function ProgressPage() {
                 </thead>
                 <tbody>
                   {e1rmData.slice(-10).reverse().map((d, i) => (
-                    <tr key={i} className="border-b border-slate-100 dark:border-dark-border/50">
+                    <tr key={i} className="border-b border-[var(--p-outline)]">
                       <td className="py-2">{new Date(d.date).toLocaleDateString('ru-RU')}</td>
                       <td className="py-2 font-mono">{d.weight} кг</td>
                       <td className="py-2 font-mono">{d.reps}</td>
@@ -301,7 +301,7 @@ export function ProgressPage() {
       <div className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] overflow-hidden">
         <div className="p-4 border-b border-[var(--p-outline)]">
           <h2 className="font-semibold text-[var(--p-labels-text)] flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-amber-500" />
+            <Trophy className="w-5 h-5 text-[var(--p-outline)]" />
             Личные рекорды (e1RM)
           </h2>
         </div>
@@ -322,7 +322,7 @@ export function ProgressPage() {
               .sort((a, b) => b[1] - a[1])
               .slice(0, 10)
               .map(([ex, e1rm], i) => (
-                <div key={ex} className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-dark-border/50 last:border-0">
+                <div key={ex} className="flex items-center justify-between py-2 border-b border-[var(--p-outline)] last:border-0">
                   <div className="flex items-center gap-3">
                     <span className="w-8 text-center text-[var(--color-text-secondary)] font-bold">{i + 1}</span>
                     <span className="font-medium text-[var(--p-labels-text)] truncate max-w-[200px]">{ex}</span>

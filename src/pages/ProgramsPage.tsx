@@ -93,7 +93,7 @@ export function ProgramsPage() {
           </p>
         </div>
         <button onClick={() => setShowGen(true)}
-          className="px-4 py-2 bg-[var(--p-circle)] text-[#000000] rounded-lg font-medium hover:bg-primary-700 flex items-center gap-2">
+          className="px-4 py-2 bg-[var(--p-circle)] text-[#000000] rounded-lg font-medium hover:bg-black/5 flex items-center gap-2">
           <Plus className="w-4 h-4" /> Новая программа
         </button>
       </div>
@@ -103,7 +103,7 @@ export function ProgramsPage() {
           <div className="bg-[var(--p-labels)] rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-[var(--p-labels)] border-b border-[var(--p-outline)] p-4 rounded-t-2xl flex items-center justify-between">
               <h2 className="text-xl font-bold text-[var(--p-labels-text)]">Генератор программ</h2>
-              <button onClick={() => setShowGen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-dark-border rounded-lg">
+              <button onClick={() => setShowGen(false)} className="p-2 hover:bg-black/5 rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -115,7 +115,7 @@ export function ProgramsPage() {
                     <button key={g} onClick={() => setForm(f => ({ ...f, goal: g }))}
                       className={clsx('px-3 py-1.5 rounded-lg border text-sm transition-colors',
                         form.goal === g
-                          ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                          ? 'border-[var(--p-circle)] bg-[var(--p-circle)]/20 text-[var(--p-outline)]'
                           : 'border-[var(--p-outline)] text-[var(--color-text-secondary)]')}>
                       {GOAL_LABELS[g]}
                     </button>
@@ -149,8 +149,8 @@ export function ProgramsPage() {
                     <button key={t.value} onClick={() => setForm(f => ({ ...f, type: t.value }))}
                       className={clsx('p-3 rounded-lg border text-left transition-colors',
                         form.type === t.value
-                          ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
-                          : 'border-[var(--p-outline)] hover:border-primary-300')}>
+                          ? 'border-[var(--p-circle)] bg-[var(--p-circle)]/20'
+                          : 'border-[var(--p-outline)] hover:border-[var(--p-outline)]')}>
                       <div className="font-medium text-[var(--p-labels-text)]">{t.label}</div>
                       <div className="text-xs text-[var(--color-text-secondary)]">{t.desc}</div>
                     </button>
@@ -185,8 +185,8 @@ export function ProgramsPage() {
                     <button key={p.v} onClick={() => setForm(f => ({ ...f, place: p.v }))}
                       className={clsx('flex-1 p-3 rounded-lg border text-left transition-colors',
                         form.place === p.v
-                          ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
-                          : 'border-[var(--p-outline)] hover:border-primary-300')}>
+                          ? 'border-[var(--p-circle)] bg-[var(--p-circle)]/20'
+                          : 'border-[var(--p-outline)] hover:border-[var(--p-outline)]')}>
                       <div className="font-medium text-[var(--p-labels-text)]">{p.l}</div>
                       <div className="text-xs text-[var(--color-text-secondary)]">{p.d}</div>
                     </button>
@@ -204,7 +204,7 @@ export function ProgramsPage() {
                       }))}
                         className={clsx('px-3 py-1.5 rounded-lg border text-sm transition-colors',
                           form.equipment.includes(eq)
-                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                            ? 'border-[var(--p-circle)] bg-[var(--p-circle)]/20 text-[var(--p-outline)]'
                             : 'border-[var(--p-outline)] text-[var(--color-text-secondary)]')}>
                         {eq.charAt(0).toUpperCase() + eq.slice(1)}
                       </button>
@@ -215,11 +215,11 @@ export function ProgramsPage() {
 
               <div className="flex justify-end gap-3 pt-4 border-t border-[var(--p-outline)]">
                 <button onClick={() => setShowGen(false)}
-                  className="px-4 py-2 border border-[var(--p-outline)] rounded-lg text-[var(--color-text-secondary)] hover:bg-slate-100 dark:hover:bg-dark-border">
+                  className="px-4 py-2 border border-[var(--p-outline)] rounded-lg text-[var(--color-text-secondary)] hover:bg-black/5">
                   Отмена
                 </button>
                 <button onClick={generate} disabled={!db}
-                  className="px-4 py-2 bg-[var(--p-circle)] text-[#000000] rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50 flex items-center gap-1.5">
+                  className="px-4 py-2 bg-[var(--p-circle)] text-[#000000] rounded-lg font-medium hover:bg-black/5 disabled:opacity-50 flex items-center gap-1.5">
                   <Zap className="w-4 h-4" /> Сгенерировать
                 </button>
               </div>
@@ -230,11 +230,11 @@ export function ProgramsPage() {
 
       {programs.length === 0 && !showGen ? (
         <div className="text-center py-12 bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)]">
-          <Dumbbell className="w-16 h-16 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+          <Dumbbell className="w-16 h-16 text-[var(--color-text-secondary)] mx-auto mb-4" />
           <h3 className="text-lg font-medium text-[var(--p-labels-text)] mb-2">Программ пока нет</h3>
           <p className="text-[var(--color-text-secondary)] mb-6">Сгенерируй первую под свою цель</p>
           <button onClick={() => setShowGen(true)}
-            className="px-6 py-3 bg-[var(--p-circle)] text-[#000000] rounded-lg font-medium hover:bg-primary-700 inline-flex items-center gap-2">
+            className="px-6 py-3 bg-[var(--p-circle)] text-[#000000] rounded-lg font-medium hover:bg-black/5 inline-flex items-center gap-2">
             <Plus className="w-4 h-4" /> Создать
           </button>
         </div>
@@ -254,21 +254,21 @@ export function ProgramsPage() {
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button onClick={() => navigate(`/programs/${p.id}`)}
-                      className="p-2 text-primary-600 hover:bg-primary-100 dark:hover:bg-primary-900/30 rounded-lg" title="Открыть">
+                      className="p-2 text-[var(--p-labels-text)] hover:bg-black/5 rounded-lg" title="Открыть">
                       <ChevronRight className="w-4 h-4" />
                     </button>
                     <button onClick={() => duplicate(p)}
-                      className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-dark-border rounded-lg" title="Дублировать">
+                      className="p-2 text-[var(--color-text-secondary)] hover:bg-black/5 rounded-lg" title="Дублировать">
                       <Copy className="w-4 h-4" />
                     </button>
                     <button onClick={() => { if (confirm('Удалить программу?')) remove(p.id); }}
-                      className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg" title="Удалить">
+                      className="p-2 text-[#C0392B] hover:bg-[#C0392B]/20 rounded-lg" title="Удалить">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1 mt-3">
-                  <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded text-xs">
+                  <span className="px-2 py-0.5 bg-[var(--p-circle)]/20 text-[var(--p-outline)] rounded text-xs">
                     {GOAL_LABELS[normalizeGoal(p.goal)] || p.goal}
                   </span>
                   {p.template && (
@@ -277,7 +277,7 @@ export function ProgramsPage() {
                     </span>
                   )}
                   {p.phases.some(ph => ph.deload) && (
-                    <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded text-xs">Разгрузка</span>
+                    <span className="px-2 py-0.5 bg-[var(--p-circle)]/20 text-[var(--p-outline)] rounded text-xs">Разгрузка</span>
                   )}
                 </div>
               </div>

@@ -59,7 +59,7 @@ export function NutritionPage() {
       {/* КБЖУ */}
       <div className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] p-5">
         <h2 className="font-semibold text-[var(--p-labels-text)] mb-4 flex items-center gap-2">
-          <Apple className="w-5 h-5 text-primary-600" /> Калории и БЖУ
+          <Apple className="w-5 h-5 text-[var(--p-labels-text)]" /> Калории и БЖУ
         </h2>
 
         {!profile ? (
@@ -76,12 +76,12 @@ export function NutritionPage() {
             </div>
 
             <div className="mt-4 grid grid-cols-3 gap-3">
-              <Macro label="Белок" value={`${protein} г`} hint={`${proteinPerKg(goal)} г/кг`} color="bg-red-500" />
-              <Macro label="Жиры" value={`${fats} г`} hint={`${fatsPerKg(goal)} г/кг`} color="bg-amber-500" />
-              <Macro label="Углеводы" value={`${carbs} г`} hint="остаток" color="bg-blue-500" />
+              <Macro label="Белок" value={`${protein} г`} hint={`${proteinPerKg(goal)} г/кг`} color="bg-[#C0392B]" />
+              <Macro label="Жиры" value={`${fats} г`} hint={`${fatsPerKg(goal)} г/кг`} color="bg-[#C0392B]" />
+              <Macro label="Углеводы" value={`${carbs} г`} hint="остаток" color="bg-[#C0392B]" />
             </div>
 
-            <div className="mt-4 h-2.5 bg-slate-200 dark:bg-dark-border rounded-full overflow-hidden flex">
+            <div className="mt-4 h-2.5 bg-[var(--color-bg)] rounded-full overflow-hidden flex">
               {calories > 0 && (
                 <>
                   <div className="bg-red-500" style={{ width: `${(protein * 4 / calories) * 100}%` }} />
@@ -102,15 +102,15 @@ export function NutritionPage() {
       {/* Цель */}
       <div className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] p-5">
         <h2 className="font-semibold text-[var(--p-labels-text)] mb-3 flex items-center gap-2">
-          <Target className="w-5 h-5 text-primary-600" /> Цель
+          <Target className="w-5 h-5 text-[var(--p-labels-text)]" /> Цель
         </h2>
         <div className="flex flex-wrap gap-2">
           {GOALS_ALL.map(g => (
             <button key={g} onClick={() => setGoal(g)}
               className={clsx('px-3 py-1.5 rounded-lg border text-sm transition-colors',
                 goal === g
-                  ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
-                  : 'border-[var(--p-outline)] text-[var(--color-text-secondary)] hover:border-primary-300')}>
+                  ? 'border-[var(--p-circle)] bg-[var(--p-circle)]/20 text-[var(--p-outline)]'
+                  : 'border-[var(--p-outline)] text-[var(--color-text-secondary)] hover:border-[var(--p-outline)]')}>
               {GOAL_LABELS[g]}
             </button>
           ))}
@@ -121,7 +121,7 @@ export function NutritionPage() {
       {/* Спортпит */}
       <div className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] p-5">
         <h2 className="font-semibold text-[var(--p-labels-text)] mb-1 flex items-center gap-2">
-          <Pill className="w-5 h-5 text-primary-600" /> Спортпит
+          <Pill className="w-5 h-5 text-[var(--p-labels-text)]" /> Спортпит
         </h2>
         <p className="text-sm text-[var(--color-text-secondary)] mb-4">
           Подбор добавок под цель, уровень и бюджет
@@ -134,7 +134,7 @@ export function NutritionPage() {
               {LEVELS.map(l => (
                 <button key={l.value} onClick={() => setLevel(l.value)}
                   className={clsx('flex-1 py-2 rounded-lg text-sm font-medium transition-colors',
-                    level === l.value ? 'bg-[var(--p-circle)] text-[#000000]' : 'bg-slate-100 dark:bg-dark-border text-[var(--color-text-secondary)]')}>
+                    level === l.value ? 'bg-[var(--p-circle)] text-[#000000]' : 'bg-[var(--color-bg)] text-[var(--color-text-secondary)]')}>
                   {l.label}
                 </button>
               ))}
@@ -146,7 +146,7 @@ export function NutritionPage() {
               {BUDGETS.map(b => (
                 <button key={b.value} onClick={() => setBudget(b.value)}
                   className={clsx('flex-1 py-2 rounded-lg text-sm font-medium transition-colors',
-                    budget === b.value ? 'bg-[var(--p-circle)] text-[#000000]' : 'bg-slate-100 dark:bg-dark-border text-[var(--color-text-secondary)]')}>
+                    budget === b.value ? 'bg-[var(--p-circle)] text-[#000000]' : 'bg-[var(--color-bg)] text-[var(--color-text-secondary)]')}>
                   {b.label}
                 </button>
               ))}
@@ -164,12 +164,12 @@ export function NutritionPage() {
           {additives.map(a => (
             <div key={a.key} className="border border-[var(--p-outline)] rounded-xl overflow-hidden">
               <button onClick={() => setOpenAdditive(openAdditive === a.key ? null : a.key)}
-                className="w-full p-4 text-left hover:bg-slate-50 dark:hover:bg-dark-border/50 transition-colors flex items-center justify-between gap-3">
+                className="w-full p-4 text-left hover:bg-black/5 transition-colors flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <h3 className="font-semibold text-[var(--p-labels-text)]">{a.name}</h3>
                   <p className="text-sm text-[var(--p-labels-text)] font-medium">{a.dose}</p>
                 </div>
-                {openAdditive === a.key ? <ChevronUp className="w-5 h-5 text-slate-400 flex-shrink-0" /> : <ChevronDown className="w-5 h-5 text-slate-400 flex-shrink-0" />}
+                {openAdditive === a.key ? <ChevronUp className="w-5 h-5 text-[var(--color-text-secondary)] flex-shrink-0" /> : <ChevronDown className="w-5 h-5 text-[var(--color-text-secondary)] flex-shrink-0" />}
               </button>
               {openAdditive === a.key && (
                 <div className="px-4 pb-4 border-t border-[var(--p-outline)]">
@@ -183,7 +183,7 @@ export function NutritionPage() {
                             <div className="min-w-0">
                               <div className="text-sm font-medium text-[var(--p-labels-text)] truncate">
                                 {prod.name}
-                                {prod.best && <span className="ml-1.5 px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded text-[10px]">топ</span>}
+                                {prod.best && <span className="ml-1.5 px-1.5 py-0.5 bg-[var(--p-circle)]/20 text-[var(--p-outline)] rounded text-[10px]">топ</span>}
                               </div>
                               <div className="text-xs text-[var(--color-text-secondary)]">{prod.format}</div>
                             </div>

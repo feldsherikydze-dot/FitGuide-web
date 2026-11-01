@@ -312,7 +312,7 @@ export function SettingsPage() {
                     <img src={url} alt="" className="w-full h-full object-cover rounded-[12px]" />
                     <button
                       onClick={(e) => { e.stopPropagation(); removeMySplashBg(url); }}
-                      className="absolute -right-1 -bottom-1 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center"
+                      className="absolute -right-1 -bottom-1 w-5 h-5 rounded-full bg-[#C0392B] text-[#FFFFFF] text-[10px] flex items-center justify-center"
                       aria-label="Удалить"
                     >
                       ✕
@@ -463,7 +463,7 @@ export function SettingsPage() {
                 onChange={e => { setDragEnabled(e.target.checked); setString('home_drag_enabled', e.target.checked ? '1' : '0'); }}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"
+              <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#FFFFFF] after:border-[var(--p-outline)] after:border after:rounded-full after:h-5 after:w-5 after:transition-all"
                 style={{
                   background: dragEnabled ? 'var(--p-circle)' : 'var(--p-outline)',
                   border: dragEnabled ? `1px solid var(--p-circle)` : '1px solid var(--p-outline)',
@@ -509,7 +509,7 @@ export function SettingsPage() {
                 onChange={e => { setSearchEnabled(e.target.checked); setString('home_search_enabled', e.target.checked ? '1' : '0'); }}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"
+              <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#FFFFFF] after:border-[var(--p-outline)] after:border after:rounded-full after:h-5 after:w-5 after:transition-all"
                 style={{
                   background: searchEnabled ? 'var(--p-circle)' : 'var(--p-outline)',
                   border: searchEnabled ? `1px solid var(--p-circle)` : '1px solid var(--p-outline)',
