@@ -40,6 +40,10 @@
   --p-grad-from: #12A594;
   --p-grad-to: #0E8476;
   --p-ripple: rgba(18, 165, 148, 0.1);
+
+  /* Фон html = цвет темы: в PWA-окне не остаётся белых полос сверху/снизу. */
+  background: var(--color-bg);
+  color-scheme: light;
 }
 
 html, body, #root {
@@ -283,6 +287,7 @@ img, svg, video, canvas {
   --color-stroke: #2A3033;
   --color-outline: #3A4245;
   --color-surface-variant: #1B1F22;
+  color-scheme: dark;
 }
 :root[data-theme="dark"] .fg-banner {
   background: rgba(255, 255, 255, 0.06);
@@ -309,6 +314,7 @@ img, svg, video, canvas {
     --color-stroke: #2A3033;
     --color-outline: #3A4245;
     --color-surface-variant: #1B1F22;
+    color-scheme: dark;
   }
   :root:not([data-theme]) .fg-banner {
     background: rgba(255, 255, 255, 0.06);

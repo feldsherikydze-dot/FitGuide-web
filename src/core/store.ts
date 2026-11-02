@@ -325,6 +325,30 @@ export const useBodyLogStore = create<BodyLogSlice>()(
 
 // ------------------------------------------------------------------ UI
 
+const THEME_BG: Record<'light' | 'dark', string> = {
+  light: '#F5F8F6',
+  dark: '#0D0F11',
+};
+
+function systemTheme(): 'light' | 'dark' {
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+/**
+ * Красит «борды» PWA-окна (верхнюю/нижнюю полосы, статус-бар, фон overscroll)
+ * в цвет выбранной темы — как statusBar/navigationBar в Android.
+ */
+function syncBrowserChrome(t: 'light' | 'dark' | 'system') {
+  const resolved = t === 'system' ? systemTheme() : t;
+  const bg = THEME_BG[resolved];
+  const root = document.documentElement;
+  root.style.backgroundColor = bg;
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', bg);
+  const scheme = document.querySelector('meta[name="color-scheme"]');
+  if (scheme) scheme.setAttribute('content', resolved);
+}
+
 function applyTheme(t: 'light' | 'dark' | 'system') {
   const root = document.documentElement;
   if (t === 'system') {
@@ -332,6 +356,7 @@ function applyTheme(t: 'light' | 'dark' | 'system') {
   } else {
     root.setAttribute('data-theme', t);
   }
+  syncBrowserChrome(t);
 }
 
 interface UIState {
@@ -345,7 +370,8 @@ interface UIState {
 export const useUIStore = create<UIState>()(
   persist(
     (set, get) => ({
-      theme: 'system',
+      // Android 1.18: при первом запуске SplashActivity пишет theme=dark.
+      theme: 'dark',
       setTheme: (t) => {
         set({ theme: t });
         applyTheme(t);
@@ -354,17 +380,34 @@ export const useUIStore = create<UIState>()(
       toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
     }),
-    { name: KEYS.SETTINGS, storage: createJSONStorage(() => localStorage) }
+    { name: KEYS.SETTINGS, storage: createJSONStorage(() => localStorage), version: 2,
+      migrate: (persisted: any, version: number) => {
+        // До v2 веб по умолчанию использовал «Как в системе». Android 1.18
+        // при первом запуске ставит тёмную — выравниваем существующие профили.
+        if (version < 2 && persisted && (!persisted.theme || persisted.theme === 'system')) {
+          persisted.theme = 'dark';
+        }
+        return persisted;
+      },
+    }
   )
 );
 
-// Apply theme on load
+// Apply theme on load (дефолт — тёмная, как в Android 1.18)
 if (typeof window !== 'undefined') {
+  let initial: 'light' | 'dark' | 'system' = 'dark';
   const stored = localStorage.getItem(KEYS.SETTINGS);
   if (stored) {
     try {
       const parsed = JSON.parse(stored);
-      if (parsed.state?.theme) applyTheme(parsed.state.theme);
+      if (parsed.state?.theme) initial = parsed.state.theme;
     } catch {}
   }
+  applyTheme(initial);
+
+  // «Как в системе»: полосы окна должны перекрашиваться вместе с системной темой.
+  const mq = window.matchMedia?.('(prefers-color-scheme: dark)');
+  mq?.addEventListener?.('change', () => {
+    if (useUIStore.getState().theme === 'system') syncBrowserChrome('system');
+  });
 }

@@ -2,14 +2,14 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <meta name="color-scheme" content="light dark" />
+    <meta name="color-scheme" content="dark" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
     <title>FitGuide — Карманный тренер</title>
     <meta name="description" content="FitGuide — твой карманный тренер для силовых тренировок. Программы, прогресс, таймер, музыка." />
 
     <!-- PWA -->
     <link rel="manifest" href="manifest.webmanifest" />
-    <meta name="theme-color" content="#ffffff" />
+    <meta name="theme-color" content="#0D0F11" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -20,7 +20,37 @@
     <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
     <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" />
     <meta name="msapplication-TileImage" content="icon-192.png" />
-    <meta name="msapplication-TileColor" content="#0ea5e9" />
+    <meta name="msapplication-TileColor" content="#0D0F11" />
+
+    <!-- Тема до первой отрисовки: в PWA-окне верхняя/нижняя полосы не должны мигать белым.
+         Дефолт Android 1.18 — тёмная тема (SplashActivity: theme=dark при первом запуске). -->
+    <script>
+      (function () {
+        var theme = 'dark';
+        try {
+          var raw = localStorage.getItem('settings');
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            if (parsed && parsed.state && parsed.state.theme) {
+              theme = parsed.state.theme;
+              // Версия < 2: старый веб-дефолт «system» мигрирует в тёмную (как Android 1.18).
+              if (theme === 'system' && (parsed.version || 0) < 2) theme = 'dark';
+            }
+          }
+        } catch (e) {}
+        if (theme === 'system') {
+          theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark' : 'light';
+        }
+        var bg = theme === 'light' ? '#F5F8F6' : '#0D0F11';
+        document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
+        document.documentElement.style.backgroundColor = bg;
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', bg);
+        var scheme = document.querySelector('meta[name="color-scheme"]');
+        if (scheme) scheme.setAttribute('content', theme === 'light' ? 'light' : 'dark');
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
