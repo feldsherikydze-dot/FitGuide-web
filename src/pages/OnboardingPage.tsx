@@ -1,15 +1,15 @@
-// FitGuide Web — экран первого запуска (порт OnboardingActivity.java)
-// Короткая анкета: имя, параметры, пол, активность, уровень, цель, направление,
-// место, снаряжение, био, страна, город. Всё необязательно, есть «Пропустить».
+// FitGuide Web — экран первого запуска (порт OnboardingActivity.java / activity_onboarding.xml)
+// Порядок блоков как в Android 1.18: данные, пол, активность, уровень, цель,
+// направление, снаряжение (место), о себе, страна/город, «Пропустить»/«Готово».
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProfileStore } from '../core/store';
-import { getJSON, setJSON, KEYS } from '../core/storage';
+import { setJSON } from '../core/storage';
 import { usePaletteVars } from '../components/ui';
 import { GOALS, GOALS_ALL, GOAL_LABELS } from '../core/goals';
 import type { UserProfile } from '../data/types';
-import { Field, Card, SectionTitle, Hint, PrimaryButton, OutlineButton, Toast } from './progress/common';
+import { Field, Toast } from './progress/common';
 
 const ACTIVITY_LEVELS = [
   { value: 'sedentary', label: 'Сидячий' },
@@ -26,42 +26,62 @@ const LEVELS = [
 ];
 
 const STYLES = [
-  { value: 'any', label: 'Любое' },
+  { value: 'any', label: 'Без разницы' },
   { value: 'bb', label: 'Бодибилдинг' },
   { value: 'pl', label: 'Пауэрлифтинг' },
 ];
 
-const EQUIPMENT = [
-  { id: 'barbell', label: 'Штанга' },
-  { id: 'dumbbell', label: 'Гантели' },
-  { id: 'cable', label: 'Блоки' },
-  { id: 'smith', label: 'Смит' },
-  { id: 'machine', label: 'Тренажёры' },
+const PLACES = [
+  { value: 'home', label: 'Дома' },
+  { value: 'gym', label: 'Зал' },
 ];
 
 const DEFAULT_PROFILE: UserProfile = {
   name: '', gender: '', age: 0, heightCm: 0, weightKg: 0,
-  activityLevel: '', goal: GOALS.MASS, trainStyle: 'any',
+  activityLevel: '', goal: '', trainStyle: '',
   bodyFatPercent: 0, workoutsPerWeek: 0, bio: '', country: '', city: '',
-  level: 'intermediate', equipment: [], place: '',
+  level: '', equipment: [], place: '',
 };
 
+/** Заголовок раздела: 17sp bold, цвет (D) — как ?attr/appTextHeader после tintTree. */
+function SectionHeader({ title, desc, first }: { title: string; desc?: string; first?: boolean }) {
+  return (
+    <>
+      <h2
+        className={first ? 'text-[17px] font-bold mt-6' : 'text-[17px] font-bold mt-7'}
+        style={{ color: 'var(--p-labels-text)' }}
+      >
+        {title}
+      </h2>
+      {desc && (
+        <p className="text-[13px] mt-1 leading-snug" style={{ color: 'var(--p-labels-text)' }}>
+          {desc}
+        </p>
+      )}
+    </>
+  );
+}
+
+/** Чипы как ChipFactory: фон (B), обводка (A), текст (D); выбран — фон (C). */
 function ChipGroup({ options, value, onChange }: {
   options: { value: string; label: string }[];
   value: string;
   onChange: (v: string) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-1.5 mt-2">
+    <div className="flex flex-wrap gap-2 mt-2.5">
       {options.map(o => {
         const on = value === o.value;
         return (
-          <button key={o.value} onClick={() => onChange(on ? '' : o.value)}
-            className="min-h-[32px] px-3 rounded-[8px] text-[13px]"
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => onChange(on ? '' : o.value)}
+            className="min-h-[32px] px-3.5 rounded-full text-[14px] active:opacity-80"
             style={{
               background: on ? 'var(--p-circle)' : 'var(--p-labels)',
-              border: `1px solid ${on ? 'var(--p-circle)' : 'var(--p-outline)'}`,
-              color: on ? '#000000' : 'var(--p-labels-text)',
+              border: '1px solid var(--p-outline)',
+              color: on ? 'var(--p-on-circle)' : 'var(--p-labels-text)',
             }}
           >
             {o.label}
@@ -74,22 +94,15 @@ function ChipGroup({ options, value, onChange }: {
 
 export function OnboardingPage() {
   const navigate = useNavigate();
+  const { profile, setProfile } = useProfileStore();
   usePaletteVars();
 
-  const [form, setForm] = useState<UserProfile>({ ...DEFAULT_PROFILE });
+  const [form, setForm] = useState<UserProfile>(() => ({ ...DEFAULT_PROFILE, ...(profile ?? {}) }));
   const [toast, setToast] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const set = <K extends keyof UserProfile>(k: K, v: UserProfile[K]) =>
     setForm(f => ({ ...f, [k]: v }));
-
-  const toggleEquip = (id: string) =>
-    setForm(f => ({
-      ...f,
-      equipment: f.equipment.includes(id)
-        ? f.equipment.filter(x => x !== id)
-        : [...f.equipment, id],
-    }));
 
   const hasNoSelection = () => {
     if (form.gender || form.activityLevel || form.level || form.goal || form.trainStyle || form.place) return false;
@@ -115,146 +128,169 @@ export function OnboardingPage() {
       return;
     }
     setSaving(true);
-    const profile: UserProfile = {
+    const next: UserProfile = {
       ...form,
       goal: form.goal || GOALS.MASS,
       level: form.level || 'intermediate',
       trainStyle: form.trainStyle || 'any',
       place: form.place || 'gym',
-      equipment: form.equipment.length ? form.equipment : [],
     };
-    // Сохраняем профиль через store
-    import('../core/store').then(({ useProfileStore }) => {
-      useProfileStore.getState().setProfile(profile);
-      setJSON('onboarding_done', true);
-      navigate('/', { replace: true });
-    });
+    setProfile(next);
+    setJSON('onboarding_done', true);
+    navigate('/', { replace: true });
   };
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-bg)' }}>
-      <div className="max-w-lg mx-auto w-full px-5 py-6 space-y-4 flex-1 max-w-full">
-        {/* Заголовок */}
-        <div>
-          <h1 className="text-[28px] font-bold" style={{ color: 'var(--p-labels)' }}>Знакомство</h1>
-          <p className="text-[15px] mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-            Заполните анкету — приветствие и расчёты станут личными.
-          </p>
-        </div>
+    <div className="min-h-screen w-full max-w-full" style={{ background: 'var(--color-bg)' }}>
+      <div className="mx-auto w-full max-w-lg px-5 pt-6 pb-6">
+        <h1 className="text-[28px] font-bold leading-tight" style={{ color: 'var(--p-labels-text)' }}>
+          Знакомство
+        </h1>
+        <p className="text-[15px] mt-2 leading-snug" style={{ color: 'var(--p-labels-text)' }}>
+          Заполните анкету — приветствие и расчёты станут личными.
+        </p>
 
         {/* Ваши данные */}
-        <div>
-          <h2 className="text-[17px] font-bold" style={{ color: 'var(--p-labels)' }}>Ваши данные</h2>
-          <p className="text-[13px] mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-            Имя — для приветствия, параметры — для точных расчётов.
-          </p>
-          <div className="mt-2 space-y-2">
-            <Field value={form.name} onChange={v => set('name', v)} placeholder="Имя" />
-            <div className="flex gap-2">
-              <Field value={form.age > 0 ? String(form.age) : ''} onChange={v => set('age', parseInt(v) || 0)} placeholder="Возраст" inputMode="numeric" className="flex-1" />
-              <Field value={form.heightCm > 0 ? String(form.heightCm) : ''} onChange={v => set('heightCm', parseInt(v) || 0)} placeholder="Рост, см" inputMode="numeric" className="flex-1" />
-              <Field value={form.weightKg > 0 ? String(form.weightKg) : ''} onChange={v => set('weightKg', parseFloat(v) || 0)} placeholder="Вес, кг" inputMode="decimal" className="flex-1" />
-            </div>
+        <SectionHeader
+          first
+          title="Ваши данные"
+          desc="Имя — для приветствия, параметры — для точных расчётов."
+        />
+        <div className="mt-2.5 space-y-2.5">
+          <Field
+            value={form.name}
+            onChange={v => set('name', v)}
+            placeholder="Как к вам обращаться"
+            inputMode="text"
+          />
+          <div className="flex gap-2.5">
+            <Field
+              label="Возраст"
+              value={form.age > 0 ? String(form.age) : ''}
+              onChange={v => set('age', parseInt(v) || 0)}
+              placeholder="года"
+              inputMode="numeric"
+              className="flex-1"
+            />
+            <Field
+              label="Рост"
+              value={form.heightCm > 0 ? String(form.heightCm) : ''}
+              onChange={v => set('heightCm', parseInt(v) || 0)}
+              placeholder="см"
+              inputMode="numeric"
+              className="flex-1"
+            />
+            <Field
+              label="Вес"
+              value={form.weightKg > 0 ? String(form.weightKg) : ''}
+              onChange={v => set('weightKg', parseFloat(v) || 0)}
+              placeholder="кг"
+              inputMode="decimal"
+              className="flex-1"
+            />
           </div>
         </div>
 
         {/* Пол */}
-        <div>
-          <h3 className="text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>Пол</h3>
-          <ChipGroup
-            options={[{ value: 'male', label: 'Мужской' }, { value: 'female', label: 'Женский' }]}
-            value={form.gender}
-            onChange={v => set('gender', v)}
-          />
-        </div>
+        <SectionHeader title="Пол" />
+        <ChipGroup
+          options={[{ value: 'male', label: 'Мужской' }, { value: 'female', label: 'Женский' }]}
+          value={form.gender}
+          onChange={v => set('gender', v)}
+        />
 
         {/* Активность */}
-        <div>
-          <h3 className="text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>Активность</h3>
-          <ChipGroup options={ACTIVITY_LEVELS} value={form.activityLevel} onChange={v => set('activityLevel', v)} />
-        </div>
+        <SectionHeader title="Уровень активности" />
+        <ChipGroup
+          options={ACTIVITY_LEVELS}
+          value={form.activityLevel}
+          onChange={v => set('activityLevel', v)}
+        />
 
         {/* Уровень */}
-        <div>
-          <h2 className="text-[17px] font-bold" style={{ color: 'var(--p-labels)' }}>Ваш уровень подготовки</h2>
-          <p className="text-[13px] mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-            Разделяем упражнения под вашу подготовку.
-          </p>
-          <ChipGroup options={LEVELS} value={form.level} onChange={v => set('level', v)} />
-        </div>
+        <SectionHeader
+          title="Ваш уровень подготовки"
+          desc="Разделяем упражнения под вашу подготовку."
+        />
+        <ChipGroup options={LEVELS} value={form.level} onChange={v => set('level', v)} />
 
         {/* Цель */}
-        <div>
-          <h2 className="text-[17px] font-bold" style={{ color: 'var(--p-labels)' }}>Цель тренировок</h2>
-          <p className="text-[13px] mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-            От цели зависит калораж и структура программы.
-          </p>
-          <ChipGroup
-            options={GOALS_ALL.map(g => ({ value: g, label: GOAL_LABELS[g] }))}
-            value={form.goal}
-            onChange={v => set('goal', v || GOALS.MASS)}
-          />
-        </div>
+        <SectionHeader
+          title="Цель тренировок"
+          desc="От цели зависит калораж и структура программы."
+        />
+        <ChipGroup
+          options={GOALS_ALL.map(g => ({ value: g, label: GOAL_LABELS[g] }))}
+          value={form.goal}
+          onChange={v => set('goal', v)}
+        />
 
         {/* Направление */}
-        <div>
-          <h3 className="text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>Направление</h3>
-          <ChipGroup options={STYLES} value={form.trainStyle} onChange={v => set('trainStyle', v)} />
-        </div>
+        <SectionHeader title="Направление тренировок" />
+        <ChipGroup options={STYLES} value={form.trainStyle} onChange={v => set('trainStyle', v)} />
 
-        {/* Место */}
-        <div>
-          <h3 className="text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>Место тренировок</h3>
-          <ChipGroup
-            options={[{ value: 'home', label: 'Дома' }, { value: 'gym', label: 'Зал' }]}
-            value={form.place}
-            onChange={v => set('place', v)}
+        {/* Снаряжение: в Android 1.18 здесь только «Дома»/«Зал» */}
+        <SectionHeader title="Снаряжение" desc="Подберём упражнения под ваше снаряжение." />
+        <ChipGroup options={PLACES} value={form.place} onChange={v => set('place', v)} />
+
+        {/* О себе */}
+        <SectionHeader
+          title="О себе"
+          desc="Коротко расскажите о себе, своём опыте и целях — тренер учтёт это в рекомендациях."
+        />
+        <div className="mt-2.5">
+          <Field
+            value={form.bio}
+            onChange={v => set('bio', v)}
+            placeholder="Например: тренируюсь 2 года, хочу подтянуть форму и выносливость…"
+            inputMode="text"
+            multiline
           />
         </div>
 
-        {/* Снаряжение */}
-        <div>
-          <h3 className="text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>Снаряжение</h3>
-          <p className="text-[13px] mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-            Подберём упражнения под ваше снаряжение.
-          </p>
-          <div className="flex flex-wrap gap-1.5 mt-2">
-            {EQUIPMENT.map(e => {
-              const on = form.equipment.includes(e.id);
-              return (
-                <button key={e.id} onClick={() => toggleEquip(e.id)}
-                  className="min-h-[32px] px-3 rounded-[8px] text-[13px]"
-                  style={{
-                    background: on ? 'var(--p-labels)' : 'var(--color-surface-variant)',
-                    border: `1px solid ${on ? 'var(--p-labels)' : 'var(--color-stroke)'}`,
-                    color: on ? 'var(--p-on-labels)' : 'var(--color-text-main)',
-                  }}
-                >
-                  {e.label}
-                </button>
-              );
-            })}
-          </div>
+        {/* Страна и город */}
+        <div className="flex gap-2.5 mt-6">
+          <Field
+            label="Страна"
+            value={form.country}
+            onChange={v => set('country', v)}
+            placeholder="Россия"
+            inputMode="text"
+            className="flex-1"
+          />
+          <Field
+            label="Город"
+            value={form.city}
+            onChange={v => set('city', v)}
+            placeholder="Красноярск"
+            inputMode="text"
+            className="flex-1"
+          />
         </div>
 
-        {/* Детали */}
-        <div>
-          <h3 className="text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>О себе</h3>
-          <div className="mt-2 space-y-2">
-            <Field value={form.bio} onChange={v => set('bio', v)} placeholder="Био" />
-            <div className="flex gap-2">
-              <Field value={form.country} onChange={v => set('country', v)} placeholder="Страна" className="flex-1" />
-              <Field value={form.city} onChange={v => set('city', v)} placeholder="Город" className="flex-1" />
-            </div>
-          </div>
-        </div>
-
-        {/* Кнопки */}
-        <div className="flex gap-3 pt-4">
-          <OutlineButton onClick={skip} className="flex-1">Пропустить</OutlineButton>
-          <PrimaryButton onClick={finish} disabled={saving} className="flex-1">
+        {/* Кнопки: «Пропустить» — текстовая, «Готово» — кнопка-ярлык (B, обводка A, текст D) */}
+        <div className="flex items-center justify-between mt-8">
+          <button
+            type="button"
+            onClick={skip}
+            className="h-11 px-2 text-[14px] font-bold uppercase active:opacity-70"
+            style={{ color: 'var(--p-labels-text)', background: 'transparent' }}
+          >
+            Пропустить
+          </button>
+          <button
+            type="button"
+            onClick={finish}
+            disabled={saving}
+            className="h-11 px-5 rounded-[8px] text-[14px] font-bold uppercase active:opacity-90 disabled:opacity-50"
+            style={{
+              background: 'var(--p-labels)',
+              border: '1px solid var(--p-outline)',
+              color: 'var(--p-labels-text)',
+            }}
+          >
             {saving ? 'Сохранение…' : 'Готово'}
-          </PrimaryButton>
+          </button>
         </div>
       </div>
 

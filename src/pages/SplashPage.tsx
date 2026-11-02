@@ -11,7 +11,6 @@
 // - Навигация: fresh → Onboarding, иначе MainActivity (или Settings если splash выключен)
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useProfileStore } from '../core/store';
 import { getJSON, setJSON, KEYS, getString, setString } from '../core/storage';
 import { usePaletteVars, asset } from '../components/ui';
@@ -144,8 +143,7 @@ function DigitalClockSplash({ style = 'classic' }: { style?: string }) {
   );
 }
 
-export function SplashPage({ onStart }: { onStart?: () => void }) {
-  const navigate = useNavigate();
+export function SplashPage({ onDone, initialRoute }: { onDone?: () => void; initialRoute?: '/' | '/onboarding' | '/settings' }) {
   const { profile } = useProfileStore();
   usePaletteVars();
 
@@ -160,11 +158,11 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
   const [smearMode, setSmearMode] = useState(false);
   const [showGreeting, setShowGreeting] = useState(false);
   const [startButtonVisible, setStartButtonVisible] = useState(false);
+  const [barVisible, setBarVisible] = useState(true);
   const [started, setStarted] = useState(false);
   const animFrameRef = useRef<number | null>(null);
 
   // Настройки из storage
-  const splashEnabled = getString('splash_enabled', '1') === '1';
   const clockEnabled = getString('splash_clock_enabled', '1') === '1';
   const clockMode = getString('splash_clock', 'analog'); // 'analog' | 'digital'
   const clockStyleAnalog = getString('splash_clock_style_analog', 'classic');
@@ -262,11 +260,22 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
       } else {
         setLoaded(true);
         setShowGreeting(true);
-        setStartButtonVisible(true); // Показываем кнопку Старт после завершения анимации
+        setStartButtonVisible(true);
+        setBarVisible(false);        // Android: progress INVISIBLE, runner GONE
       }
     };
     animFrameRef.current = requestAnimationFrame(animate);
-    return () => { if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current); };
+    // Страховка: если анимация не завершилась за 2с — скрываем бар принудительно
+    const safetyTimer = window.setTimeout(() => {
+      setLoaded(true);
+      setShowGreeting(true);
+      setStartButtonVisible(true);
+      setBarVisible(false);
+    }, 2000);
+    return () => {
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      clearTimeout(safetyTimer);
+    };
   }, [loaded, started]);
 
   const userName = profile?.name || '';
@@ -279,19 +288,7 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
       root.style.transition = 'opacity 400ms ease-out';
       root.style.opacity = '0';
     }
-    setTimeout(() => {
-      if (onStart) { onStart(); return; }
-      const onboardingDone = getJSON<boolean>('onboarding_done', false);
-      const hasRequired = profile?.gender && profile?.age > 0 && profile?.heightCm > 0 && profile?.weightKg > 0;
-      const fresh = !onboardingDone && !hasRequired;
-      if (fresh) {
-        navigate('/onboarding', { replace: true });
-      } else if (!splashEnabled) {
-        navigate('/settings', { replace: true });
-      } else {
-        navigate('/', { replace: true });
-      }
-    }, 400);
+    if (onDone) window.setTimeout(onDone, 400);
   };
 
   // --- Рендер фона ---
@@ -339,17 +336,6 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
     );
   };
 
-  if (!splashEnabled) {
-    useEffect(() => {
-      if (onStart) { onStart(); return; }
-      const onboardingDone = getJSON<boolean>('onboarding_done', false);
-      const hasRequired = profile?.gender && profile?.age > 0 && profile?.heightCm > 0 && profile?.weightKg > 0;
-      const fresh = !onboardingDone && !hasRequired;
-      navigate(fresh ? '/onboarding' : '/', { replace: true });
-    }, []);
-    return null;
-  }
-
   const timeStr = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
   const dateStr = now.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -374,7 +360,9 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
       {/* Фон */}
       {renderBg()}
 
-      {/* Прогресс-бар + бегунок (снизу, margins как в XML: 48dp start/end, 124dp bottom) */}
+      {/* Прогресс-бар + бегунок (снизу, margins как в XML: 48dp start/end, 124dp bottom).
+          После завершения анимации Android скрывает прогресс (INVISIBLE) и бегунка (GONE). */}
+      {barVisible && (
       <div
         className="absolute bottom-0 left-0 right-0"
         style={{
@@ -406,6 +394,7 @@ export function SplashPage({ onStart }: { onStart?: () => void }) {
           />
         </div>
       </div>
+      )}
 
       {/* Приветствие + имя + пожелание + часы (появляются после завершения анимации прогресса) */}
       <div

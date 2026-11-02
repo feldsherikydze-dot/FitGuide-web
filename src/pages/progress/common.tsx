@@ -40,8 +40,12 @@ export function PrimaryButton({ children, onClick, disabled, className }: {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={clsx('w-full h-12 rounded-[24px] text-[14px] font-bold disabled:opacity-50 active:opacity-90', className)}
-      style={{ background: 'var(--p-labels)', color: 'var(--p-on-labels)' }}
+      className={clsx('w-full h-12 rounded-[8px] text-[14px] font-bold uppercase disabled:opacity-50 active:opacity-90', className)}
+      style={{
+        background: 'var(--p-labels)',
+        border: '1px solid var(--p-outline)',
+        color: 'var(--p-labels-text)',
+      }}
     >
       {children}
     </button>
@@ -63,22 +67,48 @@ export function OutlineButton({ children, onClick, className }: {
   );
 }
 
-export function Field({ value, onChange, placeholder, inputMode = 'decimal', className }: {
+export function Field({ value, onChange, placeholder, inputMode = 'decimal', className, label, multiline, type }: {
   value: string; onChange: (v: string) => void; placeholder: string;
   inputMode?: 'decimal' | 'numeric' | 'text'; className?: string;
+  label?: string; multiline?: boolean; type?: string;
 }) {
+  const inputClass = 'fg-field w-full px-4 rounded-[10px] text-[15px] outline-none';
+  const style = {
+    background: 'var(--p-labels)',
+    border: '1px solid var(--p-outline)',
+    color: 'var(--color-text-main)',
+  } as const;
   return (
-    <input
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      placeholder={placeholder}
-      inputMode={inputMode}
-      className={clsx('w-full h-[46px] px-4 rounded-[10px] text-[15px] outline-none', className)}
-      style={{
-        background: 'var(--p-labels)', border: '1px solid var(--p-outline)',
-        color: 'var(--color-text-main)',
-      }}
-    />
+    <label className={clsx('block min-w-0', className)}>
+      {label && (
+        <span
+          className="block text-[13px] font-bold mb-1.5"
+          style={{ color: 'var(--p-labels-text)' }}
+        >
+          {label}
+        </span>
+      )}
+      {multiline ? (
+        <textarea
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          rows={2}
+          className={clsx(inputClass, 'py-3 resize-none min-h-[64px]')}
+          style={style}
+        />
+      ) : (
+        <input
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          inputMode={inputMode}
+          type={type || (inputMode === 'numeric' ? 'number' : inputMode === 'decimal' ? 'number' : 'text')}
+          className={clsx(inputClass, 'h-[46px]')}
+          style={style}
+        />
+      )}
+    </label>
   );
 }
 

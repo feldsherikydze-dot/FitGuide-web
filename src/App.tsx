@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { SplashPage } from './pages/SplashPage';
 import { HubPage } from './pages/HubPage';
@@ -63,9 +63,8 @@ function AppRoutes() {
  * главный экран; если профиля ещё нет — экран знакомства.
  */
 function Shell() {
-  const navigate = useNavigate();
-  const { profile } = useProfileStore();
   const [splashDone, setSplashDone] = useState(false);
+  const [initialRoute, setInitialRoute] = useState<'/' | '/onboarding' | '/settings'>('/');
   // Настройка «стартовый экран» — как в Android (splash_enabled).
   // Выключается в Настройках.
   const [splashEnabled, setSplashEnabled] = useState(
@@ -82,18 +81,31 @@ function Shell() {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
+  // Определяем начальный маршрут ДО рендера приложения
+  const determineInitialRoute = () => {
+    const onboardingDone = getJSON<boolean>('onboarding_done', false);
+    const { profile } = useProfileStore.getState();
+    const hasRequired = profile?.gender && profile?.age > 0 && profile?.heightCm > 0 && profile?.weightKg > 0;
+    const fresh = !onboardingDone && !hasRequired;
+    if (fresh) return '/onboarding';
+    if (!splashEnabled) return '/settings';
+    return '/';
+  };
+
+  // Если сплеш отключён или уже пройден — рендерим приложение сразу
+  if (!splashEnabled || splashDone) {
+    return <AppRoutes />;
+  }
+
+  // Иначе рендерим ТОЛЬКО SplashPage, который сам определит куда перейти
   return (
-    <>
-      <AppRoutes />
-      {splashEnabled && !splashDone && (
-        <SplashPage
-          onStart={() => {
-            setSplashDone(true);
-            navigate(profile ? '/' : '/onboarding', { replace: true });
-          }}
-        />
-      )}
-    </>
+    <SplashPage
+      onDone={() => {
+        setInitialRoute(determineInitialRoute());
+        setSplashDone(true);
+      }}
+      initialRoute={determineInitialRoute()}
+    />
   );
 }
 

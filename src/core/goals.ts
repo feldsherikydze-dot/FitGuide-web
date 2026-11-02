@@ -17,10 +17,10 @@ export const GOALS: Record<string, string> = {
 export const GOALS_ALL = [GOALS.MASS, GOALS.LOSE, GOALS.STRENGTH, GOALS.CUT, GOALS.ENDURANCE, GOALS.RECOMP] as const;
 
 export const GOAL_LABELS: Record<string, string> = {
-  [GOALS.MASS]: 'Масса',
+  [GOALS.MASS]: 'Набрать массу',
   [GOALS.LOSE]: 'Похудение',
   [GOALS.STRENGTH]: 'Сила',
-  [GOALS.CUT]: 'Рельеф',
+  [GOALS.CUT]: 'Рельеф (сушка)',
   [GOALS.ENDURANCE]: 'Выносливость',
   [GOALS.RECOMP]: 'Рекомпозиция',
   [GOALS.MAINTAIN]: 'Поддержание',

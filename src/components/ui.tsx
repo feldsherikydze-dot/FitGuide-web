@@ -47,6 +47,8 @@ export function usePaletteVars() {
   root.style.setProperty('--p-on-labels-soft', withAlpha(contrastOn(labels), 0.8));
   root.style.setProperty('--p-on-circle', contrastOn(circle));
   root.style.setProperty('--p-on-circle-soft', withAlpha(contrastOn(circle), 0.8));
+  // Приглушённый цвет надписей (D) — для placeholder'ов и второстепенного текста
+  root.style.setProperty('--p-labels-text-soft', withAlpha(labelsText, 0.7));
   root.style.setProperty('--p-ripple', hexToRgba(labels, 0.12));
 }
 
