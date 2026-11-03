@@ -348,7 +348,7 @@ export function SettingsPage() {
             <div className="text-[13px] mb-1" style={{ color: 'var(--color-text-secondary)' }}>
               Своя картинка на заставке: как показывать
             </div>
-            <div className="flex gap-1 mb-3">
+            <div className="flex flex-wrap gap-1 mb-3">
               {SPLASH_MODE_VALUES.map((m) => (
                 <button
                   key={m.key}
@@ -705,7 +705,7 @@ export function SettingsPage() {
             <div className="text-[13px] font-bold mb-1" style={{ color: 'var(--color-text-secondary)' }}>
               Режим
             </div>
-            <div className="flex gap-1 mb-4">
+            <div className="flex flex-wrap gap-1 mb-4">
               {CLOCK_MODE_VALUES.map((m) => (
                 <button
                   key={m.key}
@@ -726,7 +726,7 @@ export function SettingsPage() {
                 <div className="text-[13px] font-bold mb-1" style={{ color: 'var(--color-text-secondary)' }}>
                   Стиль аналоговых часов
                 </div>
-                <div className="flex gap-1 mb-4">
+                <div className="flex flex-wrap gap-1 mb-4">
                   {CLOCK_ANALOG_STYLES.map((s) => (
                     <button
                       key={s.key}
@@ -749,7 +749,7 @@ export function SettingsPage() {
                 <div className="text-[13px] font-bold mb-1" style={{ color: 'var(--color-text-secondary)' }}>
                   Стиль цифровых часов
                 </div>
-                <div className="flex gap-1 mb-4">
+                <div className="flex flex-wrap gap-1 mb-4">
                   {CLOCK_DIGITAL_STYLES.map((s) => (
                     <button
                       key={s.key}
