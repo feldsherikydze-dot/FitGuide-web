@@ -310,27 +310,31 @@ export function SplashPage({ onDone, initialRoute }: { onDone?: () => void; init
       transition: 'opacity 1600ms ease-out',
     };
 
+    // Обычный режим (centerCrop): один слой на весь экран.
+    // Раньше здесь был <img> с тем же backgroundImage: картинка рисовалась дважды —
+    // фоном (cover) и самим тегом в натуральную величину слева сверху.
     if (!smearMode) {
-      return <img key={src} src={src} alt="" style={bgStyle} />;
+      return <div key={src} style={bgStyle} />;
     }
 
-    // Smear режим: основной слой contain + растянутый слой с блюром (аппроксимация CLAMP)
+    // Smear режим: размытый cover-слой позади + чёткий contain-слой по центру
     return (
-      <div key={src} style={{ ...bgStyle, backgroundSize: 'cover' }}>
+      <div key={src} style={{ ...bgStyle, backgroundImage: 'none' }}>
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: `url(${src})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          filter: 'blur(40px)',
+          opacity: 0.3,
+        }} />
         <div style={{
           position: 'absolute', inset: 0,
           backgroundImage: `url(${src})`,
           backgroundSize: 'contain',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
-        }} />
-        <div style={{
-          position: 'absolute', inset: 0,
-          backgroundImage: `url(${src})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          filter: 'blur(40px)',
-          opacity: 0.3,
         }} />
       </div>
     );
