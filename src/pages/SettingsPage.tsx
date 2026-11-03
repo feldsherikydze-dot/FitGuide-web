@@ -242,7 +242,7 @@ export function SettingsPage() {
             Четыре независимых слота: контур, ярлыки, кругляшки, надписи.
           </p>
           <button
-            className="w-full h-10 rounded-[22px] text-[14px] font-medium mt-3 border-0 outline-none focus:outline-none"
+            className="w-full h-10 rounded-[22px] text-[14px] font-medium mt-3"
             style={{
               background: 'var(--p-labels)',
               border: '1px solid var(--p-outline)',
@@ -305,13 +305,11 @@ export function SettingsPage() {
             <div className="flex gap-2 mb-3">
               <button
                 onClick={addMySplashBg}
-                className="flex-1 h-10 rounded-[20px] text-[13px] font-medium border-0 outline-none focus:outline-none"
+                className="flex-1 h-10 rounded-[20px] text-[13px] font-medium"
                 style={{
                   background: 'var(--p-labels)',
+                  border: '1px solid var(--p-outline)',
                   color: 'var(--p-labels-text)',
-                  border: 'none',
-                  outline: 'none',
-                  boxShadow: 'none',
                 }}
               >
                 <Image className="w-4 h-4 mr-1.5" /> Добавить картинку
@@ -374,13 +372,11 @@ export function SettingsPage() {
               Часы стартового экрана: настройка режима и стиля.
             </div>
             <button
-              className="w-full h-10 rounded-[22px] text-[14px] font-medium flex items-center justify-center gap-2 border-0 outline-none focus:outline-none"
+              className="w-full h-10 rounded-[22px] text-[14px] font-medium flex items-center justify-center gap-2"
               style={{
                 background: 'var(--p-labels)',
+                border: '1px solid var(--p-outline)',
                 color: 'var(--p-labels-text)',
-                border: 'none',
-                outline: 'none',
-                boxShadow: 'none',
               }}
               onClick={() => {
                 setClockEnabled(getString('splash_clock_enabled', '1') === '1');
@@ -600,13 +596,11 @@ export function SettingsPage() {
               }}
             />
             <button
-              className="w-full h-10 rounded-[22px] text-[14px] font-medium border-0 outline-none focus:outline-none"
+              className="w-full h-10 rounded-[22px] text-[14px] font-medium"
               style={{
                 background: 'var(--p-labels)',
+                border: '1px solid var(--p-outline)',
                 color: 'var(--p-labels-text)',
-                border: 'none',
-                outline: 'none',
-                boxShadow: 'none',
               }}
               onClick={checkUpdate}
             >
@@ -637,13 +631,11 @@ export function SettingsPage() {
                 <Wifi className="w-4 h-4 mr-1.5" /> Найти часы
               </button>
               <button
-                className="flex-1 h-10 rounded-[22px] text-[13px] font-medium border-0 outline-none focus:outline-none"
+                className="flex-1 h-10 rounded-[22px] text-[13px] font-medium"
                 style={{
                   background: 'var(--p-labels)',
+                  border: '1px solid var(--p-outline)',
                   color: 'var(--p-labels-text)',
-                  border: 'none',
-                  outline: 'none',
-                  boxShadow: 'none',
                 }}
                 onClick={() => showToast('info', 'Сопряжение часов — функция подключения Wear OS')}
               >
