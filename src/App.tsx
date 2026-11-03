@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { HashRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { SplashPage } from './pages/SplashPage';
 import { HubPage } from './pages/HubPage';
@@ -63,8 +63,8 @@ function AppRoutes() {
  * главный экран; если профиля ещё нет — экран знакомства.
  */
 function Shell() {
+  const navigate = useNavigate();
   const [splashDone, setSplashDone] = useState(false);
-  const [initialRoute, setInitialRoute] = useState<'/' | '/onboarding' | '/settings'>('/');
   // Настройка «стартовый экран» — как в Android (splash_enabled).
   // Выключается в Настройках.
   const [splashEnabled, setSplashEnabled] = useState(
@@ -97,14 +97,13 @@ function Shell() {
     return <AppRoutes />;
   }
 
-  // Иначе рендерим ТОЛЬКО SplashPage, который сам определит куда перейти
+  // Иначе рендерим ТОЛЬКО SplashPage; после «Старт» переходим на нужный маршрут
   return (
     <SplashPage
       onDone={() => {
-        setInitialRoute(determineInitialRoute());
+        navigate(determineInitialRoute(), { replace: true });
         setSplashDone(true);
       }}
-      initialRoute={determineInitialRoute()}
     />
   );
 }

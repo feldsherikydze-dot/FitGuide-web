@@ -11,6 +11,7 @@ import { clsx } from 'clsx';
 import { ChevronLeft } from 'lucide-react';
 import { useCoachStore, useProgramsStore, useOneRmStore, useProfileStore } from '../core/store';
 import { createSession, applyFeelProgression, setDelta, readinessScore, dayKey } from '../core/coach';
+import { playSignal } from '../core/signal';
 import { useExercises } from '../hooks/useExercises';
 import type { Session, SessionItem, Slot } from '../data/types';
 
@@ -41,23 +42,6 @@ function parseRest(v: string | undefined, fallback = 90): number {
   if (sec) return parseInt(sec[1], 10);
   const num = s.match(/\d+/);
   return num ? parseInt(num[0], 10) : fallback;
-}
-
-function beep() {
-  try {
-    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new Ctx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 880;
-    osc.type = 'sine';
-    gain.gain.setValueAtTime(0.25, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.45);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.45);
-  } catch { /* звук не критичен */ }
 }
 
 function roundHalf(n: number): number {
@@ -136,8 +120,7 @@ export function WorkoutPage() {
     if (restEnd === null || restPaused) return;
     if (Date.now() < restEnd) return;
     setRestEnd(null);
-    beep();
-    if (navigator.vibrate) navigator.vibrate([180, 90, 180]);
+    playSignal('restOver');
     if (!session || !day) return;
     const it = session.items[idx];
     const target = it?.targetSets || day.slots[idx]?.sets || 3;
@@ -413,6 +396,7 @@ export function WorkoutPage() {
           <button
             onClick={() => {
               if (restEnd !== null) return;
+              if (doneSets === 0) playSignal('setStart');
               setAwaitingFeel(true);
               setStartRef.current = Date.now();
             }}

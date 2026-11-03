@@ -15,8 +15,16 @@ import { Palette, Sun, Moon, Monitor, Zap, Database, Smartphone, Image, ImageOff
 import { PageHeader } from '../components/ui';
 import { useUIStore } from '../core/store';
 import { PaletteSettings } from '../components/PaletteSettings';
-import { clearAll, getString, setString, remove, getJSON, setJSON } from '../core/storage';
+import { getString, setString, getJSON, setJSON } from '../core/storage';
 import { slotColor, contrastOn, setSlotCustom, getPalette, subscribePalette, resetPalette } from '../core/palette';
+import {
+  SIGNAL_PROFILES,
+  getSignalProfileKey,
+  getSignalVolume,
+  setSignalProfile,
+  setSignalVolume,
+  previewSignal,
+} from '../core/signal';
 
 const THEME_VALUES: ('system' | 'light' | 'dark')[] = ['system', 'light', 'dark'];
 
@@ -27,14 +35,6 @@ const themeDesc = {
   dark: 'Всегда тёмная',
 };
 const themeIcons = { system: Monitor, light: Sun, dark: Moon };
-
-const SIGNAL_PROFILES = [
-  { key: 'default', label: 'Гонг на ринге' },
-  { key: 'alarm', label: 'Как будильник' },
-  { key: 'gong', label: 'Паровозный гудок' },
-  { key: 'soft', label: 'Мягкий' },
-  { key: 'mechanical', label: 'Механический таймер' },
-];
 
 const SPLASH_BG_VALUES = ['', '1', '2', '3', '4', '5'];
 const SPLASH_MODE_VALUES = [
@@ -73,8 +73,8 @@ export function SettingsPage() {
   const [searchEnabled, setSearchEnabled] = useState(() => getString('home_search_enabled', '1') !== '0');
   const [weatherCity, setWeatherCity] = useState(() => getString('weather_city', 'Красноярск'));
   const [weatherIpDetect, setWeatherIpDetect] = useState(() => getString('weather_ip_detect', '0') === '1');
-  const [signalProfile, setSignalProfile] = useState(() => (getString('signal_profile', 'default') as any) || 'default');
-  const [signalVolume, setSignalVolume] = useState(() => parseInt(getString('signal_volume', '75'), 10) || 75);
+  const [signalProfile, setSignalProfileState] = useState(() => getSignalProfileKey());
+  const [signalVolume, setSignalVolumeState] = useState(() => getSignalVolume());
   const [splashBg, setSplashBg] = useState(() => getString('splash_bg_fixed', ''));
   const [splashMode, setSplashMode] = useState(() => (getString('splash_bg_mode', 'crop') as any) || 'crop');
   const [mySplashBgs, setMySplashBgs] = useState<string[]>(() => {
@@ -91,12 +91,21 @@ export function SettingsPage() {
 
   // ---- сброс ----
   const handleResetAll = () => {
-    // Очищаем всё: и с префиксом fitguide_web_, и без (programs, coach и т.п.)
-    const keys = Object.keys(localStorage);
-    keys.forEach(k => localStorage.removeItem(k));
     setShowResetConfirm(false);
-    showToast('success', 'Настройки сброшены к начальным. Перезагрузите страницу.');
-    setTimeout(() => { window.location.reload(); }, 800);
+    showToast('success', 'Настройки сброшены к начальным');
+    // Как performReset в Android: стереть все данные и запустить заставку заново.
+    // Небольшая пауза — чтобы тост успел показаться.
+    setTimeout(() => {
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch {
+        /* хранилище недоступно — всё равно перезапускаем */
+      }
+      // Чистый маршрут: после «Старт» Shell сам отправит на знакомство.
+      window.location.replace(window.location.pathname + window.location.search + '#/');
+      window.location.reload();
+    }, 600);
   };
 
   // ---- тема ----
@@ -106,8 +115,10 @@ export function SettingsPage() {
 
   // ---- сигналы ----
   const pickSignal = (key: string) => {
-    setSignalProfile(key as any);
-    setString('signal_profile', key);
+    setSignalProfile(key);
+    setSignalProfileState(getSignalProfileKey());
+    // Сразу даём послушать: выбирать сигнал на слух надёжнее, чем по названию.
+    previewSignal();
     showToast('success', `Профиль сигнала: ${SIGNAL_PROFILES.find(p => p.key === key)?.label}`);
   };
 
@@ -231,7 +242,12 @@ export function SettingsPage() {
             Четыре независимых слота: контур, ярлыки, кругляшки, надписи.
           </p>
           <button
-            className="w-full h-10 rounded-[22px] text-[14px] font-medium border border-[#C0392B] text-[#C0392B] bg-transparent mt-3"
+            className="w-full h-10 rounded-[22px] text-[14px] font-medium mt-3 border-0 outline-none focus:outline-none"
+            style={{
+              background: 'var(--p-labels)',
+              border: '1px solid var(--p-outline)',
+              color: 'var(--p-labels-text)',
+            }}
             onClick={() => {
               resetPalette();
               showToast('success', 'Палитра сброшена к стандартной (как в Android).');
@@ -289,8 +305,14 @@ export function SettingsPage() {
             <div className="flex gap-2 mb-3">
               <button
                 onClick={addMySplashBg}
-                className="flex-1 h-10 rounded-[20px] text-[13px] font-medium"
-                style={{ background: 'var(--p-labels)', color: 'var(--p-labels-text)', border: 'none' }}
+                className="flex-1 h-10 rounded-[20px] text-[13px] font-medium border-0 outline-none focus:outline-none"
+                style={{
+                  background: 'var(--p-labels)',
+                  color: 'var(--p-labels-text)',
+                  border: 'none',
+                  outline: 'none',
+                  boxShadow: 'none',
+                }}
               >
                 <Image className="w-4 h-4 mr-1.5" /> Добавить картинку
               </button>
@@ -352,8 +374,14 @@ export function SettingsPage() {
               Часы стартового экрана: настройка режима и стиля.
             </div>
             <button
-              className="w-full h-10 rounded-[22px] text-[14px] font-medium flex items-center justify-center gap-2"
-              style={{ background: 'var(--p-labels)', color: 'var(--p-labels-text)', border: 'none' }}
+              className="w-full h-10 rounded-[22px] text-[14px] font-medium flex items-center justify-center gap-2 border-0 outline-none focus:outline-none"
+              style={{
+                background: 'var(--p-labels)',
+                color: 'var(--p-labels-text)',
+                border: 'none',
+                outline: 'none',
+                boxShadow: 'none',
+              }}
               onClick={() => {
                 setClockEnabled(getString('splash_clock_enabled', '1') === '1');
                 setClockMode((getString('splash_clock', 'analog') as any) || 'analog');
@@ -422,9 +450,11 @@ export function SettingsPage() {
               value={signalVolume}
               onChange={e => {
                 const v = parseInt(e.target.value, 10);
+                setSignalVolumeState(v);
                 setSignalVolume(v);
-                setString('signal_volume', String(v));
               }}
+              onPointerUp={previewSignal}
+              onKeyUp={previewSignal}
               className="w-full h-2 bg-[var(--p-outline)] rounded-lg appearance-none cursor-pointer"
               style={{ accentColor: 'var(--p-labels-text)' }}
             />
@@ -570,8 +600,14 @@ export function SettingsPage() {
               }}
             />
             <button
-              className="w-full h-10 rounded-[22px] text-[14px] font-medium"
-              style={{ background: 'var(--p-labels)', color: 'var(--p-on-labels)', border: 'none' }}
+              className="w-full h-10 rounded-[22px] text-[14px] font-medium border-0 outline-none focus:outline-none"
+              style={{
+                background: 'var(--p-labels)',
+                color: 'var(--p-labels-text)',
+                border: 'none',
+                outline: 'none',
+                boxShadow: 'none',
+              }}
               onClick={checkUpdate}
             >
               <RefreshCw className="w-4 h-4 mr-1.5" /> Проверить обновления
@@ -601,8 +637,14 @@ export function SettingsPage() {
                 <Wifi className="w-4 h-4 mr-1.5" /> Найти часы
               </button>
               <button
-                className="flex-1 h-10 rounded-[22px] text-[13px] font-medium"
-                style={{ background: 'var(--p-labels)', color: 'var(--p-labels-text)', border: 'none' }}
+                className="flex-1 h-10 rounded-[22px] text-[13px] font-medium border-0 outline-none focus:outline-none"
+                style={{
+                  background: 'var(--p-labels)',
+                  color: 'var(--p-labels-text)',
+                  border: 'none',
+                  outline: 'none',
+                  boxShadow: 'none',
+                }}
                 onClick={() => showToast('info', 'Сопряжение часов — функция подключения Wear OS')}
               >
                 <Link className="w-4 h-4 mr-1.5" /> Это мои часы
@@ -617,7 +659,12 @@ export function SettingsPage() {
 
         {/* ===== СБРОС ===== */}
         <button
-          className="w-full h-12 rounded-[24px] text-[14px] font-bold border-2 border-[#C0392B] text-[#C0392B] bg-transparent"
+          className="w-full h-12 rounded-[24px] text-[14px] font-bold"
+          style={{
+            background: 'var(--p-labels)',
+            border: '1px solid var(--p-outline)',
+            color: 'var(--p-labels-text)',
+          }}
           onClick={() => setShowResetConfirm(true)}
         >
           <AlertCircle className="w-4 h-4 mr-1.5" /> Сбросить настройки
@@ -771,14 +818,14 @@ export function SettingsPage() {
               <button
                 onClick={() => setShowResetConfirm(false)}
                 className="px-4 py-2 rounded-full text-[14px] font-medium"
-                style={{ color: 'var(--color-text-secondary)' }}
+                style={{ color: 'var(--p-labels-text)' }}
               >
                 Отмена
               </button>
               <button
                 onClick={handleResetAll}
-                className="px-4 py-2 rounded-full text-[14px] font-medium"
-                style={{ color: '#C0392B' }}
+                className="px-4 py-2 rounded-full text-[14px] font-bold"
+                style={{ background: 'var(--p-circle)', color: 'var(--p-on-circle)' }}
               >
                 Да, сбросить
               </button>

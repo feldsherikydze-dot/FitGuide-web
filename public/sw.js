@@ -5,7 +5,7 @@
 // cache.addAll падает целиком, SW не устанавливается, и браузер
 // не считает приложение устанавливаемым (ярлык открывается во вкладке).
 
-const CACHE_NAME = 'fitguide-v1.15';
+const CACHE_NAME = 'fitguide-v1.16';
 
 const STATIC_ASSETS = [
   './',
@@ -18,6 +18,11 @@ const STATIC_ASSETS = [
   './knowledge.md',
   './exercises.json',
   './picker.json',
+  './sounds/sig_default.wav',
+  './sounds/sig_alarm.wav',
+  './sounds/sig_gong.wav',
+  './sounds/sig_soft.wav',
+  './sounds/sig_mech.wav',
 ];
 
 // Установка — кэшируем статику. Каждый файл отдельно: одна ошибка

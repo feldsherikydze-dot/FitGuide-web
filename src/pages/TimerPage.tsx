@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { PageHeader } from '../components/ui';
+import { playTimerBeep } from '../core/signal';
 
 type Mode = 'clock' | 'stopwatch' | 'timer';
 
@@ -53,30 +54,6 @@ function capitalize(s: string) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
 
-function beep() {
-  try {
-    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
-    if (!Ctx) return;
-    const ctx = new Ctx();
-    for (let i = 0; i < 3; i++) {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = 880;
-      osc.type = 'square';
-      const t = ctx.currentTime + i * 0.55;
-      gain.gain.setValueAtTime(0.25, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
-      osc.start(t);
-      osc.stop(t + 0.45);
-    }
-    window.setTimeout(() => ctx.close?.(), 2200);
-  } catch {
-    /* звук не критичен */
-  }
-}
-
 export function TimerPage() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>('clock');
@@ -116,7 +93,7 @@ export function TimerPage() {
           setTimerRemain(0);
           if (!timerFinishedRef.current) {
             timerFinishedRef.current = true;
-            beep();
+            playTimerBeep();
             navigator.vibrate?.(800);
             setToast('Время вышло!');
             window.setTimeout(() => setToast(null), 3000);
