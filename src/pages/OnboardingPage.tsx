@@ -43,7 +43,8 @@ const DEFAULT_PROFILE: UserProfile = {
   level: '', equipment: [], place: '',
 };
 
-/** Заголовок раздела: 17sp bold, цвет (D) — как ?attr/appTextHeader после tintTree. */
+/** Заголовок раздела: 17sp bold, цвет (D) — как ?attr/appTextHeader. 
+ *  Описание под заголовком: 13sp, серый — как @color/textSecondary. */
 function SectionHeader({ title, desc, first }: { title: string; desc?: string; first?: boolean }) {
   return (
     <>
@@ -54,7 +55,7 @@ function SectionHeader({ title, desc, first }: { title: string; desc?: string; f
         {title}
       </h2>
       {desc && (
-        <p className="text-[13px] mt-1 leading-snug" style={{ color: 'var(--p-labels-text)' }}>
+        <p className="text-[13px] mt-1 leading-snug" style={{ color: 'var(--color-text-secondary)' }}>
           {desc}
         </p>
       )}
@@ -146,7 +147,7 @@ export function OnboardingPage() {
         <h1 className="text-[28px] font-bold leading-tight" style={{ color: 'var(--p-labels-text)' }}>
           Знакомство
         </h1>
-        <p className="text-[15px] mt-2 leading-snug" style={{ color: 'var(--p-labels-text)' }}>
+        <p className="text-[15px] mt-2 leading-snug" style={{ color: 'var(--color-text-secondary)' }}>
           Заполните анкету — приветствие и расчёты станут личными.
         </p>
 
@@ -268,13 +269,17 @@ export function OnboardingPage() {
           />
         </div>
 
-        {/* Кнопки: «Пропустить» — текстовая, «Готово» — кнопка-ярлык (B, обводка A, текст D) */}
+        {/* Кнопки: обе — кнопки-ярлыки (фон B, обводка A, текст D), как tintOne в Android */}
         <div className="flex items-center justify-between mt-8">
           <button
             type="button"
             onClick={skip}
-            className="h-11 px-2 text-[14px] font-bold uppercase active:opacity-70"
-            style={{ color: 'var(--p-labels-text)', background: 'transparent' }}
+            className="h-11 px-5 rounded-[8px] text-[14px] font-bold uppercase active:opacity-90"
+            style={{
+              background: 'var(--p-labels)',
+              border: '1px solid var(--p-outline)',
+              color: 'var(--p-labels-text)',
+            }}
           >
             Пропустить
           </button>

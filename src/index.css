@@ -171,8 +171,8 @@ img, svg, video, canvas {
 
 .fg-input::placeholder { color: var(--p-on-labels-soft); }
 
-/* Поле ввода в анкете: подсказка — приглушённый цвет надписей (D) */
-.fg-field::placeholder { color: var(--p-labels-text-soft); }
+/* Поле ввода в анкете: подсказка — серый текст, как textColorHint */
+.fg-field::placeholder { color: var(--color-text-secondary); }
 
 .fg-field:focus {
   border-color: var(--p-outline);

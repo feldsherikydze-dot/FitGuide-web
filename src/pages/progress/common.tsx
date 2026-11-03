@@ -83,7 +83,7 @@ export function Field({ value, onChange, placeholder, inputMode = 'decimal', cla
       {label && (
         <span
           className="block text-[13px] font-bold mb-1.5"
-          style={{ color: 'var(--p-labels-text)' }}
+          style={{ color: 'var(--color-text-secondary)' }}
         >
           {label}
         </span>
