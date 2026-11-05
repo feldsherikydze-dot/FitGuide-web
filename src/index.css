@@ -281,6 +281,15 @@ img, svg, video, canvas {
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 .safe-top { padding-top: env(safe-area-inset-top); }
 
+/* Перетаскиваемые плитки ярлыков: блокируем контекстное меню браузера и выделение при долгом таче на мобилке */
+.fg-drag-tile {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+}
+
 /* Темы через data-theme атрибут (приоритет над prefers-color-scheme) */
 :root[data-theme="dark"] {
   --color-surface: #14171A;

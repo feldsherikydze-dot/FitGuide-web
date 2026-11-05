@@ -189,14 +189,14 @@ export interface ToolDef {
 export function ToolTile({ tool }: { tool: ToolDef }) {
   return (
     <Link to={tool.to} className="block">
-      <div className="fg-tile flex flex-col items-center text-center px-4 py-[18px] h-full">
+      <div className="fg-tile min-h-[172px] flex flex-col items-center text-center px-4 py-[18px] h-full overflow-hidden">
         <div className="fg-circle">
           <MaskIcon src={tool.icon} color="var(--p-outline)" size={26} />
         </div>
-        <div className="mt-3 text-[15px] font-bold leading-tight" style={{ color: 'var(--p-on-labels)' }}>
+        <div className="mt-3 text-[15px] font-bold leading-tight line-clamp-1" style={{ color: 'var(--p-on-labels)' }}>
           {tool.title}
         </div>
-        <div className="mt-0.5 text-[12px] leading-snug" style={{ color: 'var(--p-on-labels-soft)' }}>
+        <div className="mt-0.5 text-[12px] leading-snug line-clamp-2" style={{ color: 'var(--p-on-labels-soft)' }}>
           {tool.subtitle}
         </div>
       </div>

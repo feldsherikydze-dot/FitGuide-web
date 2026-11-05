@@ -160,14 +160,22 @@ export function SettingsPage() {
       const files = e.target.files;
       if (!files || files.length === 0) return;
       const next = [...mySplashBgs];
+      let loaded = 0;
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const url = URL.createObjectURL(file);
-        next.push(url);
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = reader.result as string;
+          next.push(dataUrl);
+          loaded++;
+          if (loaded === files.length) {
+            setMySplashBgs(next);
+            setJSON('splash_my_bgs', next);
+            showToast('success', `Добавлено картинок: ${files.length}`);
+          }
+        };
+        reader.readAsDataURL(file);
       }
-      setMySplashBgs(next);
-      setJSON('splash_my_bgs', next);
-      showToast('success', `Добавлено картинок: ${files.length}`);
     };
     input.click();
   };
@@ -182,7 +190,6 @@ export function SettingsPage() {
     const next = mySplashBgs.filter(u => u !== url);
     setMySplashBgs(next);
     setJSON('splash_my_bgs', next);
-    try { URL.revokeObjectURL(url); } catch {}
   };
 
   return (
@@ -348,7 +355,7 @@ export function SettingsPage() {
             <div className="text-[13px] mb-1" style={{ color: 'var(--color-text-secondary)' }}>
               Своя картинка на заставке: как показывать
             </div>
-            <div className="flex flex-wrap gap-1 mb-3">
+            <div className="flex flex-col gap-1 mb-3">
               {SPLASH_MODE_VALUES.map((m) => (
                 <button
                   key={m.key}
@@ -705,7 +712,7 @@ export function SettingsPage() {
             <div className="text-[13px] font-bold mb-1" style={{ color: 'var(--color-text-secondary)' }}>
               Режим
             </div>
-            <div className="flex flex-wrap gap-1 mb-4">
+            <div className="flex flex-col gap-1 mb-4">
               {CLOCK_MODE_VALUES.map((m) => (
                 <button
                   key={m.key}
@@ -726,7 +733,7 @@ export function SettingsPage() {
                 <div className="text-[13px] font-bold mb-1" style={{ color: 'var(--color-text-secondary)' }}>
                   Стиль аналоговых часов
                 </div>
-                <div className="flex flex-wrap gap-1 mb-4">
+                <div className="flex flex-col gap-1 mb-4">
                   {CLOCK_ANALOG_STYLES.map((s) => (
                     <button
                       key={s.key}
@@ -749,7 +756,7 @@ export function SettingsPage() {
                 <div className="text-[13px] font-bold mb-1" style={{ color: 'var(--color-text-secondary)' }}>
                   Стиль цифровых часов
                 </div>
-                <div className="flex flex-wrap gap-1 mb-4">
+                <div className="flex flex-col gap-1 mb-4">
                   {CLOCK_DIGITAL_STYLES.map((s) => (
                     <button
                       key={s.key}
