@@ -103,7 +103,6 @@ export function ProfilePage() {
   const coach = useCoachStore();
   const { programs, remove } = useProgramsStore();
 
-  const [edit, setEdit] = useState(false);
   const [form, setForm] = useState<UserProfile>(profile || DEFAULT_PROFILE);
   const [showDelete, setShowDelete] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
@@ -203,7 +202,8 @@ export function ProfilePage() {
     const toSave: UserProfile = { ...form, goal: goalStr };
     setProfile(toSave);
     saveProfileToHistory(toSave);
-    setEdit(false);
+    // Как ProfileActivity: после сохранения закрываем экран
+    navigate('/');
   };
 
   const doDelete = () => {
@@ -570,14 +570,13 @@ export function ProfilePage() {
           )}
         </div>
 
-        {/* Кнопка "Сохранить" — filled, colorPrimary, 26dp radius, bold */}
+        {/* Кнопка "Сохранить" — B/A/D, 26dp radius, bold (btnSaveProfile) */}
         <button
           onClick={save}
-          disabled={edit === false}
           style={{
             marginTop: '8px', width: '100%', height: '52px', borderRadius: '26px',
             background: labels, color: labelsText, fontSize: '16px', fontWeight: 700,
-            border: `1px solid ${outline}`, cursor: edit ? 'pointer' : 'not-allowed', opacity: edit ? 1 : 0.5,
+            border: `1px solid ${outline}`, cursor: 'pointer',
           }}
         >
           Сохранить
