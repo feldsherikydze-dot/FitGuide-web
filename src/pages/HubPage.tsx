@@ -91,12 +91,7 @@ export function HubPage() {
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const touchDragging = useRef(false);
   const suppressClick = useRef(false);
-  const tapCandidate = useRef<{ idx: number; x: number; y: number; moved: boolean } | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
-  const toolsRef = useRef(tools);
-  useEffect(() => {
-    toolsRef.current = tools;
-  }, [tools]);
   const [touchActive, setTouchActive] = useState(false);
 
   // На тач-устройствах нативный HTML5 drag конфликтует с долгим нажатием
@@ -125,7 +120,6 @@ export function HubPage() {
 
   const resetTouch = () => {
     cancelLongPress();
-    tapCandidate.current = null;
     touchDragging.current = false;
     touchStart.current = null;
     dragSrcRef.current = null;
@@ -137,17 +131,15 @@ export function HubPage() {
     cancelLongPress();
     if (touchDragging.current) {
       setJSON(KEYS.TOOL_ORDER, orderRef.current);
+      // после перетаскивания гасим случайный клик по ссылке
       suppressClick.current = true;
-    } else if (tapCandidate.current && !tapCandidate.current.moved) {
-      // touchstart отменён (чтобы не было выделения текста), поэтому тап обрабатываем сами
-      const tool = toolsRef.current[tapCandidate.current.idx];
-      if (tool) navigate(tool.to);
     }
     resetTouch();
   };
 
-  // Долгое нажатие на телефоне: нативные non-passive обработчики.
-  // preventDefault на touchstart убирает выделение текста и меню браузера.
+  // Долгое нажатие на телефоне: нативные обработчики.
+  // touchstart НЕ отменяем — иначе браузер перестаёт прокручивать страницу.
+  // Выделение текста и меню убираем через CSS (user-select / touch-callout).
   useEffect(() => {
     const grid = gridRef.current;
     if (!grid) return;
@@ -159,11 +151,9 @@ export function HubPage() {
       if (!tileEl) return;
       const idx = Number(tileEl.dataset.tileIndex);
       if (Number.isNaN(idx)) return;
-      e.preventDefault();
       const t = e.touches[0];
       suppressClick.current = false;
       touchStart.current = { x: t.clientX, y: t.clientY };
-      tapCandidate.current = { idx, x: t.clientX, y: t.clientY, moved: false };
       cancelLongPress();
       touchTimer.current = window.setTimeout(() => {
         touchTimer.current = null;
@@ -196,7 +186,6 @@ export function HubPage() {
         const dy = Math.abs(t.clientY - touchStart.current.y);
         if (dx > 10 || dy > 10) {
           cancelLongPress();
-          if (tapCandidate.current) tapCandidate.current.moved = true;
         }
       }
     };
@@ -214,7 +203,7 @@ export function HubPage() {
       grid.removeEventListener('touchcancel', resetTouch);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dragEnabled, navigate]);
+  }, [dragEnabled]);
 
   const onDragStart = (idx: number) => {
     if (!dragEnabled) return;
@@ -363,7 +352,10 @@ export function HubPage() {
       )}
 
       {/* Сетка ярлыков — 2 колонки, карточки чёрные (B) с розовой обводкой (A) */}
-      <div className="flex-1 fg-scroll px-2 pt-1 pb-4">
+      <div
+        className="flex-1 fg-scroll fg-no-select px-2 pt-1 pb-4"
+        onContextMenu={e => e.preventDefault()}
+      >
         <div ref={gridRef} className="grid grid-cols-2 gap-0">
           {tools.map((tool, idx) => (
             <div

@@ -287,6 +287,13 @@ img, svg, video, canvas {
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 .safe-top { padding-top: env(safe-area-inset-top); }
 
+/* Зона ярлыков: без выделения текста и меню при долгом нажатии, но прокрутка остаётся */
+.fg-no-select {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 /* Перетаскиваемые плитки ярлыков: блокируем контекстное меню браузера и выделение при долгом таче на мобилке */
 .fg-drag-tile {
   -webkit-touch-callout: none;
