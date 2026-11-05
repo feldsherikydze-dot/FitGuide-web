@@ -278,6 +278,12 @@ img, svg, video, canvas {
 .fg-no-scrollbar::-webkit-scrollbar { display: none; }
 .fg-no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+/* Поля ввода: подсказка — как @color/textSecondary в Android */
+.fg-input::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 1;
+}
+
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 .safe-top { padding-top: env(safe-area-inset-top); }
 

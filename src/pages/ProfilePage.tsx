@@ -75,8 +75,6 @@ function ChipFactoryStyle(checked: boolean) {
   const labels = slotColor('labelsButtons');
   const labelsText = slotColor('labelsText');
   const onCircle = contrastOn(circle);
-  const onLabels = contrastOn(labels);
-  const onSurface = contrastOn('#FFFFFF'); // surface в светлой теме = white
   // Android ChipFactory: checked → bg=colorPrimary (C), text=white; unchecked → bg=surface, text=appTextHeader (D)
   // В вебе: checked → C + onCircle; unchecked → B (labelsButtons как surface в диалогах) + onLabels (D)
   return {
@@ -86,14 +84,15 @@ function ChipFactoryStyle(checked: boolean) {
   };
 }
 
+// Android BaseActivity.paintField: заливка — ярлыки (B), обводка — контур (A).
+// В фокусе обводка полная, без фокуса — 80% (withAlpha(outline, 0xCC)).
 function InputFieldStyle(focused: boolean) {
   const outline = slotColor('outline');
-  const surfaceVariant = '#EDF4EF'; // colorSurfaceVariant light
-  const primary = '#3AA76D'; // colorPrimary
+  const labels = slotColor('labelsButtons');
   return {
-    background: surfaceVariant,
-    borderColor: focused ? primary : outline,
-    borderWidth: focused ? 2 : 1,
+    background: labels,
+    borderColor: focused ? outline : withAlpha(outline, 0.8),
+    borderWidth: 1.5,
   };
 }
 
@@ -220,10 +219,11 @@ export function ProfilePage() {
   const labels = slotColor('labelsButtons');
   const circle = slotColor('circleIcons');
   const labelsText = slotColor('labelsText');
-  const textMain = '#1B1E20';
-  const textSecondary = '#6E767B';
-  const warning = '#C0392B';
-  const primary = '#3AA76D';
+  // Тексты — как @color/textMain / @color/textSecondary (тема Android)
+  const textMain = 'var(--color-text-main)';
+  const textSecondary = 'var(--color-text-secondary)';
+  // ?attr/colorAccent в Android = контур (A)
+  const accent = outline;
 
   const cardStyle = {
     background: labels,
@@ -234,7 +234,7 @@ export function ProfilePage() {
   const cardHeaderStyle = { color: textMain, fontWeight: 700, fontSize: '16px', fontFamily: 'Roboto, sans-serif' };
   const cardDescStyle = { color: textSecondary, fontSize: '13px', marginTop: '4px' };
   const labelStyle = { color: textSecondary, fontWeight: 700, fontSize: '13px' };
-  const optionalStyle = { color: warning, fontWeight: 700, fontSize: '13px', marginLeft: '3px' };
+  const optionalStyle = { color: accent, fontWeight: 700, fontSize: '13px', marginLeft: '3px' };
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-bg)' }}>
@@ -257,13 +257,15 @@ export function ProfilePage() {
           </div>
           <input
             type="text"
+            className="fg-input"
             value={form.name}
             onChange={e => setField('name', e.target.value)}
             placeholder="Как к тебе обращаться"
             onFocus={() => setFocusedField('name')}
             onBlur={() => setFocusedField(null)}
             style={{
-              width: '100%', marginTop: '6px', padding: '12px 16px',
+              width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box',
+              marginTop: '6px', padding: '12px 16px',
               fontSize: '15px', color: textMain,
               background: InputFieldStyle(focusedField === 'name').background,
               border: `${InputFieldStyle(focusedField === 'name').borderWidth}px solid ${InputFieldStyle(focusedField === 'name').borderColor}`,
@@ -301,10 +303,11 @@ export function ProfilePage() {
               { key: 'heightCm', label: 'Рост, см', placeholder: '180' },
               { key: 'weightKg', label: 'Вес, кг', placeholder: '80', step: '0.1' },
             ].map(f => (
-              <div key={f.key} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <div key={f.key} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                 <label style={labelStyle}>{f.label}</label>
                 <input
                   type="number"
+                  className="fg-input"
                   step={f.step}
                   value={form[f.key as keyof UserProfile] === 0 ? '' : form[f.key as keyof UserProfile]}
                   onChange={e => setNumberField(f.key as keyof UserProfile, e.target.value)}
@@ -312,6 +315,7 @@ export function ProfilePage() {
                   onFocus={() => setFocusedField(f.key)}
                   onBlur={() => setFocusedField(null)}
                   style={{
+                    width: '100%', minWidth: 0, boxSizing: 'border-box',
                     marginTop: '6px', padding: '12px 16px', fontSize: '15px', color: textMain,
                     background: InputFieldStyle(focusedField === f.key).background,
                     border: `${InputFieldStyle(focusedField === f.key).borderWidth}px solid ${InputFieldStyle(focusedField === f.key).borderColor}`,
@@ -420,13 +424,14 @@ export function ProfilePage() {
               { key: 'bodyFatPercent', label: '% жира', placeholder: '18', step: '0.1' },
               { key: 'workoutsPerWeek', label: 'Тренировок в нед.', placeholder: '4' },
             ].map(f => (
-              <div key={f.key} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <div key={f.key} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px' }}>
                   <label style={labelStyle}>{f.label}</label>
                   <span style={optionalStyle}>*</span>
                 </div>
                 <input
                   type="number"
+                  className="fg-input"
                   step={f.step}
                   value={form[f.key as keyof UserProfile] === 0 ? '' : form[f.key as keyof UserProfile]}
                   onChange={e => setNumberField(f.key as keyof UserProfile, e.target.value)}
@@ -434,6 +439,7 @@ export function ProfilePage() {
                   onFocus={() => setFocusedField(f.key)}
                   onBlur={() => setFocusedField(null)}
                   style={{
+                    width: '100%', minWidth: 0, boxSizing: 'border-box',
                     marginTop: '6px', padding: '12px 16px', fontSize: '15px', color: textMain,
                     background: InputFieldStyle(focusedField === f.key).background,
                     border: `${InputFieldStyle(focusedField === f.key).borderWidth}px solid ${InputFieldStyle(focusedField === f.key).borderColor}`,
@@ -453,6 +459,7 @@ export function ProfilePage() {
           {/* Био — многострочное */}
           <label style={{ ...labelStyle, marginTop: '16px', display: 'block' }}>О себе</label>
           <textarea
+            className="fg-input"
             value={form.bio}
             onChange={e => setField('bio', e.target.value)}
             placeholder="Расскажи о себе..."
@@ -460,7 +467,8 @@ export function ProfilePage() {
             onFocus={() => setFocusedField('bio')}
             onBlur={() => setFocusedField(null)}
             style={{
-              width: '100%', marginTop: '6px', padding: '12px 16px', fontSize: '15px', color: textMain,
+              width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box',
+              marginTop: '6px', padding: '12px 16px', fontSize: '15px', color: textMain,
               fontFamily: 'inherit', resize: 'vertical',
               background: InputFieldStyle(focusedField === 'bio').background,
               border: `${InputFieldStyle(focusedField === 'bio').borderWidth}px solid ${InputFieldStyle(focusedField === 'bio').borderColor}`,
@@ -474,16 +482,18 @@ export function ProfilePage() {
               { key: 'country', label: 'Страна', placeholder: 'Россия' },
               { key: 'city', label: 'Город', placeholder: 'Красноярск' },
             ].map(f => (
-              <div key={f.key} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <div key={f.key} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                 <label style={labelStyle}>{f.label}</label>
                 <input
                   type="text"
+                  className="fg-input"
                   value={form[f.key as keyof UserProfile]}
                   onChange={e => setField(f.key as keyof UserProfile, e.target.value)}
                   placeholder={f.placeholder}
                   onFocus={() => setFocusedField(f.key)}
                   onBlur={() => setFocusedField(null)}
                   style={{
+                    width: '100%', minWidth: 0, boxSizing: 'border-box',
                     marginTop: '6px', padding: '12px 16px', fontSize: '15px', color: textMain,
                     background: InputFieldStyle(focusedField === f.key).background,
                     border: `${InputFieldStyle(focusedField === f.key).borderWidth}px solid ${InputFieldStyle(focusedField === f.key).borderColor}`,
@@ -511,7 +521,7 @@ export function ProfilePage() {
                   key={index}
                   onClick={() => loadSavedProfile(p)}
                   style={{
-                    padding: '12px 16px', background: '#FFFFFF', border: `1px solid ${outline}`,
+                    padding: '12px 16px', background: labels, border: `1px solid ${outline}`,
                     borderRadius: '12px', cursor: 'pointer',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   }}
@@ -552,7 +562,7 @@ export function ProfilePage() {
               style={{
                 marginTop: '16px', width: '100%', height: '48px', borderRadius: '24px',
                 background: 'transparent', border: `1px solid ${outline}`,
-                color: warning, fontSize: '14px', fontWeight: 500, cursor: 'pointer',
+                color: accent, fontSize: '14px', fontWeight: 500, cursor: 'pointer',
               }}
             >
               Очистить всё
@@ -566,8 +576,8 @@ export function ProfilePage() {
           disabled={edit === false}
           style={{
             marginTop: '8px', width: '100%', height: '52px', borderRadius: '26px',
-            background: primary, color: '#FFFFFF', fontSize: '16px', fontWeight: 700,
-            border: 'none', cursor: edit ? 'pointer' : 'not-allowed', opacity: edit ? 1 : 0.5,
+            background: labels, color: labelsText, fontSize: '16px', fontWeight: 700,
+            border: `1px solid ${outline}`, cursor: edit ? 'pointer' : 'not-allowed', opacity: edit ? 1 : 0.5,
           }}
         >
           Сохранить
