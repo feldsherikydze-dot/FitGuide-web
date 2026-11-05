@@ -287,7 +287,7 @@ img, svg, video, canvas {
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
-  touch-action: none;
+  touch-action: pan-y;
 }
 
 /* Темы через data-theme атрибут (приоритет над prefers-color-scheme) */

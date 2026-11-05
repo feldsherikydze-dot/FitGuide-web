@@ -7,7 +7,7 @@
 //   A = #FF005B (розовый контур)   B = #000000 (чёрный фон плиток)
 //   C = #8FFF00 (лайм кругляшки)   D = наследует A
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { useProfileStore, useProgramsStore, useCoachStore } from '../core/store';
@@ -81,6 +81,103 @@ export function HubPage() {
   };
 
   // Перетаскивание ярлыков (long-press + drag, как на Android)
+  const orderRef = useRef(order);
+  useEffect(() => {
+    orderRef.current = order;
+  }, [order]);
+
+  const dragSrcRef = useRef<number | null>(null);
+  const touchTimer = useRef<number | null>(null);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const touchDragging = useRef(false);
+  const suppressClick = useRef(false);
+  const [touchActive, setTouchActive] = useState(false);
+
+  const cancelLongPress = () => {
+    if (touchTimer.current !== null) {
+      clearTimeout(touchTimer.current);
+      touchTimer.current = null;
+    }
+  };
+
+  const applyReorder = (from: number, to: number) => {
+    if (from === to) return;
+    const next = [...orderRef.current];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    orderRef.current = next;
+    setOrder(next);
+    dragSrcRef.current = to;
+    setDragSrc(to);
+  };
+
+  const finishTouchDrag = () => {
+    cancelLongPress();
+    if (touchDragging.current) {
+      setJSON(KEYS.TOOL_ORDER, orderRef.current);
+      suppressClick.current = true;
+    }
+    touchDragging.current = false;
+    touchStart.current = null;
+    dragSrcRef.current = null;
+    setTouchActive(false);
+    setDragSrc(null);
+  };
+
+  const onTileTouchStart = (e: React.TouchEvent, idx: number) => {
+    if (!dragEnabled) return;
+    suppressClick.current = false;
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
+    cancelLongPress();
+    touchTimer.current = window.setTimeout(() => {
+      touchTimer.current = null;
+      touchDragging.current = true;
+      dragSrcRef.current = idx;
+      setDragSrc(idx);
+      setTouchActive(true);
+      try {
+        navigator.vibrate?.(15);
+      } catch {}
+    }, 350);
+  };
+
+  const onTileTouchMove = (e: React.TouchEvent) => {
+    if (touchDragging.current || !touchStart.current) return;
+    const t = e.touches[0];
+    if (Math.abs(t.clientX - touchStart.current.x) > 8 || Math.abs(t.clientY - touchStart.current.y) > 8) {
+      cancelLongPress();
+    }
+  };
+
+  // Пока идёт touch-drag: блокируем прокрутку (нативный non-passive listener)
+  // и переставляем плитку на ту, над которой палец.
+  useEffect(() => {
+    if (!touchActive) return;
+    const onMove = (e: TouchEvent) => {
+      if (!touchDragging.current) return;
+      e.preventDefault();
+      const t = e.touches[0];
+      if (!t) return;
+      const el = document.elementFromPoint(t.clientX, t.clientY);
+      const tileEl = el?.closest('[data-tile-index]') as HTMLElement | null;
+      if (!tileEl) return;
+      const over = Number(tileEl.dataset.tileIndex);
+      if (!Number.isNaN(over) && dragSrcRef.current !== null && over !== dragSrcRef.current) {
+        applyReorder(dragSrcRef.current, over);
+      }
+    };
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', finishTouchDrag);
+    document.addEventListener('touchcancel', finishTouchDrag);
+    return () => {
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', finishTouchDrag);
+      document.removeEventListener('touchcancel', finishTouchDrag);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [touchActive]);
+
   const onDragStart = (idx: number) => {
     if (!dragEnabled) return;
     setDragSrc(idx);
@@ -231,14 +328,35 @@ export function HubPage() {
       <div className="flex-1 fg-scroll px-2 pt-1 pb-4">
         <div className="grid grid-cols-2 gap-0">
           {tools.map((tool, idx) => (
-            <div key={tool.key} className="p-2">
+            <div
+              key={tool.key}
+              className="p-2"
+              data-tile-index={idx}
+              onContextMenu={e => e.preventDefault()}
+              onClickCapture={e => {
+                if (suppressClick.current) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  suppressClick.current = false;
+                }
+              }}
+              onTouchStart={e => onTileTouchStart(e, idx)}
+              onTouchMove={onTileTouchMove}
+              onTouchEnd={finishTouchDrag}
+              onTouchCancel={finishTouchDrag}
+            >
               <div
+                className="fg-drag-tile"
                 draggable={dragEnabled}
                 onDragStart={() => onDragStart(idx)}
                 onDragOver={e => onDragOver(e, idx)}
                 onDrop={() => onDrop(idx)}
                 onDragEnd={onDragEnd}
-                style={{ opacity: dragSrc === idx ? 0.5 : 1 }}
+                style={{
+                  opacity: dragSrc === idx ? 0.5 : 1,
+                  pointerEvents: touchActive && dragSrc === idx ? 'none' : undefined,
+                  transform: touchActive && dragSrc === idx ? 'scale(1.03)' : undefined,
+                }}
               >
                 <ToolTile tool={tool} />
               </div>
