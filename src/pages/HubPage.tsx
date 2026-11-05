@@ -91,7 +91,19 @@ export function HubPage() {
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const touchDragging = useRef(false);
   const suppressClick = useRef(false);
+  const tapCandidate = useRef<{ idx: number; x: number; y: number; moved: boolean } | null>(null);
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const toolsRef = useRef(tools);
+  useEffect(() => {
+    toolsRef.current = tools;
+  }, [tools]);
   const [touchActive, setTouchActive] = useState(false);
+
+  // На тач-устройствах нативный HTML5 drag конфликтует с долгим нажатием
+  const isCoarse = useMemo(
+    () => typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches,
+    []
+  );
 
   const cancelLongPress = () => {
     if (touchTimer.current !== null) {
@@ -111,12 +123,9 @@ export function HubPage() {
     setDragSrc(to);
   };
 
-  const finishTouchDrag = () => {
+  const resetTouch = () => {
     cancelLongPress();
-    if (touchDragging.current) {
-      setJSON(KEYS.TOOL_ORDER, orderRef.current);
-      suppressClick.current = true;
-    }
+    tapCandidate.current = null;
     touchDragging.current = false;
     touchStart.current = null;
     dragSrcRef.current = null;
@@ -124,59 +133,88 @@ export function HubPage() {
     setDragSrc(null);
   };
 
-  const onTileTouchStart = (e: React.TouchEvent, idx: number) => {
-    if (!dragEnabled) return;
-    suppressClick.current = false;
-    const t = e.touches[0];
-    touchStart.current = { x: t.clientX, y: t.clientY };
+  const finishTouch = () => {
     cancelLongPress();
-    touchTimer.current = window.setTimeout(() => {
-      touchTimer.current = null;
-      touchDragging.current = true;
-      dragSrcRef.current = idx;
-      setDragSrc(idx);
-      setTouchActive(true);
-      try {
-        navigator.vibrate?.(15);
-      } catch {}
-    }, 350);
-  };
-
-  const onTileTouchMove = (e: React.TouchEvent) => {
-    if (touchDragging.current || !touchStart.current) return;
-    const t = e.touches[0];
-    if (Math.abs(t.clientX - touchStart.current.x) > 8 || Math.abs(t.clientY - touchStart.current.y) > 8) {
-      cancelLongPress();
+    if (touchDragging.current) {
+      setJSON(KEYS.TOOL_ORDER, orderRef.current);
+      suppressClick.current = true;
+    } else if (tapCandidate.current && !tapCandidate.current.moved) {
+      // touchstart отменён (чтобы не было выделения текста), поэтому тап обрабатываем сами
+      const tool = toolsRef.current[tapCandidate.current.idx];
+      if (tool) navigate(tool.to);
     }
+    resetTouch();
   };
 
-  // Пока идёт touch-drag: блокируем прокрутку (нативный non-passive listener)
-  // и переставляем плитку на ту, над которой палец.
+  // Долгое нажатие на телефоне: нативные non-passive обработчики.
+  // preventDefault на touchstart убирает выделение текста и меню браузера.
   useEffect(() => {
-    if (!touchActive) return;
-    const onMove = (e: TouchEvent) => {
-      if (!touchDragging.current) return;
+    const grid = gridRef.current;
+    if (!grid) return;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (!dragEnabled || e.touches.length !== 1) return;
+      const target = e.target as HTMLElement;
+      const tileEl = target.closest('[data-tile-index]') as HTMLElement | null;
+      if (!tileEl) return;
+      const idx = Number(tileEl.dataset.tileIndex);
+      if (Number.isNaN(idx)) return;
       e.preventDefault();
       const t = e.touches[0];
+      suppressClick.current = false;
+      touchStart.current = { x: t.clientX, y: t.clientY };
+      tapCandidate.current = { idx, x: t.clientX, y: t.clientY, moved: false };
+      cancelLongPress();
+      touchTimer.current = window.setTimeout(() => {
+        touchTimer.current = null;
+        touchDragging.current = true;
+        dragSrcRef.current = idx;
+        setDragSrc(idx);
+        setTouchActive(true);
+        try {
+          navigator.vibrate?.(15);
+        } catch {}
+      }, 300);
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      const t = e.touches[0];
       if (!t) return;
-      const el = document.elementFromPoint(t.clientX, t.clientY);
-      const tileEl = el?.closest('[data-tile-index]') as HTMLElement | null;
-      if (!tileEl) return;
-      const over = Number(tileEl.dataset.tileIndex);
-      if (!Number.isNaN(over) && dragSrcRef.current !== null && over !== dragSrcRef.current) {
-        applyReorder(dragSrcRef.current, over);
+      if (touchDragging.current) {
+        e.preventDefault();
+        const el = document.elementFromPoint(t.clientX, t.clientY);
+        const tileEl = el?.closest('[data-tile-index]') as HTMLElement | null;
+        if (!tileEl) return;
+        const over = Number(tileEl.dataset.tileIndex);
+        if (!Number.isNaN(over) && dragSrcRef.current !== null && over !== dragSrcRef.current) {
+          applyReorder(dragSrcRef.current, over);
+        }
+        return;
+      }
+      if (touchStart.current) {
+        const dx = Math.abs(t.clientX - touchStart.current.x);
+        const dy = Math.abs(t.clientY - touchStart.current.y);
+        if (dx > 10 || dy > 10) {
+          cancelLongPress();
+          if (tapCandidate.current) tapCandidate.current.moved = true;
+        }
       }
     };
-    document.addEventListener('touchmove', onMove, { passive: false });
-    document.addEventListener('touchend', finishTouchDrag);
-    document.addEventListener('touchcancel', finishTouchDrag);
+
+    const onTouchEnd = () => finishTouch();
+
+    grid.addEventListener('touchstart', onTouchStart, { passive: false });
+    grid.addEventListener('touchmove', onTouchMove, { passive: false });
+    grid.addEventListener('touchend', onTouchEnd);
+    grid.addEventListener('touchcancel', resetTouch);
     return () => {
-      document.removeEventListener('touchmove', onMove);
-      document.removeEventListener('touchend', finishTouchDrag);
-      document.removeEventListener('touchcancel', finishTouchDrag);
+      grid.removeEventListener('touchstart', onTouchStart);
+      grid.removeEventListener('touchmove', onTouchMove);
+      grid.removeEventListener('touchend', onTouchEnd);
+      grid.removeEventListener('touchcancel', resetTouch);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [touchActive]);
+  }, [dragEnabled, navigate]);
 
   const onDragStart = (idx: number) => {
     if (!dragEnabled) return;
@@ -250,7 +288,7 @@ export function HubPage() {
       </header>
 
       {/* Карточка: часы, погода, неделя — чёрный фон (B), розовая обводка (A) */}
-      <div className="mx-4 mt-2 mb-1 fg-banner px-3.5 py-2.5"
+      <div className="mx-4 mt-2 mb-1 fg-banner px-3.5 py-2.5 select-none"
         style={{ background: labels, border: `1px solid ${outline}`, borderRadius: '16px', color: '#FFFFFF' }}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -326,7 +364,7 @@ export function HubPage() {
 
       {/* Сетка ярлыков — 2 колонки, карточки чёрные (B) с розовой обводкой (A) */}
       <div className="flex-1 fg-scroll px-2 pt-1 pb-4">
-        <div className="grid grid-cols-2 gap-0">
+        <div ref={gridRef} className="grid grid-cols-2 gap-0">
           {tools.map((tool, idx) => (
             <div
               key={tool.key}
@@ -340,14 +378,10 @@ export function HubPage() {
                   suppressClick.current = false;
                 }
               }}
-              onTouchStart={e => onTileTouchStart(e, idx)}
-              onTouchMove={onTileTouchMove}
-              onTouchEnd={finishTouchDrag}
-              onTouchCancel={finishTouchDrag}
             >
               <div
                 className="fg-drag-tile"
-                draggable={dragEnabled}
+                draggable={dragEnabled && !isCoarse}
                 onDragStart={() => onDragStart(idx)}
                 onDragOver={e => onDragOver(e, idx)}
                 onDrop={() => onDrop(idx)}
