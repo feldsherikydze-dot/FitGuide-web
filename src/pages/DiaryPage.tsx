@@ -1,8 +1,9 @@
 // FitGuide Web — дневник и замеры тела (порт DiaryFragment + JournalFragment + BodyLogStore)
 
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { Calendar, Plus, Trash2, NotebookPen, Ruler, TrendingUp, X, Check } from 'lucide-react';
+import { Calendar, Plus, Trash2, NotebookPen, Ruler, TrendingUp, X, Check, ChevronLeft } from 'lucide-react';
 import { useCoachStore, useJournalStore, useBodyLogStore, useProfileStore } from '../core/store';
 import { tonnage } from '../core/coach';
 import type { JournalEntry, BodyLogEntry } from '../data/types';
@@ -11,13 +12,20 @@ const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', '�
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
 export function DiaryPage() {
+  const navigate = useNavigate();
   const [tab, setTab] = useState<'calendar' | 'journal' | 'body'>('calendar');
 
   return (
     <div className="max-w-3xl mx-auto space-y-4 w-full max-w-full">
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--p-labels-text)]">Дневник</h1>
-        <p className="text-[var(--color-text-secondary)] text-sm">Календарь тренировок, записи и замеры тела</p>
+      <div className="flex items-center gap-1">
+        <button onClick={() => navigate(-1)} className="w-12 h-12 -ml-2 flex items-center justify-center rounded-full active:bg-black/5 flex-shrink-0"
+          aria-label="Назад">
+          <ChevronLeft size={26} style={{ color: 'var(--p-labels-text)' }} />
+        </button>
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold text-[var(--p-labels-text)]">Дневник</h1>
+          <p className="text-[var(--color-text-secondary)] text-sm">Календарь тренировок, записи и замеры тела</p>
+        </div>
       </div>
 
       <div className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] p-1 flex">
@@ -28,7 +36,7 @@ export function DiaryPage() {
         ] as const).map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={clsx('flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1.5',
-              tab === t.id ? 'bg-[var(--p-circle)] text-[#000000]' : 'text-[var(--color-text-secondary)] hover:bg-black/5')}>
+              tab === t.id ? 'bg-[var(--p-circle)] text-[var(--p-on-circle)]' : 'text-[var(--color-text-secondary)] hover:bg-black/5')}>
             <t.icon className="w-4 h-4" /> {t.label}
           </button>
         ))}
@@ -170,7 +178,7 @@ function JournalView() {
               <button onClick={() => setAdding(false)} className="px-3 py-1.5 rounded-lg text-[var(--color-text-secondary)] hover:bg-black/5">
                 Отмена
               </button>
-              <button onClick={add} className="px-3 py-1.5 bg-[var(--p-circle)] text-[#000000] rounded-lg hover:bg-black/5">Сохранить</button>
+              <button onClick={add} className="px-3 py-1.5 bg-[var(--p-circle)] text-[var(--p-on-circle)] rounded-lg hover:bg-black/5">Сохранить</button>
             </div>
           </div>
         ) : (
@@ -195,7 +203,7 @@ function JournalView() {
               {e.title && <h3 className="font-semibold text-[var(--p-labels-text)] mt-0.5">{e.title}</h3>}
             </div>
             <button onClick={() => { if (confirm('Удалить запись?')) removeEntry(e.id); }}
-              className="p-1.5 text-[var(--color-text-secondary)] hover:text-[#C0392B] hover:bg-[#C0392B]/20 rounded-lg flex-shrink-0">
+              className="p-1.5 text-[var(--color-text-secondary)] hover:text-warning hover:bg-warning/20 rounded-lg flex-shrink-0">
               <Trash2 className="w-4 h-4" />
             </button>
           </div>
@@ -245,7 +253,7 @@ function BodyView() {
             </div>
             <div className="flex gap-2 justify-end">
               <button onClick={() => setAdding(false)} className="px-3 py-1.5 rounded-lg text-[var(--color-text-secondary)] hover:bg-black/5">Отмена</button>
-              <button onClick={add} className="px-3 py-1.5 bg-[var(--p-circle)] text-[#000000] rounded-lg hover:bg-black/5">Сохранить</button>
+              <button onClick={add} className="px-3 py-1.5 bg-[var(--p-circle)] text-[var(--p-on-circle)] rounded-lg hover:bg-black/5">Сохранить</button>
             </div>
           </div>
         ) : (
@@ -285,7 +293,7 @@ function BodyView() {
               </div>
             </div>
             <button onClick={() => { if (confirm('Удалить замер?')) removeLog(e.id); }}
-              className="p-1.5 text-[var(--color-text-secondary)] hover:text-[#C0392B] hover:bg-[#C0392B]/20 rounded-lg">
+              className="p-1.5 text-[var(--color-text-secondary)] hover:text-warning hover:bg-warning/20 rounded-lg">
               <Trash2 className="w-4 h-4" />
             </button>
           </div>

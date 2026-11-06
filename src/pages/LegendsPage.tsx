@@ -63,8 +63,8 @@ export function LegendsPage() {
         {LEGEND_CATALOG.map(p => (
           <div key={p.id} className="mb-2.5 p-4 rounded-[20px]"
             style={{ background: 'var(--color-surface)', border: '1px solid var(--color-outline)' }}>
-            <div className="text-[18px] font-bold" style={{ color: 'var(--p-labels)' }}>{p.name}</div>
-            <div className="mt-0.5 text-[13px]" style={{ color: 'var(--p-labels)' }}>{p.author}</div>
+            <div className="text-[18px] font-bold" style={{ color: 'var(--p-labels-text)' }}>{p.name}</div>
+            <div className="mt-0.5 text-[13px]" style={{ color: 'var(--p-labels-text)' }}>{p.author}</div>
             <div className="mt-1.5 text-[13px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
               {AUDIENCE_LABELS[p.audience]} · {GOAL_LABELS[normalizeGoal(p.goal)]} · {LEVEL_LABELS[p.level]}
               <br />
@@ -76,7 +76,7 @@ export function LegendsPage() {
             <button
               onClick={() => choose(p)}
               className="mt-2.5 px-2 py-1.5 text-[15px] font-bold active:opacity-70"
-              style={{ color: 'var(--p-labels)' }}
+              style={{ color: 'var(--p-labels-text)' }}
             >
               Добавить «{p.name}»
             </button>

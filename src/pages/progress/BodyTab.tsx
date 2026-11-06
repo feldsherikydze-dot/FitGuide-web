@@ -189,7 +189,7 @@ export function BodyTab() {
 
       <Card>
         <SectionTitle>Текущее состояние</SectionTitle>
-        <div className="mt-1 text-[28px] font-bold" style={{ color: 'var(--p-labels)' }}>
+        <div className="mt-1 text-[28px] font-bold" style={{ color: 'var(--p-labels-text)' }}>
           {latest ? `${latest.weightKg.toFixed(1)} кг` : '—'}
         </div>
         {delta !== null && (

@@ -69,7 +69,11 @@ export function SettingsPage() {
   const [clockDigitalStyle, setClockDigitalStyle] = useState<'classic' | 'minimal'>('classic');
 
   // ---- локальное состояние настроек (хранятся в localStorage) ----
-  const [dragEnabled, setDragEnabled] = useState(() => getString('home_drag_enabled', '1') !== '0');
+  // Ключ как в Android (SettingsActivity): drag_enabled. Старый home_drag_enabled
+  // читаем только для миграции уже сохранённых настроек.
+  const [dragEnabled, setDragEnabled] = useState(
+    () => getString('drag_enabled', getString('home_drag_enabled', '1')) !== '0'
+  );
   const [searchEnabled, setSearchEnabled] = useState(() => getString('home_search_enabled', '1') !== '0');
   const [weatherCity, setWeatherCity] = useState(() => getString('weather_city', 'Красноярск'));
   const [weatherIpDetect, setWeatherIpDetect] = useState(() => getString('weather_ip_detect', '0') === '1');
@@ -339,7 +343,7 @@ export function SettingsPage() {
                     <img src={url} alt="" className="w-full h-full object-cover rounded-[12px]" />
                     <button
                       onClick={(e) => { e.stopPropagation(); removeMySplashBg(url); }}
-                      className="absolute -right-1 -bottom-1 w-5 h-5 rounded-full bg-[#C0392B] text-[#FFFFFF] text-[10px] flex items-center justify-center"
+                      className="absolute -right-1 -bottom-1 w-5 h-5 rounded-full bg-warning text-[#FFFFFF] text-[10px] flex items-center justify-center"
                       aria-label="Удалить"
                     >
                       ✕
@@ -493,7 +497,13 @@ export function SettingsPage() {
               <input
                 type="checkbox"
                 checked={dragEnabled}
-                onChange={e => { setDragEnabled(e.target.checked); setString('home_drag_enabled', e.target.checked ? '1' : '0'); }}
+                onChange={e => {
+                  setDragEnabled(e.target.checked);
+                  const v = e.target.checked ? '1' : '0';
+                  setString('drag_enabled', v);
+                  // дубль для старого кэша PWA; после обновления SW не нужен
+                  setString('home_drag_enabled', v);
+                }}
                 className="sr-only peer"
               />
               <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-[var(--p-outline)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#FFFFFF] after:border-[var(--p-outline)] after:border after:rounded-full after:h-5 after:w-5 after:transition-all"

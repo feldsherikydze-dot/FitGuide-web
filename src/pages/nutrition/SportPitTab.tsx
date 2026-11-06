@@ -140,10 +140,10 @@ export function SportPitTab() {
                 style={{ background: 'var(--color-surface-variant)', border: '1px solid var(--color-outline)' }}
               >
                 <div className="text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>{a.name}</div>
-                <div className="mt-0.5 text-[13px]" style={{ color: 'var(--p-labels)' }}>Дозировка: {a.dose}</div>
+                <div className="mt-0.5 text-[13px]" style={{ color: 'var(--p-labels-text)' }}>Дозировка: {a.dose}</div>
                 <div className="mt-0.5 text-[13px] leading-snug" style={{ color: 'var(--color-text-secondary)' }}>{a.why}</div>
                 {a.products.length > 0 && (
-                  <div className="mt-1 text-[13px] font-bold" style={{ color: 'var(--p-labels)' }}>
+                  <div className="mt-1 text-[13px] font-bold" style={{ color: 'var(--p-labels-text)' }}>
                     Рекомендуемые варианты →
                   </div>
                 )}

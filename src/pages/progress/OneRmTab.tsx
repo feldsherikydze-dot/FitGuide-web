@@ -128,7 +128,7 @@ export function OneRmTab() {
         </div>
 
         {result > 0 && (
-          <div className="mt-3 text-[20px] font-bold" style={{ color: 'var(--p-labels)' }}>
+          <div className="mt-3 text-[20px] font-bold" style={{ color: 'var(--p-labels-text)' }}>
             1ПМ ≈ {trimNum(result)} кг
           </div>
         )}
@@ -172,7 +172,7 @@ export function OneRmTab() {
                     <div className="text-[15px] font-bold truncate" style={{ color: 'var(--color-text-main)' }}>
                       {rm.n}
                     </div>
-                    <div className="mt-0.5 text-[14px]" style={{ color: 'var(--p-labels)' }}>
+                    <div className="mt-0.5 text-[14px]" style={{ color: 'var(--p-labels-text)' }}>
                       1ПМ {trimNum(rm.v)} кг
                     </div>
                     <div className="mt-0.5 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>

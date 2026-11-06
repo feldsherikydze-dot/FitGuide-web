@@ -38,8 +38,10 @@ export function NutritionHubPage() {
             onClick={() => setTab(t.key)}
             className="flex-1 py-3.5 text-center border-b-2 transition-colors"
             style={{
-              borderColor: tab === t.key ? 'var(--p-labels)' : 'transparent',
-              color: tab === t.key ? 'var(--p-labels)' : 'var(--color-text-secondary)',
+              borderColor: tab === t.key ? 'var(--p-outline)' : 'transparent',
+              color: tab === t.key
+                ? 'var(--color-text-main)'
+                : 'color-mix(in srgb, var(--color-text-main) 70%, transparent)',
               fontWeight: tab === t.key ? 700 : 400,
               fontSize: 13,
             }}

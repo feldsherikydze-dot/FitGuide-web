@@ -134,7 +134,7 @@ export function NutritionPage() {
               {LEVELS.map(l => (
                 <button key={l.value} onClick={() => setLevel(l.value)}
                   className={clsx('flex-1 py-2 rounded-lg text-sm font-medium transition-colors',
-                    level === l.value ? 'bg-[var(--p-circle)] text-[#000000]' : 'bg-[var(--color-bg)] text-[var(--color-text-secondary)]')}>
+                    level === l.value ? 'bg-[var(--p-circle)] text-[var(--p-on-circle)]' : 'bg-[var(--color-bg)] text-[var(--color-text-secondary)]')}>
                   {l.label}
                 </button>
               ))}
@@ -146,7 +146,7 @@ export function NutritionPage() {
               {BUDGETS.map(b => (
                 <button key={b.value} onClick={() => setBudget(b.value)}
                   className={clsx('flex-1 py-2 rounded-lg text-sm font-medium transition-colors',
-                    budget === b.value ? 'bg-[var(--p-circle)] text-[#000000]' : 'bg-[var(--color-bg)] text-[var(--color-text-secondary)]')}>
+                    budget === b.value ? 'bg-[var(--p-circle)] text-[var(--p-on-circle)]' : 'bg-[var(--color-bg)] text-[var(--color-text-secondary)]')}>
                   {b.label}
                 </button>
               ))}

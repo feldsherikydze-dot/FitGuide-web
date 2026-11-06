@@ -1,7 +1,8 @@
 // FitGuide Web — страница упражнений
 
 import { useState, useMemo } from 'react';
-import { Search, Filter, Dumbbell, Target, ChevronDown, ChevronUp, ExternalLink, AlertTriangle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Filter, Dumbbell, Target, ChevronLeft, ChevronDown, ChevronUp, ExternalLink, AlertTriangle } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useExercises } from '../hooks/useExercises';
 import type { Exercise, MuscleGroup } from '../data/types';
@@ -17,6 +18,7 @@ const EQUIPMENT_FILTERS = [
 ] as const;
 
 export function ExercisesPage() {
+  const navigate = useNavigate();
   const { exercises, muscleGroups, search, filterByAvail, getEquipCategory, isBasic, isIsolation, loading } = useExercises();
   const [query, setQuery] = useState('');
   const [selectedGroup, setSelectedGroup] = useState<string>('all');
@@ -65,9 +67,13 @@ export function ExercisesPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 w-full max-w-full">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
+      {/* Header — как activity_muscle_group: назад + заголовок */}
+      <div className="flex items-center gap-1">
+        <button onClick={() => navigate(-1)} className="w-12 h-12 -ml-2 flex items-center justify-center rounded-full active:bg-black/5 flex-shrink-0"
+          aria-label="Назад">
+          <ChevronLeft size={26} style={{ color: 'var(--p-labels-text)' }} />
+        </button>
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-[var(--p-labels-text)]">База упражнений</h1>
           <p className="text-[var(--color-text-secondary)]">
             {exercises.length} упражнений · {muscleGroups.length} мышечных групп
@@ -116,11 +122,11 @@ export function ExercisesPage() {
             </select>
           </div>
           <label className="flex items-center gap-2 px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-sm cursor-pointer hover:bg-black/5">
-            <input type="checkbox" checked={showBasic} onChange={e => setShowBasic(e.target.checked)} className="w-4 h-4 text-[var(--p-labels-text)] rounded border-[var(--p-outline)]" />
+            <input type="checkbox" checked={showBasic} onChange={e => setShowBasic(e.target.checked)} className="w-4 h-4 accent-[var(--p-circle)] rounded border-[var(--p-outline)]" />
             Только базовые
           </label>
           <label className="flex items-center gap-2 px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-sm cursor-pointer hover:bg-black/5">
-            <input type="checkbox" checked={showIsolation} onChange={e => setShowIsolation(e.target.checked)} className="w-4 h-4 text-[var(--p-labels-text)] rounded border-[var(--p-outline)]" />
+            <input type="checkbox" checked={showIsolation} onChange={e => setShowIsolation(e.target.checked)} className="w-4 h-4 accent-[var(--p-circle)] rounded border-[var(--p-outline)]" />
             Только изолирующие
           </label>
         </div>
@@ -160,14 +166,14 @@ export function ExercisesPage() {
                     <div className="flex items-center gap-2 mb-1">
                       <span className={clsx(
                         'px-2 py-0.5 rounded text-xs font-medium',
-                        isBasic(exercise) ? 'bg-[var(--p-circle)] text-[#000000]' :
-                        isIsolation(exercise) ? 'bg-[var(--p-circle)] text-[#000000]' :
+                        isBasic(exercise) ? 'bg-[var(--p-circle)] text-[var(--p-on-circle)]' :
+                        isIsolation(exercise) ? 'bg-[var(--p-circle)] text-[var(--p-on-circle)]' :
                         'bg-[var(--p-outline)]/20 text-[var(--p-outline)]'
                       )}>
                         {isBasic(exercise) ? 'Базовое' : isIsolation(exercise) ? 'Изолирующее' : 'Упражнение'}
                       </span>
                       {equipCat !== 'free' && (
-                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-[var(--p-circle)] text-[#000000]">
+                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-[var(--p-circle)] text-[var(--p-on-circle)]">
                           {equipCat.charAt(0).toUpperCase() + equipCat.slice(1)}
                         </span>
                       )}
@@ -208,12 +214,12 @@ export function ExercisesPage() {
                     {(exercise.mistakes.length > 0 || exercise.tips.length > 0) && (
                       <div className="grid gap-4 sm:grid-cols-2">
                         {exercise.mistakes.length > 0 && (
-                          <div className="bg-[#C0392B]/20 border-[#C0392B] rounded-lg p-3">
-                            <h5 className="font-medium text-[#C0392B] mb-2 flex items-center gap-1">
+                          <div className="bg-warning/20 border border-warning rounded-lg p-3">
+                            <h5 className="font-medium text-warning mb-2 flex items-center gap-1">
                               <AlertTriangle className="w-4 h-4" />
                               Типичные ошибки
                             </h5>
-                            <ul className="space-y-1 text-sm text-[#C0392B]">
+                            <ul className="space-y-1 text-sm text-warning">
                               {exercise.mistakes.map((m, i) => (
                                 <li key={i} className="flex gap-1">• {m}</li>
                               ))}

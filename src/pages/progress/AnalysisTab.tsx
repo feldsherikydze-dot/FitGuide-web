@@ -123,7 +123,7 @@ export function AnalysisTab() {
         <div className="mt-1 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
           Под нагрузкой
         </div>
-        <div className="mt-0.5 text-[28px] font-bold" style={{ color: 'var(--p-labels)' }}>
+        <div className="mt-0.5 text-[28px] font-bold" style={{ color: 'var(--p-labels-text)' }}>
           {fmtDur(report.workedSec)}
         </div>
         {report.totalDurationSec > 0 && (

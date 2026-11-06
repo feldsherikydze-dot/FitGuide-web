@@ -274,7 +274,7 @@ export function KbjuTab() {
         <Card>
           <SectionTitle>Результат</SectionTitle>
           <Hint className="mt-0.5">ккал в сутки</Hint>
-          <div className="mt-1 text-[40px] font-bold tabular-nums" style={{ color: 'var(--p-labels)' }}>
+          <div className="mt-1 text-[40px] font-bold tabular-nums" style={{ color: 'var(--p-labels-text)' }}>
             {calc.kcal.toFixed(0)}
           </div>
           <div className="mt-1 grid grid-cols-3 gap-2 text-[14px]">
@@ -316,7 +316,7 @@ export function KbjuTab() {
             </div>
           </div>
           {calc.desiredText && (
-            <div className="mt-1.5 text-[13px]" style={{ color: 'var(--p-labels)' }}>
+            <div className="mt-1.5 text-[13px]" style={{ color: 'var(--p-labels-text)' }}>
               {calc.desiredText}
             </div>
           )}

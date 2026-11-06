@@ -59,7 +59,7 @@ export function SearchPage() {
   const Group = ({ title, icon: Icon, children }: any) => (
     <div className="mt-4">
       <div className="flex items-center gap-2 mb-2 px-1">
-        <Icon className="w-4 h-4" style={{ color: 'var(--p-labels)' }} />
+        <Icon className="w-4 h-4" style={{ color: 'var(--p-labels-text)' }} />
         <span className="text-[13px] font-bold uppercase tracking-wide"
           style={{ color: 'var(--color-text-secondary)' }}>{title}</span>
       </div>

@@ -56,7 +56,7 @@ export function JournalTab() {
           Общий объём: {fmtNum(stats.tonnage)} кг
         </div>
         {stats.bestName && (
-          <div className="mt-0.5 text-[14px]" style={{ color: 'var(--p-labels)' }}>
+          <div className="mt-0.5 text-[14px]" style={{ color: 'var(--p-labels-text)' }}>
             Лучший 1ПМ: {stats.bestName} · {stats.best.toFixed(1)} кг
           </div>
         )}

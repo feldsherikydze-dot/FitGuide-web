@@ -43,12 +43,13 @@ export function HubPage() {
   const circle = slotColor('circleIcons');
   const outline = slotColor('outline');
   const labels = slotColor('labelsButtons');
-  const onCircle = slotColor('circleIcons') === '#000000' ? '#FFFFFF' : '#000000'; // будет пересчитано ниже
 
   const [now, setNow] = useState(new Date());
   const [query, setQuery] = useState('');
   const [order, setOrder] = useState<string[]>(TOOLS.map(t => t.key));
-  const [dragEnabled, setDragEnabled] = useState(() => getString('home_drag_enabled', '1') !== '0');
+  const [dragEnabled, setDragEnabled] = useState(
+    () => getString('drag_enabled', getString('home_drag_enabled', '1')) !== '0'
+  );
   const [searchEnabled, setSearchEnabled] = useState(() => getString('home_search_enabled', '1') !== '0');
   const [dragSrc, setDragSrc] = useState<number | null>(null);
   const player = usePlayer();
@@ -278,13 +279,13 @@ export function HubPage() {
 
       {/* Карточка: часы, погода, неделя — чёрный фон (B), розовая обводка (A) */}
       <div className="mx-4 mt-2 mb-1 fg-banner px-3.5 py-2.5 select-none"
-        style={{ background: labels, border: `1px solid ${outline}`, borderRadius: '16px', color: '#FFFFFF' }}>
+        style={{ background: labels, border: `1px solid ${outline}`, borderRadius: '16px', color: 'var(--p-on-labels)' }}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-[36px] font-bold leading-none" style={{ color: '#FFFFFF' }}>
+            <div className="text-[36px] font-bold leading-none" style={{ color: 'var(--p-on-labels)' }}>
               {timeStr}
             </div>
-            <div className="mt-0.5 text-[13px]" style={{ color: 'rgba(255,255,255,0.7)' }}>
+            <div className="mt-0.5 text-[13px]" style={{ color: 'var(--p-on-labels-soft)' }}>
               {dateStr}
             </div>
           </div>
@@ -293,14 +294,14 @@ export function HubPage() {
               <span className="text-[26px]">·</span>
             ) : weather.temp !== null ? (
               <>
-                <span className="text-[26px] font-bold" style={{ color: '#FFFFFF' }}>
+                <span className="text-[26px] font-bold" style={{ color: 'var(--p-on-labels)' }}>
                   {weather.temp > 0 ? '+' : ''}{Math.round(weather.temp)}°C
                 </span>
                 <span className="text-[26px]">{weather.emoji}</span>
               </>
             ) : null}
             {weather.city && (
-              <div className="text-[12px]" style={{ color: 'rgba(255,255,255,0.7)' }}>
+              <div className="text-[12px]" style={{ color: 'var(--p-on-labels-soft)' }}>
                 {weather.city}
               </div>
             )}
@@ -316,14 +317,14 @@ export function HubPage() {
             });
             return (
               <div key={date.toISOString()} className="flex flex-col items-center">
-                <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                <span className="text-[11px]" style={{ color: 'var(--p-on-labels-soft)' }}>
                   {WEEKDAYS[(date.getDay() + 6) % 7]}
                 </span>
                 <span
                   className={clsx('mt-0.5 w-7 h-7 rounded-full flex items-center justify-center text-[13px]')}
                   style={isToday
-                    ? { background: circle, color: '#000000', fontWeight: '700' }
-                    : { color: '#FFFFFF' }}
+                    ? { background: circle, color: 'var(--p-on-circle)', fontWeight: '700' }
+                    : { color: 'var(--p-on-labels)' }}
                 >
                   {date.getDate()}
                 </span>

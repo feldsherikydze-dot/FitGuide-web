@@ -93,7 +93,7 @@ export function ProgramsPage() {
           </p>
         </div>
         <button onClick={() => setShowGen(true)}
-          className="px-4 py-2 bg-[var(--p-circle)] text-[#000000] rounded-lg font-medium hover:bg-black/5 flex items-center gap-2">
+          className="px-4 py-2 bg-[var(--p-circle)] text-[var(--p-on-circle)] rounded-lg font-medium hover:bg-black/5 flex items-center gap-2">
           <Plus className="w-4 h-4" /> Новая программа
         </button>
       </div>
@@ -219,7 +219,7 @@ export function ProgramsPage() {
                   Отмена
                 </button>
                 <button onClick={generate} disabled={!db}
-                  className="px-4 py-2 bg-[var(--p-circle)] text-[#000000] rounded-lg font-medium hover:bg-black/5 disabled:opacity-50 flex items-center gap-1.5">
+                  className="px-4 py-2 bg-[var(--p-circle)] text-[var(--p-on-circle)] rounded-lg font-medium hover:bg-black/5 disabled:opacity-50 flex items-center gap-1.5">
                   <Zap className="w-4 h-4" /> Сгенерировать
                 </button>
               </div>
@@ -234,7 +234,7 @@ export function ProgramsPage() {
           <h3 className="text-lg font-medium text-[var(--p-labels-text)] mb-2">Программ пока нет</h3>
           <p className="text-[var(--color-text-secondary)] mb-6">Сгенерируй первую под свою цель</p>
           <button onClick={() => setShowGen(true)}
-            className="px-6 py-3 bg-[var(--p-circle)] text-[#000000] rounded-lg font-medium hover:bg-black/5 inline-flex items-center gap-2">
+            className="px-6 py-3 bg-[var(--p-circle)] text-[var(--p-on-circle)] rounded-lg font-medium hover:bg-black/5 inline-flex items-center gap-2">
             <Plus className="w-4 h-4" /> Создать
           </button>
         </div>
@@ -262,7 +262,7 @@ export function ProgramsPage() {
                       <Copy className="w-4 h-4" />
                     </button>
                     <button onClick={() => { if (confirm('Удалить программу?')) remove(p.id); }}
-                      className="p-2 text-[#C0392B] hover:bg-[#C0392B]/20 rounded-lg" title="Удалить">
+                      className="p-2 text-warning hover:bg-warning/20 rounded-lg" title="Удалить">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>

@@ -310,7 +310,7 @@ export function CustomProgramPage() {
         </div>
         <button onClick={() => setPickFor({ bi, di })}
           className="w-full h-9 mt-1.5 rounded-[20px] text-[12px] font-semibold"
-          style={{ border: '1px solid var(--color-outline)', color: 'var(--p-labels)', background: 'var(--color-surface-variant)' }}>
+          style={{ border: '1px solid var(--p-outline)', color: 'var(--p-labels-text)', background: 'var(--p-labels)' }}>
           + Упражнение
         </button>
       </div>
@@ -327,7 +327,7 @@ export function CustomProgramPage() {
           {periodized && (
             <button onClick={() => setBlockGoal(bi, b.goal === GOALS.MASS ? GOALS.STRENGTH : GOALS.MASS)}
               className="flex-1 text-[12px] text-center rounded-[16px] px-2 py-1"
-              style={{ border: '1px solid var(--p-labels)', color: 'var(--p-labels)', background: 'transparent' }}>
+              style={{ border: '1px solid var(--p-outline)', color: 'var(--p-labels-text)', background: 'var(--p-labels)' }}>
               сменить цель
             </button>
           )}
@@ -350,13 +350,13 @@ export function CustomProgramPage() {
         </div>
         <button onClick={() => addDay(bi)}
           className="w-full h-9 mt-1.5 rounded-[20px] text-[12px] font-semibold"
-          style={{ border: '1px solid var(--color-outline)', color: 'var(--p-labels)', background: 'var(--color-surface-variant)' }}>
+          style={{ border: '1px solid var(--p-outline)', color: 'var(--p-labels-text)', background: 'var(--p-labels)' }}>
           + День
         </button>
         {!periodized && (
           <button onClick={addBlock}
             className="w-full h-9 mt-1 rounded-[20px] text-[12px] font-semibold"
-            style={{ border: '1px solid var(--color-outline)', color: 'var(--p-labels)', background: 'var(--color-surface-variant)' }}>
+            style={{ border: '1px solid var(--p-outline)', color: 'var(--p-labels-text)', background: 'var(--p-labels)' }}>
             + Блок
           </button>
         )}
@@ -486,7 +486,7 @@ export function CustomProgramPage() {
           {periodized && (
             <button onClick={addBlock}
               className="w-full h-9 mt-1 rounded-[20px] text-[12px] font-semibold"
-              style={{ border: '1px solid var(--color-outline)', color: 'var(--p-labels)', background: 'var(--color-surface-variant)' }}>
+              style={{ border: '1px solid var(--p-outline)', color: 'var(--p-labels-text)', background: 'var(--p-labels)' }}>
               + Блок
             </button>
           )}

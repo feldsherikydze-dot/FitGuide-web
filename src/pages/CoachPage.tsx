@@ -75,7 +75,7 @@ export function CoachPage() {
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--p-labels)" strokeWidth="2.5"
           strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
       </button>
-      <div className="ml-1 text-[20px] font-bold" style={{ color: 'var(--p-labels)' }}>Карманный тренер</div>
+      <div className="ml-1 text-[20px] font-bold" style={{ color: 'var(--p-labels-text)' }}>Карманный тренер</div>
     </div>
   );
 
@@ -85,7 +85,7 @@ export function CoachPage() {
       <div className="max-w-2xl mx-auto pb-8 w-full max-w-full">
         {header}
         <div className="px-4">
-          <h1 className="text-[18px] font-bold mb-1" style={{ color: 'var(--p-labels)' }}>
+          <h1 className="text-[18px] font-bold mb-1" style={{ color: 'var(--p-labels-text)' }}>
             Привет! Я твой карманный тренер
           </h1>
           <p className="text-[14px] leading-relaxed" style={{ color: 'var(--color-text-main)' }}>
@@ -93,7 +93,7 @@ export function CoachPage() {
             разберу каждую тренировку и буду следить за формой. Сначала выбери, как предпочитаешь тренироваться.
           </p>
 
-          <div className="mt-5 mb-2 text-[15px] font-bold" style={{ color: 'var(--p-labels)' }}>
+          <div className="mt-5 mb-2 text-[15px] font-bold" style={{ color: 'var(--p-labels-text)' }}>
             Как предпочитаешь тренироваться?
           </div>
 
@@ -140,7 +140,7 @@ export function CoachPage() {
       {header}
       {/* --- План на сегодня --- */}
       <div className={clsx(
-        'rounded-2xl p-5 text-[#000000]',
+        'rounded-2xl p-5 text-[var(--p-on-circle)]',
         plan.kind === 'train' ? 'bg-gradient-to-br from-[var(--p-circle)] to-[var(--p-circle)]/80' :
         plan.kind === 'checkpoint' ? 'bg-gradient-to-br from-[var(--p-circle)] to-[var(--p-circle)]/80' :
         plan.kind === 'rest' ? 'bg-gradient-to-br from-[var(--p-circle)] to-[var(--p-circle)]/80' :
@@ -191,9 +191,9 @@ export function CoachPage() {
           {checkin && (
             <span className={clsx(
               'px-3 py-1 rounded-full text-sm font-mono font-bold',
-              score >= 7 ? 'bg-[var(--p-circle)] text-[#000000] dark:bg-[var(--p-circle)] dark:text-[#000000]' :
+              score >= 7 ? 'bg-[var(--p-circle)] text-[var(--p-on-circle)] dark:bg-[var(--p-circle)] dark:text-[var(--p-on-circle)]' :
               score >= 5 ? 'bg-[var(--p-outline)]/20 text-[var(--p-outline)] dark:bg-[var(--p-outline)]/30 dark:text-[var(--p-outline)]' :
-              'bg-[#C0392B]/20 text-[#C0392B] dark:bg-[#C0392B]/30 dark:text-[#C0392B]'
+              'bg-warning/20 text-warning dark:bg-warning/30 dark:text-warning'
             )}>
               {score}/9
             </span>
@@ -223,7 +223,7 @@ export function CoachPage() {
                     className={clsx(
                       'flex-1 py-2 rounded-lg text-sm font-medium transition-colors',
                       checkin?.[key] === v
-                        ? 'bg-[var(--p-circle)] text-[#000000]'
+                        ? 'bg-[var(--p-circle)] text-[var(--p-on-circle)]'
                         : 'bg-[var(--p-labels)] border border-[var(--p-outline)] text-[var(--color-text-secondary)] hover:border-[var(--p-outline)]'
                     )}
                   >
@@ -281,7 +281,7 @@ export function CoachPage() {
                       <div className="flex items-center gap-2 mb-1">
                         <span className={clsx(
                           'px-2 py-0.5 rounded text-xs font-medium',
-                          slot.role === 'main' ? 'bg-[var(--p-circle)] text-[#000000]' :
+                          slot.role === 'main' ? 'bg-[var(--p-circle)] text-[var(--p-on-circle)]' :
                           slot.role === 'secondary' ? 'bg-[var(--p-outline)]/20 text-[var(--p-outline)]' :
                           'bg-[var(--p-outline)]/20 text-[var(--p-outline)]'
                         )}>
@@ -324,7 +324,7 @@ export function CoachPage() {
           className="w-full text-left bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] p-4 hover:border-[var(--p-outline)] transition-colors"
         >
           <div className="flex items-start gap-3">
-            <div className="p-2 bg-[var(--p-circle)] text-[#000000] rounded-lg flex-shrink-0">
+            <div className="p-2 bg-[var(--p-circle)] text-[var(--p-on-circle)] rounded-lg flex-shrink-0">
               <Info className="w-5 h-5 text-[var(--p-outline)]" />
             </div>
             <div className="flex-1 min-w-0">
@@ -380,7 +380,7 @@ export function CoachPage() {
         ].map(({ to, icon: Icon, title, desc }) => (
           <button key={to} onClick={() => navigate(to)}
             className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] p-4 text-left hover:border-[var(--p-outline)] transition-colors">
-            <div className="p-2 bg-[var(--p-circle)] text-[#000000] rounded-lg w-fit mb-3">
+            <div className="p-2 bg-[var(--p-circle)] text-[var(--p-on-circle)] rounded-lg w-fit mb-3">
               <Icon className="w-5 h-5 text-[var(--p-labels-text)]" />
             </div>
             <h3 className="font-semibold text-[var(--p-labels-text)] mb-1">{title}</h3>

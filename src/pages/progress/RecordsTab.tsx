@@ -157,7 +157,7 @@ export function RecordsTab() {
               <div className="text-[16px] font-bold" style={{ color: 'var(--color-text-main)' }}>
                 {r.exercise}
               </div>
-              <div className="mt-1 text-[14px]" style={{ color: 'var(--p-labels)' }}>
+              <div className="mt-1 text-[14px]" style={{ color: 'var(--p-labels-text)' }}>
                 Лучший подход: {r.maxWeight.toFixed(1)} кг × {r.maxReps}
               </div>
               <div className="text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
@@ -167,7 +167,7 @@ export function RecordsTab() {
                 {formatFullDate(r.bestDate)} · подходов за всё время: {r.totalSets} · объём: {Math.round(r.totalTonnage)} кг
               </div>
               {r.manual && (
-                <div className="text-[12px]" style={{ color: 'var(--color-accent, #C0392B)' }}>
+                <div className="text-[12px]" style={{ color: 'var(--color-warning)' }}>
                   добавлено вручную · долгое нажатие — удалить
                 </div>
               )}
