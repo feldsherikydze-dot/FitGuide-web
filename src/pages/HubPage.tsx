@@ -11,7 +11,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { useProfileStore, useProgramsStore, useCoachStore } from '../core/store';
-import { usePaletteVars, TopBar, TopBarButton, ToolTile, MiniPlayer, SearchField, type ToolDef, asset } from '../components/ui';
+import { usePaletteVars, TopBar, TopBarButton, ToolTile, MiniPlayer, SearchField, MaskIcon, type ToolDef, asset } from '../components/ui';
 import { getJSON, setJSON, KEYS, getString } from '../core/storage';
 import { usePlayer } from '../core/player';
 import { useWeather } from '../core/weather';
@@ -258,19 +258,19 @@ export function HubPage() {
         <div className="fg-topbar safe-top px-5 pt-2.5 pb-2.5 flex items-center gap-2"
           style={{ background: 'linear-gradient(135deg, var(--p-circle-from), var(--p-circle-to))' }}>
           <div className="flex-1 min-w-0">
-            <div className="fg-topbar-title truncate" style={{ color: '#FFFFFF' }}>
+            <div className="fg-topbar-title truncate">
               FitGuide
             </div>
-            <div className="fg-topbar-sub truncate" style={{ color: 'rgba(255,255,255,0.8)' }}>
+            <div className="fg-topbar-sub truncate">
               Создай лучшую версию себя
             </div>
           </div>
           <div className="flex gap-1">
-            <button onClick={() => navigate('/profile')} aria-label="Профиль" className="p-2.5 rounded-full active:bg-white/20 flex-shrink-0">
-              <img src={asset('icons/ic_tool_profile.svg')} alt="" className="w-5 h-5" style={{ filter: 'brightness(0) invert(1)' }} />
+            <button onClick={() => navigate('/profile')} aria-label="Профиль" className="p-2.5 rounded-full active:bg-black/10 flex-shrink-0">
+              <MaskIcon src={asset('icons/ic_tool_profile.svg')} color="var(--p-on-circle)" size={24} />
             </button>
-            <button onClick={() => navigate('/settings')} aria-label="Настройки" className="p-2.5 rounded-full active:bg-white/20 flex-shrink-0">
-              <img src={asset('icons/ic_settings.svg')} alt="" className="w-5 h-5" style={{ filter: 'brightness(0) invert(1)' }} />
+            <button onClick={() => navigate('/settings')} aria-label="Настройки" className="p-2.5 rounded-full active:bg-black/10 flex-shrink-0">
+              <MaskIcon src={asset('icons/ic_settings.svg')} color="var(--p-on-circle)" size={24} />
             </button>
           </div>
         </div>
