@@ -33,6 +33,7 @@
   --p-circle: #7FFF00;
   --p-circle-from: #7FFF00;
   --p-circle-to: #5FBF00;
+  --p-on-outline: #FFFFFF;
   --p-on-labels: #FFFFFF;
   --p-on-labels-soft: rgba(255, 255, 255, 0.8);
   --p-on-circle: #FFFFFF;
@@ -206,11 +207,12 @@ img, svg, video, canvas {
   box-shadow: 0 0 0 1px var(--p-labels);
 }
 
+/* Главное действие экрана — акцент палитры (A), как accentButton() в WorkoutActivity. */
 .fg-wk-main {
   height: 52px;
   border-radius: 26px;
-  background: var(--p-labels);
-  color: var(--p-on-labels);
+  background: var(--p-outline);
+  color: var(--p-on-outline);
   font-size: 16px;
   font-weight: 700;
 }
@@ -219,31 +221,33 @@ img, svg, video, canvas {
 .fg-wk-accent {
   height: 52px;
   border-radius: 26px;
-  background: var(--p-labels-text);
-  color: #fff;
+  background: var(--p-outline);
+  color: var(--p-on-outline);
   font-size: 16px;
   font-weight: 700;
 }
 .fg-wk-accent:active { filter: brightness(0.94); }
 
+/* Обычная кнопка MaterialButton: заливка (B), обводка (A), надпись (D). */
 .fg-wk-outline {
   min-height: 46px;
   padding: 0 16px;
-  border: 1px solid var(--color-outline);
+  border: 1px solid var(--p-outline);
   border-radius: 23px;
-  background: transparent;
-  color: var(--color-text-main);
+  background: var(--p-labels);
+  color: var(--p-labels-text);
   font-size: 14px;
   font-weight: 600;
 }
-.fg-wk-outline:active { background: rgba(0, 0, 0, 0.04); }
+.fg-wk-outline:active { filter: brightness(0.94); }
 
+/* ChipFactory: незаливаемый чип — фон surface, обводка (A), текст контрастный. */
 .fg-wk-chip {
   min-height: 38px;
   padding: 0 18px;
-  border: 1px solid var(--color-outline);
-  border-radius: 19px;
-  background: transparent;
+  border: 1px solid var(--p-outline);
+  border-radius: 8px;
+  background: var(--color-surface-variant);
   color: var(--color-text-main);
   font-size: 14px;
 }
@@ -277,10 +281,11 @@ img, svg, video, canvas {
   border-color: var(--p-labels);
   color: var(--p-on-labels);
 }
+/* Выбранный чип — кругляшки (C) и авто-контраст, как tintChipColors(). */
 .fg-wk-chip-on {
-  background: var(--p-labels);
-  border-color: var(--p-labels);
-  color: var(--p-on-labels);
+  background: var(--p-circle);
+  border-color: var(--p-outline);
+  color: var(--p-on-circle);
 }
 
 /* ---------- Прочее ---------- */

@@ -48,6 +48,24 @@ function roundHalf(n: number): number {
   return Math.round(n * 2) / 2;
 }
 
+/** Вес без лишнего «.0», как WorkoutText.formatWeight(). */
+function fmtKg(w: number): string {
+  return w === Math.round(w) ? String(Math.round(w)) : String(w);
+}
+
+/** Упражнение одной строкой: название · подходы×повторы · вес (WorkoutText.exerciseLine). */
+function lineOf(it: SessionItem, slot?: Slot): string {
+  let s = it.exercise;
+  const sets = slot?.sets || it.targetSets || it.sets;
+  if (sets > 0) {
+    s += ` · ${sets}`;
+    const reps = slot?.reps || (it.reps > 0 ? String(it.reps) : '');
+    if (reps) s += `×${reps}`;
+  }
+  if (it.weightKg > 0) s += ` · ${fmtKg(it.weightKg)} кг`;
+  return s;
+}
+
 export function WorkoutPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -68,12 +86,14 @@ export function WorkoutPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [idx, setIdx] = useState(0);
   const [, setTick] = useState(0);
+  const [begun, setBegun] = useState(false);
   const [restEnd, setRestEnd] = useState<number | null>(null);
   const [restTotal, setRestTotal] = useState(0);
   const [restPaused, setRestPaused] = useState(false);
   const [restKind, setRestKind] = useState<'set' | 'ex'>('set');
   const [awaitingFeel, setAwaitingFeel] = useState(false);
   const [finishOpen, setFinishOpen] = useState(false);
+  const [exitOpen, setExitOpen] = useState(false);
   const [sessionFeel, setSessionFeel] = useState<1 | 2 | 3 | null>(null);
   const [hintOpen, setHintOpen] = useState(false);
   const [swapOpen, setSwapOpen] = useState(false);
@@ -159,6 +179,17 @@ export function WorkoutPage() {
 
   const elapsed = session ? Math.max(0, Math.floor((Date.now() - session.ts) / 1000)) : 0;
 
+  // Тренировка «начата» — как shot.started в WorkoutService: до первого нажатия
+  // кнопка называется «Начать», а не «Подход выполнен».
+  const started = begun || completedSets > 0;
+  const allDone = session
+    ? session.items.every((it, i) => it.sets >= (it.targetSets || day?.slots[i]?.sets || 3))
+    : false;
+  const doneExercises = session ? session.items.filter(it => it.sets > 0).length : 0;
+  const tonnage = session
+    ? Math.round(session.items.reduce((n, it) => n + (it.sets > 0 ? it.sets * it.reps * it.weightKg : 0), 0))
+    : 0;
+
   // MET-оценка как в WorkoutSession.kcalPerSec(). Считаем только активное время,
   // как activeSec: отдых и простой в калории не идут.
   const kcalPerSec = 5.0 * 3.5 * Math.max(30, profile?.weightKg || 75) / 200 / 60;
@@ -167,16 +198,36 @@ export function WorkoutPage() {
   const kcalExercise = Math.round((exSecRef.current + liveSec) * kcalPerSec);
   const kcalSet = Math.round(lastSetSecRef.current * kcalPerSec);
 
+  // Превью следующего упражнения — только на последнем подходе текущего,
+  // ровно как nextPreview() в WorkoutActivity.
+  const nextPreview = (doneSets === targetSets - 1 && idx + 1 < (session?.items.length || 0))
+    ? `Следующее упражнение: ${lineOf(session!.items[idx + 1], day?.slots[idx + 1])}`
+    : '';
+
   const progressText = restEnd !== null
-    ? (restKind === 'ex' ? 'Отдых между упражнениями' : 'Отдых между подходами')
-    : exerciseDone
-      ? `Следующее: ${session?.items[idx + 1]?.exercise || 'тренировка завершена'}`
-      : `Подход ${doneSets} из ${targetSets}`;
+    ? (restKind === 'ex'
+        ? (idx + 1 < (session?.items.length || 0)
+            ? `Следующее упражнение: ${lineOf(session!.items[idx + 1], day?.slots[idx + 1])}`
+            : 'Отдых между упражнениями')
+        : 'Отдых между подходами')
+    : `Подход ${doneSets} из ${targetSets}`;
 
   const warmup = (() => {
     const w = curItem?.weightKg || 0;
     if (w <= 0) return 'Разминка: пустой гриф (или лёгкий вес) × 12–15';
-    return `Разминка: ${roundHalf(w * 0.4)} кг × 10 · ${roundHalf(w * 0.6)} кг × 6 · ${roundHalf(w * 0.8)} кг × 3`;
+    const pct = [0.4, 0.6, 0.8];
+    const reps = [10, 6, 3];
+    const parts: string[] = [];
+    let prev = -1;
+    pct.forEach((p, i) => {
+      const kg = roundHalf(w * p);
+      if (kg < 2.5 || kg <= prev) return;
+      prev = kg;
+      parts.push(`${fmtKg(kg)} кг ×${reps[i]}`);
+    });
+    return parts.length
+      ? `Разминка: ${parts.join(' · ')}`
+      : 'Разминка: пустой гриф (или лёгкий вес) × 12–15';
   })();
 
   // ------------------------------------------------------------ действия
@@ -236,7 +287,6 @@ export function WorkoutPage() {
     const isLast = nextSets >= targetSets;
     const restValue = isLast ? (curSlot.restEx || curSlot.rest) : curSlot.rest;
     startRest(parseRest(restValue, 90), isLast ? 'ex' : 'set');
-    setToast(`Подход ${nextSets}/${targetSets} записан`);
   };
 
   const skipRest = () => {
@@ -251,7 +301,7 @@ export function WorkoutPage() {
   };
 
   const changeRest = () => {
-    const v = window.prompt('Сколько секунд отдыхать?', String(restTotal || 90));
+    const v = window.prompt('Отдых между подходами', String(restLeft > 0 ? restLeft : 90));
     if (!v) return;
     const seconds = Math.max(5, parseInt(v, 10) || 90);
     setRestTotal(seconds);
@@ -282,6 +332,46 @@ export function WorkoutPage() {
     navigate('/coach');
   };
 
+  /** «Не сохранять»: тренировка закрыта, черновик тоже — как service.discard(). */
+  const discard = () => {
+    if (session) coach.removeSession(session.id);
+    navigate('/coach');
+  };
+
+  /** Главная кнопка: начать → оценка подхода → к пропущенным / итог. */
+  const onPrimary = () => {
+    if (!session) return;
+    if (!started) {
+      setBegun(true);
+      playSignal('setStart');
+      setStartRef.current = Date.now();
+      return;
+    }
+    if (!exerciseDone) {
+      setAwaitingFeel(true);
+      setStartRef.current = Date.now();
+      return;
+    }
+    if (!allDone) {
+      const i = session.items.findIndex((it, k) => it.sets < (it.targetSets || day?.slots[k]?.sets || 3));
+      if (i >= 0) {
+        setIdx(i);
+        setHintOpen(false);
+        setRestEnd(null);
+        exStartRef.current = Date.now();
+        setStartRef.current = Date.now();
+      }
+      return;
+    }
+    setFinishOpen(true);
+  };
+
+  const mainLabel = !started
+    ? 'Начать'
+    : !exerciseDone
+      ? `Подход выполнен (${doneSets + 1}/${targetSets})`
+      : allDone ? 'Завершить' : 'К пропущенным';
+
   const swapTo = (name: string) => {
     if (!session || !curItem) return;
     const items = [...session.items];
@@ -309,19 +399,19 @@ export function WorkoutPage() {
     .filter(e => e.muscleGroup === curSlot.group && e.name !== curItem.exercise)
     .slice(0, 8);
 
-  const oneRmValue = oneRm.get(curItem.exercise) || (curItem.weightKg > 0 && curItem.reps > 0
-    ? roundHalf(curItem.weightKg * (1 + curItem.reps / 30)) : 0);
+  // Как OneRmStore.effective: только сохранённый 1ПМ, без оценки «на глаз».
+  const oneRmValue = oneRm.get(curItem.exercise) || 0;
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-bg)' }}>
       {/* ---------- Шапка ---------- */}
       <div className="flex items-center px-2">
-        <button onClick={() => navigate('/coach')} className="w-12 h-12 flex items-center justify-center rounded-full active:bg-black/5"
+        <button onClick={() => setExitOpen(true)} className="w-12 h-12 flex items-center justify-center rounded-full active:bg-black/5"
           aria-label="Назад">
-          <ChevronLeft size={26} style={{ color: 'var(--p-labels)' }} />
+          <ChevronLeft size={26} style={{ color: 'var(--p-labels-text)' }} />
         </button>
         <div className="flex-1 min-w-0">
-          <div className="text-[18px] font-bold leading-tight" style={{ color: 'var(--p-labels)' }}>Тренировка</div>
+          <div className="text-[18px] font-bold leading-tight" style={{ color: 'var(--p-labels-text)' }}>Тренировка</div>
           <div className="text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
             Упражнение {idx + 1} из {session.items.length}
           </div>
@@ -334,9 +424,9 @@ export function WorkoutPage() {
 
       {/* ---------- Тело ---------- */}
       <div className="flex-1 overflow-y-auto px-6 pb-8">
-        <div className="text-center pt-3.5 pb-1.5 text-[14px] leading-snug"
+        <div className="text-center pt-3.5 pb-1.5 text-[14px] leading-snug whitespace-pre-line"
           style={{ color: 'var(--color-text-secondary)' }}>
-          {progressText}
+          {progressText}{nextPreview ? `\n${nextPreview}` : ''}
         </div>
         <div className="text-center py-0.5 text-[16px] font-bold font-mono"
           style={{ color: 'var(--p-labels-text)' }}>
@@ -349,12 +439,17 @@ export function WorkoutPage() {
         )}
 
         <h1 className="text-center pt-3 text-[22px] font-bold leading-tight"
-          style={{ color: 'var(--p-labels)' }}>
+          style={{ color: 'var(--p-labels-text)' }}>
           {curItem.exercise}
         </h1>
         <div className="text-center pt-1 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
           {warmup}
         </div>
+        {oneRmValue > 0 && (
+          <div className="text-center pt-1 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
+            1ПМ ≈ {fmtKg(oneRmValue)} кг
+          </div>
+        )}
 
         {/* Подходы / Повторы / Вес */}
         <div className="grid grid-cols-3 gap-2 mt-[18px]">
@@ -392,32 +487,9 @@ export function WorkoutPage() {
         </div>
 
         {/* Кнопка подхода / оценка */}
-        {!awaitingFeel && !exerciseDone && restEnd === null && (
-          <button
-            onClick={() => {
-              if (restEnd !== null) return;
-              if (doneSets === 0) playSignal('setStart');
-              setAwaitingFeel(true);
-              setStartRef.current = Date.now();
-            }}
-            className="fg-wk-main mt-3 w-full"
-          >
-            {doneSets === 0 ? 'Начать' : 'Подход выполнен'}
-          </button>
-        )}
-
-        {!awaitingFeel && exerciseDone && restEnd === null && (
-          <button
-            onClick={() => {
-              if (idx + 1 < session.items.length) {
-                goExercise(1);
-              } else {
-                setFinishOpen(true);
-              }
-            }}
-            className="fg-wk-main mt-3 w-full"
-          >
-            {idx + 1 < session.items.length ? 'Следующее упражнение' : 'Завершить тренировку'}
+        {!awaitingFeel && restEnd === null && (
+          <button onClick={onPrimary} className="fg-wk-main mt-3 w-full">
+            {mainLabel}
           </button>
         )}
 
@@ -458,12 +530,14 @@ export function WorkoutPage() {
           </div>
         )}
 
-        {/* Калории */}
-        <div className="text-center mt-2 text-[13px]" style={{ color: 'var(--p-labels-text)' }}>
-          {curSlot.workSec && curSlot.workSec > 0
-            ? `Подходов: ${completedSets} · Повторов: ${session.items.reduce((n, it) => n + it.sets * it.reps, 0)} · Всего: ${kcalWorkout} ккал`
-            : `Подход: ${kcalSet} ккал · Упражнение: ${kcalExercise} ккал · Тренировка: ${kcalWorkout} ккал`}
-        </div>
+        {/* Калории — только когда тренировка уже началась, как shot.started */}
+        {started && (
+          <div className="text-center mt-2 text-[13px]" style={{ color: 'var(--p-labels-text)' }}>
+            {curSlot.workSec && curSlot.workSec > 0
+              ? `Подходов: ${completedSets} · Повторов: ${session.items.reduce((n, it) => n + it.sets * it.reps, 0)} · Всего: ${kcalWorkout} ккал`
+              : `Подход: ${kcalSet} ккал · Упражнение: ${kcalExercise} ккал · Тренировка: ${kcalWorkout} ккал`}
+          </div>
+        )}
 
         {/* Переключение упражнений */}
         <div className="flex gap-2 mt-2">
@@ -487,10 +561,16 @@ export function WorkoutPage() {
         </button>
 
         {hintOpen && (
-          <div className="pt-2 text-[13px] space-y-2" style={{ color: 'var(--color-text-main)' }}>
-            <div><b>Мышцы:</b> {exercise ? `${exercise.muscleGroup} · ${exercise.target}` : curSlot.group}</div>
-            <div><b>Техника:</b> {exercise?.steps?.length ? exercise.steps.join(' · ') : 'Держи спину нейтрально, двигайся подконтрольно.'}</div>
-            <div><b>Ошибки:</b> {exercise?.mistakes?.length ? exercise.mistakes.join(' · ') : 'Рывки, неполная амплитуда, потеря нейтральной спины.'}</div>
+          <div className="pt-2 text-[13px] space-y-1.5" style={{ color: 'var(--color-text-main)' }}>
+            <div>{exercise ? [exercise.target, ...(exercise.secondaryMuscles || [])].filter(Boolean).join(' · ') : curSlot.group}</div>
+            <div className="whitespace-pre-line">
+              {exercise?.steps?.length
+                ? exercise.steps.map((s, i) => `${i + 1}. ${s}`).join('\n')
+                : (exercise?.description || '')}
+            </div>
+            {exercise?.mistakes?.length ? (
+              <div>Ошибки: {exercise.mistakes.join('; ')}</div>
+            ) : null}
           </div>
         )}
 
@@ -509,11 +589,14 @@ export function WorkoutPage() {
       {finishOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-6">
           <div className="w-full max-w-md rounded-2xl p-5" style={{ background: 'var(--p-labels)' }}>
-            <h3 className="text-[18px] font-bold mb-1" style={{ color: 'var(--color-text-main)' }}>
-              Как прошла тренировка?
+            <h3 className="text-[18px] font-bold mb-2" style={{ color: 'var(--color-text-main)' }}>
+              Тренировка завершена!
             </h3>
-            <p className="text-[13px] mb-3" style={{ color: 'var(--color-text-secondary)' }}>
-              Подходов: {completedSets} из {totalSets} · {Math.round(kcalWorkout)} ккал
+            <p className="text-[15px] leading-snug whitespace-pre-line" style={{ color: 'var(--color-text-main)' }}>
+              {`Упражнений: ${doneExercises}, подходов: ${completedSets}\nВремя: ${fmt(elapsed)}, объём: ${tonnage} кг\nСожжено: ${kcalWorkout} ккал`}
+            </p>
+            <p className="text-[14px] mt-3.5 mb-2" style={{ color: 'var(--color-text-main)' }}>
+              Как прошла тренировка?
             </p>
             <div className="flex gap-2 mb-4">
               {FEELS.map(f => (
@@ -523,14 +606,32 @@ export function WorkoutPage() {
                 </button>
               ))}
             </div>
-            {completedSets < totalSets && (
-              <p className="text-[12px] mb-3" style={{ color: 'var(--color-warning)' }}>
-                Не все подходы выполнены. Тренер учтёт это в прогрессии.
-              </p>
-            )}
             <div className="flex gap-2">
-              <button onClick={() => setFinishOpen(false)} className="fg-wk-outline flex-1">Завершить позже</button>
-              <button onClick={finish} className="fg-wk-main flex-1">Завершить</button>
+              <button onClick={discard} className="fg-wk-outline flex-1">Не сохранять</button>
+              <button onClick={finish} className="fg-wk-main flex-1">Сохранить</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- Выход из тренировки ---------- */}
+      {exitOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-6">
+          <div className="w-full max-w-md rounded-2xl p-5" style={{ background: 'var(--p-labels)' }}>
+            <p className="text-[15px] leading-snug mb-4" style={{ color: 'var(--color-text-main)' }}>
+              Выйти из тренировки? Прогресс сохранится — продолжишь с этого места.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setExitOpen(false)} className="fg-wk-outline flex-1">Назад</button>
+              <button
+                onClick={() => {
+                  setExitOpen(false);
+                  setToast('Прогресс сохранён — продолжишь с этого места.');
+                  navigate('/coach');
+                }}
+                className="fg-wk-main flex-1">
+                Завершить позже
+              </button>
             </div>
           </div>
         </div>
@@ -572,23 +673,23 @@ export function WorkoutPage() {
           <div className="w-full max-w-md rounded-2xl p-5" style={{ background: 'var(--p-labels)' }}
             onClick={e => e.stopPropagation()}>
             <h3 className="text-[18px] font-bold mb-1" style={{ color: 'var(--color-text-main)' }}>
-              Рабочие веса от 1ПМ
+              Рабочие веса · 1ПМ {fmtKg(oneRmValue)} кг
             </h3>
             <p className="text-[13px] mb-3" style={{ color: 'var(--color-text-secondary)' }}>
-              {curItem.exercise}: 1ПМ ≈ {oneRmValue > 0 ? `${oneRmValue} кг` : 'не рассчитан'}
+              {curItem.exercise}
             </p>
             {oneRmValue > 0 ? (
               <div className="grid grid-cols-2 gap-2">
-                {[40, 50, 60, 70, 80, 90].map(p => (
+                {[90, 85, 80, 75, 70].map(p => (
                   <button key={p} onClick={() => { patchItem({ weightKg: roundHalf(oneRmValue * p / 100) }); setWeightsOpen(false); }}
                     className="fg-wk-outline">
-                    {p}% — {roundHalf(oneRmValue * p / 100)} кг
+                    {p}% — {fmtKg(roundHalf(oneRmValue * p / 100))} кг
                   </button>
                 ))}
               </div>
             ) : (
               <p className="text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
-                Сначала сохрани 1ПМ в «Профиле» или выполни подход с весом — расчёт появится сам.
+                Сначала сохраните 1ПМ в «Мой прогресс» → вкладка 1ПМ
               </p>
             )}
             <button onClick={() => setWeightsOpen(false)} className="fg-wk-outline w-full mt-3">Закрыть</button>

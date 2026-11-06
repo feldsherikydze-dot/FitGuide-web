@@ -43,6 +43,7 @@ export function usePaletteVars() {
   root.style.setProperty('--p-grad-from', grad.from);
   root.style.setProperty('--p-grad-to', grad.to);
   // Авто-контраст к заливкам (как contrastOn в Android)
+  root.style.setProperty('--p-on-outline', contrastOn(outline));
   root.style.setProperty('--p-on-labels', contrastOn(labels));
   root.style.setProperty('--p-on-labels-soft', withAlpha(contrastOn(labels), 0.8));
   root.style.setProperty('--p-on-circle', contrastOn(circle));
