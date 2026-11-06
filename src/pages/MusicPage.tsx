@@ -440,7 +440,15 @@ export function MusicPage() {
 
       <div className="flex-1 min-h-0 overflow-y-auto fg-scroll fg-no-select">
         {tab === 'local' && (
-          <div className="px-4 pt-1">
+          <div
+            className="px-4 pt-1 min-h-full"
+            onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+            onDrop={e => {
+              e.preventDefault();
+              const files = Array.from(e.dataTransfer.files || []);
+              if (files.length) void addFiles(files, false);
+            }}
+          >
             <input
               value={localQuery}
               onChange={e => setLocalQuery(e.target.value)}
@@ -455,9 +463,14 @@ export function MusicPage() {
             {localBusy && <Status>{localBusy}</Status>}
             {!localBusy && localVisible.length === 0 && !localLoading && (
               <Status>
-                {localRecords.length === 0
-                  ? 'На телефоне музыка не найдена. Добавьте треки кнопкой выше.'
-                  : 'Ничего не найдено'}
+                {localRecords.length === 0 ? (
+                  <>
+                    <div>На телефоне музыка не найдена. Добавьте треки кнопкой выше.</div>
+                    <div className="text-[12px] mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+                      Браузер не сканирует память сам — выберите файлы или папку.
+                    </div>
+                  </>
+                ) : 'Ничего не найдено'}
               </Status>
             )}
             {localLoading && <Status>Загрузка…</Status>}

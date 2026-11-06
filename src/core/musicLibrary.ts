@@ -207,16 +207,40 @@ export async function addLocalFiles(
   return { added: records.length, total: audio.length, skipped };
 }
 
-/** Выбор файлов через обычный диалог. */
-export function pickAudioFiles(): Promise<File[]> {
+/**
+ * Создаёт input и обязательно вешает его в DOM: часть мобильных браузеров
+ * игнорирует click() у отвязанного элемента, и кнопка «Добавить треки»
+ * выглядела нерабочей. После выбора/отмены элемент убирается.
+ */
+function openFilePicker(configure: (input: HTMLInputElement) => void, filter?: (f: File) => boolean): Promise<File[]> {
   return new Promise(resolve => {
     const input = document.createElement('input');
     input.type = 'file';
+    input.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0';
+    configure(input);
+    document.body.appendChild(input);
+
+    let settled = false;
+    const finish = (files: File[]) => {
+      if (settled) return;
+      settled = true;
+      input.remove();
+      resolve(files);
+    };
+    input.addEventListener('change', () => {
+      const files = Array.from(input.files || []);
+      finish(filter ? files.filter(filter) : files);
+    });
+    input.addEventListener('cancel', () => finish([]));
+    input.click();
+  });
+}
+
+/** Выбор файлов через обычный диалог. */
+export function pickAudioFiles(): Promise<File[]> {
+  return openFilePicker(input => {
     input.accept = 'audio/*,.mp3,.m4a,.aac,.ogg,.opus,.wav,.flac';
     input.multiple = true;
-    input.onchange = () => resolve(Array.from(input.files || []));
-    input.oncancel = () => resolve([]);
-    input.click();
   });
 }
 
@@ -266,16 +290,11 @@ export async function pickFolderAudioFiles(): Promise<File[]> {
     }
   }
 
-  return new Promise(resolve => {
-    const input = document.createElement('input');
-    input.type = 'file';
+  return openFilePicker(input => {
     input.multiple = true;
     input.setAttribute('webkitdirectory', '');
     input.setAttribute('directory', '');
-    input.onchange = () => resolve(Array.from(input.files || []).filter(isAudioFile));
-    input.oncancel = () => resolve([]);
-    input.click();
-  });
+  }, isAudioFile);
 }
 
 export function formatDuration(ms?: number): string {
