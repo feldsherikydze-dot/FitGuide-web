@@ -353,7 +353,7 @@ export function HubPage() {
 
       {/* Сетка ярлыков — 2 колонки, карточки чёрные (B) с розовой обводкой (A) */}
       <div
-        className="flex-1 fg-scroll fg-no-select px-2 pt-1 pb-4"
+        className="flex-1 fg-scroll fg-no-select px-2 pt-1 pb-28"
         onContextMenu={e => e.preventDefault()}
       >
         <div ref={gridRef} className="grid grid-cols-2 gap-0">
@@ -391,18 +391,28 @@ export function HubPage() {
         </div>
       </div>
 
-      {/* Мини-плеер — как <include layout="@layout/mini_player"> в activity_main.xml */}
-      {player.visible && (
-        <MiniPlayer state={{
-          title: player.title,
-          subtitle: player.subtitle,
-          playing: player.playing,
-          onToggle: player.toggle,
-          onPrev: player.prev,
-          onNext: player.next,
-          onClose: player.close,
-        }} />
-      )}
+      {/* Мини-плеер — как <include layout="@layout/mini_player"> в activity_main.xml.
+          В Android он виден всегда (в том числе с подписью «Выберите трек или радио»). */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-40 w-full"
+        style={{
+          paddingBottom: 'env(safe-area-inset-bottom)',
+          background: 'linear-gradient(to top, var(--color-bg) 72%, transparent)',
+        }}
+      >
+        <div className="max-w-3xl mx-auto w-full">
+          <MiniPlayer state={{
+            title: player.title,
+            subtitle: player.subtitle,
+            playing: player.playing,
+            onToggle: player.toggle,
+            onPrev: player.prev,
+            onNext: player.next,
+            onClose: player.close,
+            onOpen: () => navigate('/music'),
+          }} />
+        </div>
+      </div>
     </div>
   );
 }

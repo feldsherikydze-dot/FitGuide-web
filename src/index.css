@@ -248,6 +248,19 @@ img, svg, video, canvas {
   font-size: 14px;
 }
 
+/* Чип плеера — как ChipFactory: фон (B), обводка (A), текст (D),
+   выбранный — фон (C) и авто-контраст к нему. */
+.fg-pchip {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--p-outline);
+  border-radius: 8px;
+  background: var(--p-labels);
+  color: var(--p-labels-text);
+  font-size: 13px;
+  line-height: 1.2;
+}
+
 /* Chip из Android: 32dp, скругление 8dp, выбранный — цветом темы. */
 .fg-chip {
   min-height: 32px;

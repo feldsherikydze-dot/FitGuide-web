@@ -214,35 +214,64 @@ export interface MiniPlayerState {
   onPrev: () => void;
   onNext: () => void;
   onClose: () => void;
+  onOpen?: () => void;
 }
 
+/**
+ * Мини-плеер из mini_player.xml: карточка (B) с обводкой (A), значок,
+ * название/исполнитель, транспорт и закрытие. Тап по карточке открывает
+ * полный экран «Плеер», как miniPlayerHost в MainActivity.
+ */
 export function MiniPlayer({ state }: { state: MiniPlayerState }) {
   return (
     <div className="px-4 my-1">
-      <div className="fg-miniplayer flex items-center gap-2 py-1.5 pl-4 pr-2">
-        <div className="w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0"
+      <div
+        className="fg-miniplayer flex items-center gap-1.5 py-1.5 pl-4 pr-1.5"
+        role="button"
+        tabIndex={0}
+        onClick={state.onOpen}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') state.onOpen?.(); }}
+        style={{ cursor: state.onOpen ? 'pointer' : 'default' }}
+      >
+        <div className="w-11 h-11 rounded-[12px] flex items-center justify-center flex-shrink-0"
           style={{ background: 'var(--color-surface-variant)' }}>
           <MaskIcon src={asset('icons/ic_music.svg')} color="var(--p-labels-text)" size={24} />
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-[15px] font-bold truncate" style={{ color: 'var(--p-on-labels)' }}>
+        <div className="flex-1 min-w-0 pl-1">
+          <div className="text-[15px] font-bold truncate" style={{ color: 'var(--color-text-main)' }}>
             {state.title}
           </div>
-          <div className="text-[12px] truncate mt-0.5" style={{ color: 'var(--p-on-labels-soft)' }}>
+          <div className="text-[12px] truncate mt-px" style={{ color: 'var(--color-text-secondary)' }}>
             {state.subtitle}
           </div>
         </div>
-        <button onClick={state.onPrev} aria-label="Предыдущий" className="p-2.5">
-          <MaskIcon src={asset('icons/ic_skip_prev.svg')} color="var(--p-labels-text)" />
+        <button
+          onClick={e => { e.stopPropagation(); state.onPrev(); }}
+          aria-label="Назад"
+          className="w-10 h-10 flex items-center justify-center rounded-full active:bg-black/10 flex-shrink-0"
+        >
+          <MaskIcon src={asset('icons/ic_skip_prev.svg')} color="var(--p-labels-text)" size={24} />
         </button>
-        <button onClick={state.onToggle} aria-label="Играть/пауза" className="p-3">
-          <MaskIcon src={asset(state.playing ? 'icons/ic_pause.svg' : 'icons/ic_play.svg')} color="var(--p-labels-text)" />
+        <button
+          onClick={e => { e.stopPropagation(); state.onToggle(); }}
+          aria-label="Играть / пауза"
+          className="w-[46px] h-[46px] flex items-center justify-center rounded-full active:bg-black/10 flex-shrink-0"
+        >
+          <MaskIcon src={asset(state.playing ? 'icons/ic_pause.svg' : 'icons/ic_play.svg')} color="var(--p-labels-text)" size={26} />
         </button>
-        <button onClick={state.onNext} aria-label="Следующий" className="p-2.5">
-          <MaskIcon src={asset('icons/ic_skip_next.svg')} color="var(--p-labels-text)" />
+        <button
+          onClick={e => { e.stopPropagation(); state.onNext(); }}
+          aria-label="Дальше"
+          className="w-10 h-10 flex items-center justify-center rounded-full active:bg-black/10 flex-shrink-0"
+        >
+          <MaskIcon src={asset('icons/ic_skip_next.svg')} color="var(--p-labels-text)" size={24} />
         </button>
-        <button onClick={state.onClose} aria-label="Закрыть" className="p-2.5">
-          <MaskIcon src={asset('icons/ic_close.svg')} color="var(--p-labels-text)" />
+        <button
+          onClick={e => { e.stopPropagation(); state.onClose(); }}
+          aria-label="Остановить"
+          className="w-10 h-10 flex items-center justify-center rounded-full active:bg-black/10 flex-shrink-0"
+        >
+          <MaskIcon src={asset('icons/ic_close.svg')} color="var(--p-labels-text)" size={24} />
         </button>
       </div>
     </div>

@@ -1,356 +1,701 @@
-// FitGuide Web — страница музыки
+// FitGuide Web — экран «Плеер» (порт PlayerActivity + activity_player.xml)
+//
+// Четыре вкладки, как в Android: Моя музыка / Радио / Онлайн / Любимое.
+// Своя музыка хранится в IndexedDB, радио — RadioBrowser, онлайн — Audius
+// с запасным каталогом Internet Archive. Один <audio> на всё приложение,
+// поэтому воспроизведение продолжается при переходе на другие экраны.
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Pause, SkipForward, SkipBack, Volume2, VolumeX, Music, Radio, Headphones, Heart, Plus, Search, Shuffle, Repeat, Mic, Loader2 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { PageHeader } from '../components/ui';
-import { useUIStore } from '../core/store';
+import { PageHeader, MaskIcon, asset, usePaletteVars } from '../components/ui';
+import { Dialog } from './progress/common';
+import { getString, setString } from '../core/storage';
+import {
+  addLocalFiles, deleteLocalRecord, formatDuration, listLocalRecords, pickAudioFiles,
+  pickFolderAudioFiles, type LocalRecord,
+} from '../core/musicLibrary';
+import { onlineByGenres, onlineSearch, onlineTrending, radioAutotune, radioSearch, isShortPreview } from '../core/musicApi';
+import { likedTracks, subscribeLikes, toggleLike, isLiked } from '../core/musicLikes';
+import {
+  cycleRepeat, nextTrack, playQueue, prevTrack, seek, stopAll, togglePlay, toggleShuffle,
+  usePlayer, type PlayerTrack,
+} from '../core/player';
 
-interface Track {
-  id: string;
-  title: string;
-  artist: string;
-  duration: number;
-  source: 'local' | 'radio' | 'online';
-  url?: string;
-  artwork?: string;
-  liked?: boolean;
+type Tab = 'local' | 'radio' | 'online' | 'fav';
+type RadioFilter = 'ru' | 'all' | 'fav';
+
+const GENRES = ['Поп', 'Хип-хоп', 'Рок', 'Электроника', 'Танцевальная', 'R&B', 'Инди', 'Джаз', 'Классика', 'Метал'];
+
+function fmt(sec: number): string {
+  if (!Number.isFinite(sec) || sec <= 0) return '0:00';
+  const s = Math.floor(sec);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-const RADIO_STATIONS = [
-  { id: 'radio1', name: 'Energy FM', genre: 'Electronic / Dance', url: 'https://stream.energyfm.ru/energy_128.mp3' },
-  { id: 'radio2', name: 'Rock FM', genre: 'Rock / Metal', url: 'https://stream.rockfm.ru/rock_128.mp3' },
-  { id: 'radio3', name: 'Hip-Hop FM', genre: 'Hip-Hop / Rap', url: 'https://stream.hiphop.ru/hiphop_128.mp3' },
-  { id: 'radio4', name: 'Workout Mix', genre: 'Motivation / Fitness', url: 'https://stream.workoutmix.com/workout_128.mp3' },
-] as const;
+function isRuStation(t: PlayerTrack): boolean {
+  const c = (t.country || '').toLowerCase();
+  return c.includes('росси') || c.includes('russia');
+}
 
-const MOCK_LOCAL_TRACKS: Track[] = [
-  { id: '1', title: 'Power Up', artist: 'FitBeats', duration: 180, source: 'local', artwork: 'https://picsum.photos/seed/power/300', liked: true },
-  { id: '2', title: 'Iron Will', artist: 'GymSound', duration: 210, source: 'local', artwork: 'https://picsum.photos/seed/iron/300' },
-  { id: '3', title: 'Beast Mode', artist: 'LiftMusic', duration: 195, source: 'local', artwork: 'https://picsum.photos/seed/beast/300', liked: true },
-  { id: '4', title: 'No Pain No Gain', artist: 'WorkoutWave', duration: 240, source: 'local', artwork: 'https://picsum.photos/seed/pain/300' },
-];
+function trackSub(t: PlayerTrack): string {
+  let s = t.artist || '';
+  if (t.live) return s ? `${s} · LIVE` : 'LIVE';
+  if (t.durationMs) return s ? `${s} · ${formatDuration(t.durationMs)}` : formatDuration(t.durationMs);
+  return s;
+}
+
+function trackBadge(t: PlayerTrack): string {
+  if (t.live) return 'LIVE';
+  if (t.source === 'online') return isShortPreview(t) ? '30с' : 'FULL';
+  return '';
+}
+
+// ---------------------------------------------------------------- элементы
+
+function Chip({ on, children, onClick }: { on: boolean; children: React.ReactNode; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="fg-pchip active:opacity-80"
+      style={{
+        background: on ? 'var(--p-circle)' : 'var(--p-labels)',
+        borderColor: on ? 'var(--p-circle)' : 'var(--p-outline)',
+        color: on ? 'var(--p-on-circle)' : 'var(--p-labels-text)',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function PlayerButton({ children, onClick, className }: {
+  children: React.ReactNode; onClick: () => void; className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={clsx('h-10 px-4 rounded-[22px] text-[14px] font-medium active:opacity-80', className)}
+      style={{
+        background: 'var(--p-labels)',
+        border: '1px solid var(--p-outline)',
+        color: 'var(--p-labels-text)',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Status({ children }: { children: React.ReactNode }) {
+  // tvP*Status в activity_player.xml без своего цвета — наследует textMain.
+  return (
+    <div className="py-3 text-center text-[13px]" style={{ color: 'var(--color-text-main)' }}>
+      {children}
+    </div>
+  );
+}
+
+function TrackRow({ track, onPlay, onLike, onDelete }: {
+  track: PlayerTrack;
+  onPlay: () => void;
+  onLike: () => void;
+  onDelete?: () => void;
+}) {
+  const liked = isLiked(track);
+  const badge = trackBadge(track);
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onPlay}
+      onKeyDown={e => { if (e.key === 'Enter') onPlay(); }}
+      className="mx-1.5 my-1.5 rounded-[16px] flex items-center pl-3.5 pr-2 py-2.5 active:opacity-90"
+      style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
+    >
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="text-[15px] font-bold truncate" style={{ color: 'var(--color-text-main)' }}>
+            {track.title}
+          </div>
+          {badge && (
+            // tvPBadge в item_player_track.xml — ?attr/colorPrimary,
+            // BaseActivity перекрашивает акцент в надписи (D).
+            <span className="text-[11px] font-bold flex-shrink-0" style={{ color: 'var(--p-labels-text)' }}>
+              {badge}
+            </span>
+          )}
+        </div>
+        <div className="text-[12px] mt-0.5 truncate" style={{ color: 'var(--color-text-secondary)' }}>
+          {trackSub(track)}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={e => { e.stopPropagation(); onLike(); }}
+        aria-label={liked ? 'Убрать из любимых' : 'Нравится этот трек'}
+        className="w-[42px] h-[42px] flex items-center justify-center rounded-full active:bg-black/10 flex-shrink-0"
+      >
+        <MaskIcon
+          src={asset(liked ? 'icons/ic_heart.svg' : 'icons/ic_heart_outline.svg')}
+          color="var(--p-on-labels)"
+          size={22}
+          className={liked ? '' : 'opacity-70'}
+        />
+      </button>
+      {onDelete && (
+        <button
+          type="button"
+          onClick={e => { e.stopPropagation(); onDelete(); }}
+          aria-label="Удалить трек"
+          className="w-[42px] h-[42px] flex items-center justify-center rounded-full active:bg-black/10 flex-shrink-0 opacity-85"
+        >
+          <MaskIcon src={asset('icons/ic_delete.svg')} color="var(--p-on-labels)" size={22} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function useLikesVersion() {
+  const [, force] = useState(0);
+  useEffect(() => subscribeLikes(() => force(x => x + 1)), []);
+}
+
+// ---------------------------------------------------------------- страница
 
 export function MusicPage() {
-  const { theme } = useUIStore();
+  usePaletteVars();
   const navigate = useNavigate();
-  const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [volume, setVolume] = useState(0.7);
-  const [showQueue, setShowQueue] = useState(false);
-  const [activeTab, setActiveTab] = useState<'local' | 'radio' | 'online'>('local');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [shuffle, setShuffle] = useState(false);
-  const [repeat, setRepeat] = useState(false);
-  const [audioRef, setAudioRef] = useState<HTMLAudioElement | null>(null);
+  const player = usePlayer();
+  useLikesVersion();
 
-  // Initialize audio
-  useEffect(() => {
-    const audio = new Audio();
-    audio.volume = volume;
-    setAudioRef(audio);
-    return () => {
-      audio.pause();
-      audio.src = '';
-    };
+  const [tab, setTab] = useState<Tab>('local');
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<number | null>(null);
+
+  const showToast = useCallback((text: string) => {
+    setToast(text);
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 2600);
   }, []);
 
-  // Load track
-  useEffect(() => {
-    if (!audioRef || !currentTrack) return;
-    audioRef.src = currentTrack.url || '';
-    audioRef.load();
-    if (isPlaying) audioRef.play().catch(() => setIsPlaying(false));
-    setProgress(0);
-  }, [currentTrack, audioRef]);
+  useEffect(() => () => {
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+  }, []);
 
-  // Progress update
-  useEffect(() => {
-    if (!audioRef) return;
-    const updateProgress = () => {
-      if (audioRef.duration) {
-        setProgress(audioRef.currentTime / audioRef.duration);
-      }
-    };
-    audioRef.addEventListener('timeupdate', updateProgress);
-    audioRef.addEventListener('ended', () => {
-      if (repeat) {
-        audioRef.currentTime = 0;
-        audioRef.play();
-      } else {
-        setIsPlaying(false);
-        // Auto next
-      }
-    });
-    return () => audioRef.removeEventListener('timeupdate', updateProgress);
-  }, [audioRef, repeat]);
+  // ---- своя музыка ----
+  const [localRecords, setLocalRecords] = useState<LocalRecord[]>([]);
+  const [localLoading, setLocalLoading] = useState(true);
+  const [localBusy, setLocalBusy] = useState<string | null>(null);
+  const [localQuery, setLocalQuery] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<PlayerTrack | null>(null);
 
-  const togglePlay = () => {
-    if (!audioRef || !currentTrack) return;
-    if (isPlaying) {
-      audioRef.pause();
-    } else {
-      audioRef.play().catch(() => {});
+  const reloadLocal = useCallback(async () => {
+    const rows = await listLocalRecords();
+    setLocalRecords(rows);
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    reloadLocal()
+      .catch(() => { if (alive) setLocalRecords([]); })
+      .finally(() => { if (alive) setLocalLoading(false); });
+    return () => { alive = false; };
+  }, [reloadLocal]);
+
+  const localTracks = useMemo<PlayerTrack[]>(() => localRecords.map(r => ({
+    id: `local_${r.key}`,
+    title: r.title,
+    artist: r.artist,
+    durationMs: r.durationMs,
+    source: 'local',
+    localKey: r.key,
+  })), [localRecords]);
+
+  const localVisible = useMemo(() => {
+    const q = localQuery.trim().toLowerCase();
+    if (!q) return localTracks;
+    return localTracks.filter(t => `${t.title} ${t.artist}`.toLowerCase().includes(q));
+  }, [localTracks, localQuery]);
+
+  const addFiles = useCallback(async (files: File[], folder: boolean) => {
+    if (!files.length) return;
+    setLocalBusy(folder ? 'Ищу музыку в папке…' : 'Добавляю треки…');
+    try {
+      const res = await addLocalFiles(files, (done, total) => {
+        setLocalBusy(`Добавляю треки… ${done} из ${total}`);
+      });
+      await reloadLocal();
+      const total = (await listLocalRecords()).length;
+      if (res.added > 0) showToast(`Найдено новых: ${res.added}. Всего в фонотеке: ${total}`);
+      else showToast('Новых файлов не нашлось — медиатека уже полная');
+    } catch {
+      showToast('Не удалось сохранить файлы в браузере');
+    } finally {
+      setLocalBusy(null);
     }
-    setIsPlaying(!isPlaying);
+  }, [reloadLocal, showToast]);
+
+  const onAddTracks = async () => {
+    const files = await pickAudioFiles();
+    await addFiles(files, false);
   };
 
-  const playTrack = (track: Track) => {
-    setCurrentTrack(track);
-    setIsPlaying(true);
+  const onFindAll = async () => {
+    const files = await pickFolderAudioFiles();
+    await addFiles(files, true);
   };
 
-  const nextTrack = () => {
-    // Simple next logic
+  const doDelete = async () => {
+    const t = deleteTarget;
+    if (!t?.localKey) return;
+    setDeleteTarget(null);
+    try {
+      await deleteLocalRecord(t.localKey);
+      await reloadLocal();
+      showToast('Трек удалён');
+    } catch {
+      showToast('Не удалось удалить трек');
+    }
   };
 
-  const prevTrack = () => {
-    // Simple prev logic
+  // ---- радио ----
+  const [radioCity, setRadioCity] = useState(() => getString('music_radio_city', 'Красноярск'));
+  const [radioQuery, setRadioQuery] = useState('');
+  const [radioFilter, setRadioFilter] = useState<RadioFilter>('ru');
+  const [radioAll, setRadioAll] = useState<PlayerTrack[]>([]);
+  const [radioLoading, setRadioLoading] = useState(false);
+  const [radioStatus, setRadioStatus] = useState('');
+  const radioInit = useRef(false);
+  const radioQueryRef = useRef('');
+
+  const autotune = useCallback(async (notify: boolean) => {
+    const city = radioCity.trim() || 'Красноярск';
+    setRadioLoading(true);
+    setRadioStatus(`Ищем волны: ${city}…`);
+    try {
+      setString('music_radio_city', city);
+      const list = await radioAutotune(city);
+      setRadioAll(list);
+      setRadioStatus(list.length ? '' : 'Ничего не найдено. Проверьте интернет.');
+      if (notify) showToast(`Найдено волн: ${list.length}`);
+    } catch {
+      setRadioStatus('Ничего не найдено. Проверьте интернет.');
+    } finally {
+      setRadioLoading(false);
+    }
+  }, [radioCity, showToast]);
+
+  useEffect(() => {
+    if (tab !== 'radio' || radioInit.current) return;
+    radioInit.current = true;
+    void autotune(false);
+  }, [tab, autotune]);
+
+  // Живой поиск волн: после 2 символов и паузы 600 мс, как в Android.
+  useEffect(() => {
+    if (tab !== 'radio') return;
+    const q = radioQuery.trim();
+    radioQueryRef.current = q;
+    if (q.length < 2) return;
+    const timer = window.setTimeout(async () => {
+      try {
+        const found = await radioSearch(q);
+        if (radioQueryRef.current !== q) return;
+        setRadioAll(prev => {
+          const seen = new Set(prev.map(t => t.url));
+          return [...prev, ...found.filter(t => t.url && !seen.has(t.url))];
+        });
+      } catch {
+        // поиск не удался — остаётся локальная фильтрация
+      }
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [radioQuery, tab]);
+
+  const radioVisible = useMemo(() => {
+    const q = radioQuery.trim().toLowerCase();
+    return radioAll.filter(t => {
+      if (radioFilter === 'fav' && !isLiked(t)) return false;
+      if (radioFilter === 'ru' && !isRuStation(t)) return false;
+      if (q && !`${t.title} ${t.artist} ${t.genre || ''}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [radioAll, radioFilter, radioQuery]);
+
+  // ---- онлайн ----
+  const [onlineQuery, setOnlineQuery] = useState('');
+  const [onlineAll, setOnlineAll] = useState<PlayerTrack[]>([]);
+  const [onlineLoading, setOnlineLoading] = useState(false);
+  const [onlineStatus, setOnlineStatus] = useState('');
+  const [genres, setGenres] = useState<string[]>([]);
+  const [genresOpen, setGenresOpen] = useState(false);
+  const onlineInit = useRef(false);
+
+  const loadOnline = useCallback(async (selected: string[], notify: boolean) => {
+    setOnlineLoading(true);
+    setOnlineStatus('Загрузка полных треков…');
+    try {
+      const list = selected.length ? await onlineByGenres(selected) : await onlineTrending();
+      setOnlineAll(list);
+      setOnlineStatus(list.length ? '' : 'Нет сети или ничего не найдено. Проверьте интернет.');
+      if (notify && list.length) showToast(`Найдено треков: ${list.length}`);
+    } catch {
+      setOnlineAll([]);
+      setOnlineStatus('Нет сети или ничего не найдено. Проверьте интернет.');
+    } finally {
+      setOnlineLoading(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    if (tab !== 'online' || onlineInit.current) return;
+    onlineInit.current = true;
+    void loadOnline([], false);
+  }, [tab, loadOnline]);
+
+  const onlineVisible = useMemo(() => {
+    const q = onlineQuery.trim().toLowerCase();
+    if (!q) return onlineAll;
+    return onlineAll.filter(t => `${t.title} ${t.artist}`.toLowerCase().includes(q));
+  }, [onlineAll, onlineQuery]);
+
+  const doOnlineSearch = async () => {
+    const q = onlineQuery.trim();
+    if (!q) {
+      await loadOnline(genres, false);
+      return;
+    }
+    setOnlineLoading(true);
+    setOnlineStatus('Поиск…');
+    try {
+      const list = await onlineSearch(q, genres);
+      setOnlineAll(list);
+      setOnlineStatus(list.length
+        ? ''
+        : (genres.length ? 'В выбранных жанрах ничего не найдено' : 'Ничего не найдено'));
+    } catch {
+      setOnlineAll([]);
+      setOnlineStatus('Ничего не найдено');
+    } finally {
+      setOnlineLoading(false);
+    }
   };
 
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const s = Math.floor(seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
+  const toggleGenre = (g: string) => {
+    const next = genres.includes(g) ? genres.filter(x => x !== g) : [...genres, g];
+    setGenres(next);
+    void loadOnline(next, true);
   };
 
-  const filteredLocal = MOCK_LOCAL_TRACKS.filter(t =>
-    t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    t.artist.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // ---- любимое ----
+  const favorites = likedTracks();
+
+  const playFrom = (list: PlayerTrack[], track: PlayerTrack) => {
+    const i = list.findIndex(t => t.id === track.id);
+    playQueue(list, i < 0 ? 0 : i);
+  };
+
+  const tabs: Array<{ id: Tab; label: string }> = [
+    { id: 'local', label: 'Моя музыка' },
+    { id: 'radio', label: 'Радио' },
+    { id: 'online', label: 'Онлайн' },
+    { id: 'fav', label: 'Любимое' },
+  ];
+
+  const live = !!player.track?.live;
+  const duration = player.duration;
+  const position = Math.min(player.position, duration || player.position);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 w-full max-w-full">
-      <PageHeader title="Музыка" onBack={() => navigate('/')} />
-
-      {/* Tabs */}
-      <div className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] p-1 flex">
-        {[
-          { id: 'local', label: 'Моя музыка', icon: Music },
-          { id: 'radio', label: 'Радио', icon: Radio },
-          { id: 'online', label: 'Онлайн', icon: Headphones },
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={clsx(
-              'flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2',
-              activeTab === tab.id ? 'bg-[var(--p-circle)] text-[#000000]' : 'text-[var(--color-text-secondary)] hover:bg-black/5'
-            )}
-          >
-            <tab.icon className="w-4 h-4" />
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Content */}
-      <div className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] overflow-hidden">
-        {activeTab === 'local' && (
-          <>
-            <div className="p-4 border-b border-[var(--p-outline)] flex items-center gap-3">
-              <input
-                type="text"
-                placeholder="Поиск в моей музыке..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="flex-1 px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-[var(--p-labels-text)] text-sm focus:ring-2 focus:ring-[var(--p-outline)]"
-              />
-              <button className="p-2 rounded-lg text-[var(--color-text-secondary)] hover:bg-black/5" title="Перемешать">
-                <Shuffle className={clsx('w-5 h-5', shuffle && 'text-[var(--p-labels-text)]')} />
-              </button>
-              <button className="p-2 rounded-lg text-[var(--color-text-secondary)] hover:bg-black/5" title="Повтор">
-                <Repeat className={clsx('w-5 h-5', repeat && 'text-[var(--p-labels-text)]')} />
+    <div
+      className="w-full max-w-3xl mx-auto flex flex-col h-[100dvh]"
+      style={{ background: 'var(--color-bg)', paddingTop: 'env(safe-area-inset-top)' }}
+    >
+      <div className="shrink-0 z-30" style={{ background: 'var(--color-bg)' }}>
+        <PageHeader
+          title="Плеер"
+          onBack={() => navigate('/')}
+          right={
+            <div className="flex items-center">
+              <button
+                onClick={() => stopAll()}
+                aria-label="Остановить"
+                className="w-11 h-11 flex items-center justify-center rounded-full active:bg-black/5"
+              >
+                <MaskIcon src={asset('icons/ic_stop.svg')} color="var(--p-labels-text)" size={24} />
               </button>
             </div>
-            <div className="divide-y divide-[var(--p-outline)]">
-              {filteredLocal.map(track => (
-                <button
-                  key={track.id}
-                  onClick={() => playTrack(track)}
-                  className={clsx(
-                    'w-full p-4 flex items-center gap-4 text-left hover:bg-black/5 transition-colors',
-                    currentTrack?.id === track.id && 'bg-[var(--p-circle)]/20 border-l-4 border-[var(--p-circle)]'
-                  )}
-                >
-                  <div className="w-12 h-12 rounded-lg bg-[var(--color-bg)] flex items-center justify-center flex-shrink-0 relative">
-                    {track.artwork && (
-                      <img src={track.artwork} alt="" className="w-full h-full rounded-lg object-cover" />
-                    )}
-                    {currentTrack?.id === track.id && isPlaying && (
-                      <div className="absolute inset-0 bg-black/30 rounded-lg flex items-center justify-center">
-                        <Pause className="w-6 h-6 text-white" />
-                      </div>
-                    )}
-                    {currentTrack?.id !== track.id && (
-                      <Play className="w-6 h-6 text-[var(--color-text-secondary)] absolute inset-0 flex items-center justify-center" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-medium text-[var(--p-labels-text)] truncate">{track.title}</h4>
-                      {track.liked && <Heart className="w-4 h-4 text-[#C0392B] fill-current" />}
-                    </div>
-                    <p className="text-sm text-[var(--color-text-secondary)] truncate">{track.artist}</p>
-                  </div>
-                  <div className="text-sm text-[var(--color-text-secondary)] font-mono w-20 text-right">
-                    {formatTime(track.duration)}
-                  </div>
-                </button>
-              ))}
-              {filteredLocal.length === 0 && (
-                <div className="p-8 text-center text-[var(--color-text-secondary)]">
-                  <Music className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>Музыка не найдена. Добавь файлы через настройки.</p>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-
-        {activeTab === 'radio' && (
-          <div className="divide-y divide-[var(--p-outline)]">
-            {RADIO_STATIONS.map(station => {
-              const track: Track = {
-                id: station.id,
-                title: station.name,
-                artist: station.genre,
-                duration: 0,
-                source: 'radio',
-                url: station.url,
-              };
-              return (
-                <button
-                  key={station.id}
-                  onClick={() => playTrack(track)}
-                  className={clsx(
-                    'w-full p-4 flex items-center gap-4 text-left hover:bg-black/5 transition-colors',
-                    currentTrack?.id === station.id && 'bg-[var(--p-circle)]/20 border-l-4 border-[var(--p-circle)]'
-                  )}
-                >
-                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[var(--p-circle)] to-[var(--p-outline)] flex items-center justify-center flex-shrink-0">
-                    <Radio className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-[var(--p-labels-text)] truncate">{station.name}</h4>
-                    <p className="text-sm text-[var(--color-text-secondary)] truncate">{station.genre}</p>
-                  </div>
-                  {currentTrack?.id === station.id ? (
-                    <div className="flex items-center gap-2 text-[var(--p-labels-text)]">
-                      {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-                      <span className="text-xs">LIVE</span>
-                    </div>
-                  ) : (
-                    <Play className="w-8 h-8 text-[var(--color-text-secondary)] hover:text-[var(--p-outline)]" />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {activeTab === 'online' && (
-          <div className="p-8 text-center">
-            <Mic className="w-16 h-16 text-[var(--color-text-secondary)] mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-[var(--p-labels-text)] mb-2">Онлайн-поиск</h3>
-            <p className="text-[var(--color-text-secondary)] mb-6 max-w-md mx-auto w-full max-w-full">
-              Интеграция с YouTube Music, SoundCloud, VK Music требует API ключей.
-              Настрой их в разделе «Настройки» → «Музыка».
-            </p>
-            <div className="flex items-center justify-center gap-3">
-              <input
-                type="text"
-                placeholder="Поиск треков..."
-                className="px-4 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-[var(--p-labels-text)] w-64"
-              />
-              <button className="px-4 py-2 bg-[var(--p-circle)] text-[#000000] rounded-lg hover:bg-black/5">
-                <Search className="w-4 h-4 inline mr-1" />
-                Найти
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Now Playing Bar */}
-      {currentTrack && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-[var(--p-labels)] border-t border-[var(--p-outline)] shadow-xl">
-          <div className="max-w-4xl mx-auto p-3 w-full max-w-full">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="w-12 h-12 rounded-lg bg-[var(--color-bg)] flex items-center justify-center flex-shrink-0 relative">
-                  {currentTrack.artwork && (
-                    <img src={currentTrack.artwork} alt="" className="w-full h-full rounded-lg object-cover" />
-                  )}
-                  {currentTrack.source === 'radio' && (
-                    <div className="absolute inset-0 bg-gradient-to-br from-[var(--p-circle)] to-[var(--p-outline)] rounded-lg flex items-center justify-center">
-                      <Radio className="w-6 h-6 text-white" />
-                    </div>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <h4 className="font-medium text-[var(--p-labels-text)] truncate">{currentTrack.title}</h4>
-                  <p className="text-sm text-[var(--color-text-secondary)] truncate">{currentTrack.artist}</p>
-                </div>
-              </div>
-
-              <div className="flex flex-col items-center gap-2 flex-1">
-                <div className="flex items-center gap-4">
-                  <button onClick={prevTrack} className="p-2 text-[var(--color-text-secondary)] hover:text-[#000000] disabled:opacity-50" disabled={!currentTrack}>
-                    <SkipBack className="w-6 h-6" />
-                  </button>
-                  <button onClick={togglePlay} className="p-3 rounded-full bg-[var(--p-circle)] text-[#000000] hover:bg-black/5 transition-colors">
-                    {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-1" />}
-                  </button>
-                  <button onClick={nextTrack} className="p-2 text-[var(--color-text-secondary)] hover:text-[#000000] disabled:opacity-50" disabled={!currentTrack}>
-                    <SkipForward className="w-6 h-6" />
-                  </button>
-                </div>
-                <div className="flex items-center gap-2 w-full max-w-xs">
-                  <span className="text-xs text-[var(--color-text-secondary)] font-mono w-10 text-right">{formatTime(currentTrack.source === 'radio' ? 0 : audioRef?.currentTime || 0)}</span>
-                  <div className="flex-1 h-1.5 bg-[var(--color-bg)] rounded-full cursor-pointer relative" onClick={e => {
-                    if (!audioRef || !audioRef.duration) return;
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const percent = (e.clientX - rect.left) / rect.width;
-                    audioRef.currentTime = percent * audioRef.duration;
-                  }}>
-                    <div
-                      className="h-full bg-[var(--p-circle)] rounded-full transition-all duration-100"
-                      style={{ width: `${progress * 100}%` }}
-                    />
-                  </div>
-                  <span className="text-xs text-[var(--color-text-secondary)] font-mono w-10">{currentTrack.source === 'radio' ? 'LIVE' : formatTime(currentTrack.duration)}</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
-                <button onClick={() => setShuffle(!shuffle)} className={clsx('p-2 rounded-lg', shuffle ? 'bg-[var(--p-circle)]/20 text-[var(--p-outline)] dark:bg-[var(--p-circle)]/30 dark:text-[var(--p-outline)]' : 'text-[var(--color-text-secondary)] hover:bg-black/5')}>
-                  <Shuffle className="w-5 h-5" />
-                </button>
-                <button onClick={() => setRepeat(!repeat)} className={clsx('p-2 rounded-lg', repeat ? 'bg-[var(--p-circle)]/20 text-[var(--p-outline)] dark:bg-[var(--p-circle)]/30 dark:text-[var(--p-outline)]' : 'text-[var(--color-text-secondary)] hover:bg-black/5')}>
-                  <Repeat className="w-5 h-5" />
-                </button>
-                <button onClick={() => setVolume(volume > 0 ? 0 : 0.7)} className="p-2 text-[var(--color-text-secondary)] hover:text-[#000000]">
-                  {volume > 0 ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-                </button>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={volume}
-                  onChange={e => { const v = parseFloat(e.target.value); setVolume(v); if (audioRef) audioRef.volume = v; }}
-                  className="w-24 h-2 accent-[var(--p-circle)]"
-                />
-                <button onClick={() => setShowQueue(!showQueue)} className="p-2 text-[var(--color-text-secondary)] hover:text-[#000000]">
-                  <Music className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          </div>
+          }
+        />
+        <div className="px-3 pb-2 flex flex-wrap gap-1.5">
+          {tabs.map(t => (
+            <Chip key={t.id} on={tab === t.id} onClick={() => setTab(t.id)}>{t.label}</Chip>
+          ))}
         </div>
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto fg-scroll fg-no-select">
+        {tab === 'local' && (
+          <div className="px-4 pt-1">
+            <input
+              value={localQuery}
+              onChange={e => setLocalQuery(e.target.value)}
+              placeholder="Поиск по своей музыке…"
+              className="fg-input"
+              style={{ color: 'var(--color-text-main)' }}
+            />
+            <div className="flex gap-2 mt-1.5">
+              <PlayerButton onClick={() => { void onAddTracks(); }} className="flex-1">Добавить треки</PlayerButton>
+              <PlayerButton onClick={() => { void onFindAll(); }} className="flex-1">Найти всё</PlayerButton>
+            </div>
+            {localBusy && <Status>{localBusy}</Status>}
+            {!localBusy && localVisible.length === 0 && !localLoading && (
+              <Status>
+                {localRecords.length === 0
+                  ? 'На телефоне музыка не найдена. Добавьте треки кнопкой выше.'
+                  : 'Ничего не найдено'}
+              </Status>
+            )}
+            {localLoading && <Status>Загрузка…</Status>}
+            <div className="pb-3">
+              {localVisible.map(t => (
+                <TrackRow
+                  key={t.id}
+                  track={t}
+                  onPlay={() => playFrom(localVisible, t)}
+                  onLike={() => toggleLike(t)}
+                  onDelete={() => setDeleteTarget(t)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {tab === 'radio' && (
+          <div className="px-4 pt-1">
+            <div className="flex gap-2 items-center">
+              <input
+                value={radioCity}
+                onChange={e => setRadioCity(e.target.value)}
+                placeholder="Город"
+                className="fg-input flex-1 min-w-0"
+                style={{ color: 'var(--color-text-main)' }}
+              />
+              <PlayerButton onClick={() => { void autotune(true); }} className="flex-shrink-0">Автотюн</PlayerButton>
+            </div>
+            <input
+              value={radioQuery}
+              onChange={e => setRadioQuery(e.target.value)}
+              placeholder="Поиск волны…"
+              className="fg-input mt-1.5"
+              style={{ color: 'var(--color-text-main)' }}
+            />
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              <Chip on={radioFilter === 'all'} onClick={() => setRadioFilter('all')}>Все страны</Chip>
+              <Chip on={radioFilter === 'ru'} onClick={() => setRadioFilter('ru')}>Россия</Chip>
+              <Chip on={radioFilter === 'fav'} onClick={() => setRadioFilter('fav')}>Любимые</Chip>
+            </div>
+            {(radioLoading || radioStatus) && <Status>{radioLoading ? 'Поиск…' : radioStatus}</Status>}
+            {!radioLoading && !radioStatus && radioVisible.length === 0 && <Status>Ничего не найдено</Status>}
+            <div className="pb-3">
+              {radioVisible.map(t => (
+                <TrackRow
+                  key={t.id}
+                  track={t}
+                  onPlay={() => playFrom(radioVisible, t)}
+                  onLike={() => toggleLike(t)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {tab === 'online' && (
+          <div className="px-4 pt-1">
+            <div className="text-[13px]" style={{ color: 'var(--color-text-main)' }}>
+              Треки целиком, по жанрам
+            </div>
+            <input
+              value={onlineQuery}
+              onChange={e => setOnlineQuery(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') void doOnlineSearch(); }}
+              placeholder="По названию или исполнителю…"
+              className="fg-input mt-1"
+              style={{ color: 'var(--color-text-main)' }}
+            />
+            <PlayerButton onClick={() => setGenresOpen(v => !v)} className="w-full mt-1.5">Жанры</PlayerButton>
+            {genresOpen && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {GENRES.map(g => (
+                  <Chip key={g} on={genres.includes(g)} onClick={() => toggleGenre(g)}>{g}</Chip>
+                ))}
+              </div>
+            )}
+            {(onlineLoading || onlineStatus) && <Status>{onlineLoading ? 'Загрузка полных треков…' : onlineStatus}</Status>}
+            {!onlineLoading && !onlineStatus && onlineVisible.length === 0 && <Status>Ничего не найдено</Status>}
+            <div className="pb-3">
+              {onlineVisible.map(t => (
+                <TrackRow
+                  key={t.id}
+                  track={t}
+                  onPlay={() => playFrom(onlineVisible, t)}
+                  onLike={() => toggleLike(t)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {tab === 'fav' && (
+          <div className="px-4 pt-1">
+            {favorites.length === 0 && (
+              <Status>Пока пусто. Жмите ♥ на треках и волнах.</Status>
+            )}
+            <div className="pb-3">
+              {favorites.map(t => (
+                <TrackRow
+                  key={t.id}
+                  track={t}
+                  onPlay={() => playFrom(favorites, t)}
+                  onLike={() => toggleLike(t)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Нижняя панель — как блок под FrameLayout в activity_player.xml */}
+      <div
+        className="shrink-0 z-30 px-4 pt-1.5 pb-2"
+        style={{
+          background: 'var(--color-bg)',
+          borderTop: '1px solid var(--color-stroke)',
+          paddingBottom: 'calc(8px + env(safe-area-inset-bottom))',
+        }}
+      >
+        <div className="text-[15px] font-bold truncate" style={{ color: 'var(--color-text-main)' }}>
+          {player.track?.title || 'Выберите трек'}
+        </div>
+        <div className="text-[12px] truncate" style={{ color: 'var(--color-text-main)' }}>
+          {player.error || player.track?.artist || ''}
+        </div>
+
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-[11px] tabular-nums flex-shrink-0" style={{ color: 'var(--color-text-main)' }}>
+            {live ? 'LIVE' : fmt(player.position)}
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={Math.max(1, duration)}
+            step={0.1}
+            value={live ? 0 : position}
+            disabled={live || duration <= 0}
+            onChange={e => seek(parseFloat(e.target.value))}
+            className="flex-1 min-w-0"
+            style={{ accentColor: 'var(--p-labels-text)' }}
+            aria-label="Позиция трека"
+          />
+          <span className="text-[11px] tabular-nums flex-shrink-0" style={{ color: 'var(--color-text-main)' }}>
+            {live ? '' : fmt(duration)}
+          </span>
+        </div>
+
+        <div className="flex items-center justify-center gap-1 mt-0.5">
+          <button
+            onClick={() => prevTrack()}
+            aria-label="Назад"
+            className="w-11 h-11 flex items-center justify-center rounded-full active:bg-black/10"
+          >
+            <MaskIcon src={asset('icons/ic_skip_prev.svg')} color="var(--p-labels-text)" size={26} />
+          </button>
+          <button
+            onClick={() => togglePlay()}
+            aria-label="Играть / пауза"
+            className="w-[52px] h-[52px] flex items-center justify-center rounded-full active:bg-black/10"
+          >
+            <MaskIcon
+              src={asset(player.playing ? 'icons/ic_pause.svg' : 'icons/ic_play.svg')}
+              color="var(--p-labels-text)"
+              size={32}
+            />
+          </button>
+          <button
+            onClick={() => nextTrack()}
+            aria-label="Дальше"
+            className="w-11 h-11 flex items-center justify-center rounded-full active:bg-black/10"
+          >
+            <MaskIcon src={asset('icons/ic_skip_next.svg')} color="var(--p-labels-text)" size={26} />
+          </button>
+          <button
+            onClick={() => toggleShuffle()}
+            aria-label="Перемешать"
+            className="w-11 h-11 flex items-center justify-center rounded-full active:bg-black/10"
+            style={{ opacity: player.shuffle ? 1 : 0.35 }}
+          >
+            <MaskIcon src={asset('icons/ic_shuffle.svg')} color="var(--p-labels-text)" size={24} />
+          </button>
+          <button
+            onClick={() => cycleRepeat()}
+            aria-label="Повтор"
+            className="w-11 h-11 flex items-center justify-center rounded-full active:bg-black/10"
+            style={{ opacity: player.repeat === 0 ? 0.35 : 1 }}
+          >
+            <MaskIcon src={asset('icons/ic_repeat.svg')} color="var(--p-labels-text)" size={24} />
+          </button>
+          <button
+            onClick={() => stopAll()}
+            aria-label="Остановить"
+            className="w-11 h-11 flex items-center justify-center rounded-full active:bg-black/10"
+          >
+            <MaskIcon src={asset('icons/ic_close.svg')} color="var(--p-labels-text)" size={24} />
+          </button>
+        </div>
+      </div>
+
+      {toast && (
+        <div
+          className="fixed left-1/2 -translate-x-1/2 bottom-28 px-4 py-2 rounded-full text-[13px] font-medium z-[60] max-w-[90vw] text-center"
+          style={{ background: 'var(--p-labels)', color: 'var(--p-on-labels)' }}
+        >
+          {toast}
+        </div>
+      )}
+
+      {deleteTarget && (
+        <Dialog
+          title="Удалить трек"
+          onClose={() => setDeleteTarget(null)}
+          actions={
+            <>
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                className="px-4 py-2.5 rounded-full text-[14px] font-bold"
+                style={{ color: 'var(--color-text-secondary)' }}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                onClick={() => { void doDelete(); }}
+                className="px-4 py-2.5 rounded-full text-[14px] font-bold"
+                style={{ color: 'var(--p-labels-text)' }}
+              >
+                Удалить
+              </button>
+            </>
+          }
+        >
+          <div className="text-[15px] pb-1" style={{ color: 'var(--color-text-main)' }}>
+            {deleteTarget.title}
+          </div>
+        </Dialog>
       )}
     </div>
   );
