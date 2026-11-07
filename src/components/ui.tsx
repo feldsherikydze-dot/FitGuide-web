@@ -6,7 +6,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import {
   slotColor, circleGradient, topBarGradient, presetGradient, contrastOn, withAlpha,
-  subscribePalette, getPalette, type SlotName,
+  subscribePalette, getPalette, PRIMARY_COLORS, PRESET_PRIMARY_DARK, PRESET_TINTS, PRESET_TINTS_DARK,
+  type SlotName,
 } from '../core/palette';
 
 // ---------------------------------------------------------------- палитра
@@ -45,6 +46,12 @@ export function usePaletteVars() {
   root.style.setProperty('--p-grad-to', grad.to);
   root.style.setProperty('--p-preset-grad-from', presetGrad.from);
   root.style.setProperty('--p-preset-grad-to', presetGrad.to);
+  // Primary/tint пресета: в CSS выбирается светлый или тёмный вариант по data-theme.
+  const pi = getPalette().primary;
+  root.style.setProperty('--p-preset-primary-light', PRIMARY_COLORS[pi] ?? PRIMARY_COLORS[0]);
+  root.style.setProperty('--p-preset-primary-dark', PRESET_PRIMARY_DARK[pi] ?? PRESET_PRIMARY_DARK[0]);
+  root.style.setProperty('--p-preset-tint-light', PRESET_TINTS[pi] ?? PRESET_TINTS[0]);
+  root.style.setProperty('--p-preset-tint-dark', PRESET_TINTS_DARK[pi] ?? PRESET_TINTS_DARK[0]);
   // Авто-контраст к заливкам (как contrastOn в Android)
   root.style.setProperty('--p-on-outline', contrastOn(outline));
   root.style.setProperty('--p-on-labels', contrastOn(labels));

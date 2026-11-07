@@ -51,12 +51,12 @@ const CLOCK_DIGITAL_STYLES: { key: 'classic' | 'minimal'; label: string }[] = [
   { key: 'minimal', label: 'Минимальные' },
 ];
 
-/** Карточка настроек: статические colorSurface + stroke, радиус 18dp, отступы 20dp. */
+/** Карточка настроек: как MaterialCardView после tintTree — фон (B), обводка (A), радиус 18dp. */
 function SettingsCard({ children }: { children: ReactNode }) {
   return (
     <div
       className="mx-2 my-2 rounded-[18px] p-5"
-      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}
+      style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
     >
       {children}
     </div>

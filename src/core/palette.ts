@@ -180,6 +180,19 @@ export function topBarGradient(): { from: string; to: string } {
   return circleGradient();
 }
 
+/** Primary пресета в тёмной теме (values-night/palette_colors.xml). */
+export const PRESET_PRIMARY_DARK = [
+  '#4DBCAF', '#6393F2', '#9185ED', '#E25488', '#EE8349', '#777C81', '#00953E',
+];
+
+/** appSurfaceTint — подложка bg_result: светлая и тёмная (values-night). */
+export const PRESET_TINTS = [
+  '#E3F4F2', '#E6EEFD', '#EDEBFC', '#FAE4EC', '#FCEBE2', '#E9EAEB', '#E3F4E9',
+];
+export const PRESET_TINTS_DARK = [
+  '#12332E', '#18283F', '#24243E', '#3A1723', '#3D2312', '#1D2221', '#0F2A18',
+];
+
 /**
  * Градиент bg_banner — из пресета темы (appGradientStart/End), а не из (C):
  * в Android ThemeManager.themeRes() берёт оверлей по индексу Primary-палитры,

@@ -307,6 +307,12 @@ img, svg, video, canvas {
 }
 
 /* Темы через data-theme атрибут (приоритет над prefers-color-scheme) */
+:root {
+  /* Primary/tint пресета темы (appSurfaceTint, colorPrimary) — как в Android
+     берутся из оверлея по индексу палитры, а не из кастомных A/B/C/D. */
+  --p-preset-primary: var(--p-preset-primary-light, #12A594);
+  --p-preset-tint: var(--p-preset-tint-light, #E3F4F2);
+}
 :root[data-theme="dark"] {
   --color-surface: #14171A;
   --color-bg: #0D0F11;
@@ -315,6 +321,8 @@ img, svg, video, canvas {
   --color-stroke: #2A3033;
   --color-outline: #3A4245;
   --color-surface-variant: #1B1F22;
+  --p-preset-primary: var(--p-preset-primary-dark, #4DBCAF);
+  --p-preset-tint: var(--p-preset-tint-dark, #12332E);
   color-scheme: dark;
 }
 :root[data-theme="dark"] .fg-banner {
@@ -342,6 +350,8 @@ img, svg, video, canvas {
     --color-stroke: #2A3033;
     --color-outline: #3A4245;
     --color-surface-variant: #1B1F22;
+    --p-preset-primary: var(--p-preset-primary-dark, #4DBCAF);
+    --p-preset-tint: var(--p-preset-tint-dark, #12332E);
     color-scheme: dark;
   }
   :root:not([data-theme]) .fg-banner {
