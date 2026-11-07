@@ -174,12 +174,17 @@ export interface Assessment {
   ffmi: number;
   // обхваты, см
   neckCm: number;
+  shouldersCm: number;
   chestCm: number;
   waistCm: number;
+  abdomenCm: number;
   hipsCm: number;
   armCm: number;
   thighCm: number;
   calfCm: number;
+  ankleCm: number;
+  forearmCm: number;
+  scapulaCm: number;
   // складки, мм
   skinfoldChest: number;
   skinfoldMidaxillary: number;

@@ -151,32 +151,24 @@ export const useCoachStore = create<CoachSlice>()(
 
 interface AssessmentSlice {
   assessments: Assessment[];
-  current: Assessment | null;
   addAssessment: (a: Assessment) => void;
   removeAssessment: (id: string) => void;
 }
 
 export const useAssessmentStore = create<AssessmentSlice>()(
-  persist(
-    (set, get) => ({
-      assessments: getJSON<Assessment[]>(KEYS.ASSESSMENTS, []),
-      get current() {
-        const list = get().assessments;
-        return list.length ? list[0] : null;
-      },
-      addAssessment: (a) => {
-        const list = [a, ...get().assessments];
-        setJSON(KEYS.ASSESSMENTS, list);
-        set({ assessments: list });
-      },
-      removeAssessment: (id) => {
-        const list = get().assessments.filter(x => x.id !== id);
-        setJSON(KEYS.ASSESSMENTS, list);
-        set({ assessments: list });
-      },
-    }),
-    { name: KEYS.ASSESSMENTS, storage: createJSONStorage(() => localStorage) }
-  )
+  (set, get) => ({
+    assessments: getJSON<Assessment[]>(KEYS.ASSESSMENTS, []),
+    addAssessment: (a) => {
+      const list = [a, ...get().assessments];
+      setJSON(KEYS.ASSESSMENTS, list);
+      set({ assessments: list });
+    },
+    removeAssessment: (id) => {
+      const list = get().assessments.filter(x => x.id !== id);
+      setJSON(KEYS.ASSESSMENTS, list);
+      set({ assessments: list });
+    },
+  })
 );
 
 // ------------------------------------------------------------------ 1ПМ (OneRmStore)

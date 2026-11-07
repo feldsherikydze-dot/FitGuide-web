@@ -25,7 +25,7 @@ export function CoachPage() {
   const coach = useCoachStore();
   const { programs, getById } = useProgramsStore();
   const { profile } = useProfileStore();
-  const { current: assessment } = useAssessmentStore();
+  const assessment = useAssessmentStore(s => s.assessments[0] ?? null);
   const oneRm = useOneRmStore();
   const { exercises, byName } = useExercises();
   const { ready: knowledgeReady } = useKnowledge();
