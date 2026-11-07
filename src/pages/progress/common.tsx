@@ -72,7 +72,7 @@ export function Field({ value, onChange, placeholder, inputMode = 'decimal', cla
   inputMode?: 'decimal' | 'numeric' | 'text'; className?: string;
   label?: string; multiline?: boolean; type?: string;
 }) {
-  const inputClass = 'fg-field w-full px-4 rounded-[10px] text-[15px] outline-none';
+  const inputClass = 'fg-field w-full px-4 rounded-[14px] text-[15px] outline-none';
   const style = {
     background: 'var(--p-labels)',
     border: '1px solid var(--p-outline)',
@@ -112,7 +112,7 @@ export function Field({ value, onChange, placeholder, inputMode = 'decimal', cla
   );
 }
 
-/** Диалог как TintedAlertDialog: затемнение, карточка по центру. */
+/** Диалог как TintedAlertDialog: плашка (B) с обводкой (A), текст контрастный. */
 export function Dialog({ title, children, onClose, actions }: {
   title?: string; children: ReactNode; onClose: () => void; actions?: ReactNode;
 }) {
@@ -120,11 +120,11 @@ export function Dialog({ title, children, onClose, actions }: {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-black/50" onClick={onClose}>
       <div
         className="w-full max-w-md max-h-[85vh] flex flex-col rounded-[20px] overflow-hidden"
-        style={{ background: 'var(--p-labels)' }}
+        style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
         onClick={e => e.stopPropagation()}
       >
         {title && (
-          <div className="px-5 pt-4 pb-1 text-[18px] font-bold" style={{ color: 'var(--color-text-main)' }}>
+          <div className="px-5 pt-4 pb-1 text-[20px] font-medium" style={{ color: 'var(--p-on-labels)' }}>
             {title}
           </div>
         )}
@@ -142,8 +142,8 @@ export function DialogAction({ children, onClick, strong }: {
     <button
       type="button"
       onClick={onClick}
-      className="px-4 py-2.5 rounded-full text-[14px] font-bold active:bg-black/5"
-      style={{ color: strong ? 'var(--p-labels)' : 'var(--color-text-secondary)' }}
+      className={clsx('px-4 py-2.5 rounded-full text-[14px] font-bold uppercase tracking-[0.089em] active:opacity-80', strong && 'font-bold')}
+      style={{ background: 'var(--p-circle)', color: 'var(--p-on-circle)' }}
     >
       {children}
     </button>

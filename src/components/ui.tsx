@@ -105,8 +105,8 @@ export function TopBar({ title, subtitle, right }: {
  * Шапка внутреннего экрана — как в Android: стрелка назад + заголовок цветом (D).
  * Заголовки берутся из strings.xml (title_*).
  */
-export function PageHeader({ title, right, onBack }: {
-  title: string; right?: ReactNode; onBack?: () => void;
+export function PageHeader({ title, subtitle, right, onBack }: {
+  title: string; subtitle?: string; right?: ReactNode; onBack?: () => void;
 }) {
   const navigate = useNavigate();
   return (
@@ -119,8 +119,15 @@ export function PageHeader({ title, right, onBack }: {
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--p-labels-text)" strokeWidth="2.5"
           strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
       </button>
-      <div className="ml-1 flex-1 min-w-0 text-[20px] font-bold truncate" style={{ color: 'var(--p-labels-text)' }}>
-        {title}
+      <div className="ml-1 flex-1 min-w-0">
+        <div className="text-[20px] font-bold truncate" style={{ color: 'var(--p-labels-text)' }}>
+          {title}
+        </div>
+        {subtitle && (
+          <div className="text-[12px] truncate" style={{ color: 'var(--color-text-secondary)' }}>
+            {subtitle}
+          </div>
+        )}
       </div>
       {right}
     </div>

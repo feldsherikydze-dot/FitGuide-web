@@ -77,6 +77,7 @@ export function TimerPage() {
   const [toast, setToast] = useState<string | null>(null);
   const [minutes, setMinutes] = useState('');
   const [seconds, setSeconds] = useState('');
+  const [preset, setPreset] = useState<number | null>(null);
 
   // Тик 100 мс, как Handler в Android.
   useEffect(() => {
@@ -180,6 +181,7 @@ export function TimerPage() {
     setTimerRemain(total);
     setMinutes(String(m));
     setSeconds('0');
+    setPreset(m);
   };
 
   const clockStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
@@ -207,7 +209,7 @@ export function TimerPage() {
 
       {mode === 'clock' && (
         <div className="flex flex-col items-center justify-center px-6 py-10">
-          <div className="text-[72px] font-light leading-none tabular-nums" style={{ color: 'var(--color-text-main)' }}>
+          <div className="text-[72px] font-medium leading-none tabular-nums" style={{ color: 'var(--color-text-main)' }}>
             {clockStr}
           </div>
           <div className="mt-2 text-[18px]" style={{ color: 'var(--color-text-secondary)' }}>
@@ -221,25 +223,25 @@ export function TimerPage() {
 
       {mode === 'stopwatch' && (
         <div className="px-4">
-          <div className="mt-4 text-center text-[56px] font-light leading-none tabular-nums"
+          <div className="mt-4 text-center text-[56px] font-medium leading-none tabular-nums"
             style={{ color: 'var(--color-text-main)' }}>
             {formatStopwatch(swElapsed)}
           </div>
 
           <div className="flex gap-2 mt-5">
             <button onClick={swReset}
-              className="flex-1 h-12 rounded-[24px] text-[14px] font-semibold"
-              style={{ border: '1px solid var(--color-outline)', color: 'var(--color-text-main)' }}>
+              className="flex-1 h-12 rounded-[24px] text-[14px] font-bold uppercase tracking-[0.089em]"
+              style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)', color: 'var(--p-labels-text)' }}>
               Сброс
             </button>
             <button onClick={swToggle}
-              className="flex-[2] h-12 rounded-[24px] text-[14px] font-bold"
-              style={{ background: 'var(--p-labels)', color: 'var(--p-on-labels)' }}>
+              className="flex-[2] h-12 rounded-[24px] text-[14px] font-bold uppercase tracking-[0.089em]"
+              style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)', color: 'var(--p-labels-text)' }}>
               {swRunning ? 'Стоп' : 'Старт'}
             </button>
             <button onClick={swLap}
-              className="flex-1 h-12 rounded-[24px] text-[14px] font-semibold"
-              style={{ border: '1px solid var(--color-outline)', color: 'var(--color-text-main)' }}>
+              className="flex-1 h-12 rounded-[24px] text-[14px] font-bold uppercase tracking-[0.089em]"
+              style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)', color: 'var(--p-labels-text)' }}>
               Круг
             </button>
           </div>
@@ -247,12 +249,13 @@ export function TimerPage() {
           <div className="mt-4 text-[13px] font-bold" style={{ color: 'var(--color-text-secondary)' }}>
             Круги
           </div>
-          <div className="mt-1.5 space-y-1">
+          <div className="mt-1.5">
             {laps.map(l => (
-              <div key={l.n} className="flex items-center justify-between py-1.5">
-                <span className="text-[14px]" style={{ color: 'var(--color-text-secondary)' }}>{l.n}</span>
-                <span className="text-[14px] tabular-nums" style={{ color: 'var(--color-text-main)' }}>{l.total}</span>
-                <span className="text-[13px] tabular-nums" style={{ color: 'var(--color-text-secondary)' }}>+{l.delta}</span>
+              <div key={l.n} className="flex items-center px-3 py-2.5 rounded-[14px]"
+                style={{ background: 'var(--color-surface-variant)', border: '1px solid var(--color-stroke)' }}>
+                <span className="w-10 text-[14px] font-bold" style={{ color: 'var(--color-text-secondary)' }}>{l.n}</span>
+                <span className="flex-1 text-[15px] font-bold" style={{ color: 'var(--p-labels-text)' }}>+{l.delta}</span>
+                <span className="text-[15px]" style={{ color: 'var(--color-text-main)' }}>{l.total}</span>
               </div>
             ))}
           </div>
@@ -263,7 +266,8 @@ export function TimerPage() {
         <div className="px-4">
           <div className="mt-1 flex gap-1.5 overflow-x-auto fg-no-scrollbar">
             {MINUTES_PRESETS.map(m => (
-              <button key={m} onClick={() => choosePreset(m)} className="fg-chip flex-shrink-0">
+              <button key={m} onClick={() => choosePreset(m)}
+                className={clsx('fg-chip flex-shrink-0', preset === m && 'fg-chip-on')}>
                 {m} мин
               </button>
             ))}
@@ -275,8 +279,8 @@ export function TimerPage() {
               onChange={e => setMinutes(e.target.value.replace(/\D/g, '').slice(0, 3))}
               placeholder="01"
               inputMode="numeric"
-              className="w-16 h-[46px] text-center text-[18px] rounded-lg"
-              style={{ background: 'var(--color-surface)', border: '1px solid var(--color-outline)', color: 'var(--color-text-main)' }}
+              className="w-16 h-[46px] text-center text-[18px] rounded-[14px] outline-none"
+              style={{ background: 'var(--p-labels)', border: '1.5px solid var(--p-outline)', color: 'var(--color-text-main)' }}
             />
             <span className="px-1 text-[24px]" style={{ color: 'var(--color-text-secondary)' }}> : </span>
             <input
@@ -284,28 +288,28 @@ export function TimerPage() {
               onChange={e => setSeconds(e.target.value.replace(/\D/g, '').slice(0, 2))}
               placeholder="00"
               inputMode="numeric"
-              className="w-16 h-[46px] text-center text-[18px] rounded-lg"
-              style={{ background: 'var(--color-surface)', border: '1px solid var(--color-outline)', color: 'var(--color-text-main)' }}
+              className="w-16 h-[46px] text-center text-[18px] rounded-[14px] outline-none"
+              style={{ background: 'var(--p-labels)', border: '1.5px solid var(--p-outline)', color: 'var(--color-text-main)' }}
             />
             <span className="ml-3 text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
               минуты и секунды
             </span>
           </div>
 
-          <div className="mt-5 text-center text-[64px] font-light leading-none tabular-nums"
+          <div className="mt-5 text-center text-[64px] font-medium leading-none tabular-nums"
             style={{ color: 'var(--color-text-main)' }}>
             {formatTimer(timerRemain)}
           </div>
 
           <div className="mt-5 flex gap-2">
             <button onClick={timerReset}
-              className="flex-1 h-12 rounded-[24px] text-[14px] font-semibold"
-              style={{ border: '1px solid var(--color-outline)', color: 'var(--color-text-main)' }}>
+              className="flex-1 h-12 rounded-[24px] text-[14px] font-bold uppercase tracking-[0.089em]"
+              style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)', color: 'var(--p-labels-text)' }}>
               Сброс
             </button>
             <button onClick={timerToggle}
-              className="flex-1 h-12 rounded-[24px] text-[14px] font-bold"
-              style={{ background: 'var(--p-labels)', color: 'var(--p-on-labels)' }}>
+              className="flex-1 h-12 rounded-[24px] text-[14px] font-bold uppercase tracking-[0.089em]"
+              style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)', color: 'var(--p-labels-text)' }}>
               {timerRunning ? 'Пауза' : 'Старт'}
             </button>
           </div>

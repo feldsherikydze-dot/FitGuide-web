@@ -54,16 +54,14 @@ export function LegendsPage() {
 
   return (
     <div className="max-w-2xl mx-auto pb-4 w-full max-w-full">
-      <PageHeader title="Программы легенд" onBack={() => navigate('/programs')} />
-      <div className="-mt-1 mb-2 ml-4 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
-        Классика бодибилдинга и персональные программы чемпионов
-      </div>
+      <PageHeader title="Программы легенд" subtitle="Классика бодибилдинга и персональные программы чемпионов"
+        onBack={() => navigate('/programs')} />
 
       <div className="px-3">
         {LEGEND_CATALOG.map(p => (
           <div key={p.id} className="mb-2.5 p-4 rounded-[20px]"
-            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-outline)' }}>
-            <div className="text-[18px] font-bold" style={{ color: 'var(--p-labels-text)' }}>{p.name}</div>
+            style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}>
+            <div className="text-[18px] font-bold" style={{ color: 'var(--color-text-main)' }}>{p.name}</div>
             <div className="mt-0.5 text-[13px]" style={{ color: 'var(--p-labels-text)' }}>{p.author}</div>
             <div className="mt-1.5 text-[13px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
               {AUDIENCE_LABELS[p.audience]} · {GOAL_LABELS[normalizeGoal(p.goal)]} · {LEVEL_LABELS[p.level]}

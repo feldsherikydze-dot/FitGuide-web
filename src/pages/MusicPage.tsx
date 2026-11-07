@@ -61,8 +61,8 @@ function Chip({ on, children, onClick }: { on: boolean; children: React.ReactNod
       className="fg-pchip active:opacity-80"
       style={{
         background: on ? 'var(--p-circle)' : 'var(--p-labels)',
-        borderColor: on ? 'var(--p-circle)' : 'var(--p-outline)',
-        color: on ? 'var(--p-on-circle)' : 'var(--p-labels-text)',
+        borderColor: 'var(--p-outline)',
+        color: on ? 'var(--p-on-circle)' : 'var(--p-on-labels)',
       }}
     >
       {children}

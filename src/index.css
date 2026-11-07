@@ -161,16 +161,16 @@ img, svg, video, canvas {
 /* ---------- Поля ввода: заливка (B), обводка (A) ---------- */
 .fg-input {
   border: 1px solid var(--p-outline);
-  border-radius: 22px;
+  border-radius: 14px;
   background: var(--p-labels);
   padding: 12px 16px;
   font-size: 15px;
-  color: var(--p-on-labels);
+  color: var(--color-text-main);
   width: 100%;
   outline: none;
 }
 
-.fg-input::placeholder { color: var(--p-on-labels-soft); }
+.fg-input::placeholder { color: var(--color-text-secondary); }
 
 /* Поле ввода в анкете: подсказка — серый текст, как textColorHint */
 .fg-field::placeholder { color: var(--color-text-secondary); }
@@ -241,47 +241,21 @@ img, svg, video, canvas {
 }
 .fg-wk-outline:active { filter: brightness(0.94); }
 
-/* ChipFactory: незаливаемый чип — фон surface, обводка (A), текст контрастный. */
-.fg-wk-chip {
-  min-height: 38px;
-  padding: 0 18px;
-  border: 1px solid var(--p-outline);
-  border-radius: 8px;
-  background: var(--color-surface-variant);
-  color: var(--color-text-main);
-  font-size: 14px;
-}
-
-/* Чип плеера — как ChipFactory: фон (B), обводка (A), текст (D),
-   выбранный — фон (C) и авто-контраст к нему. */
+/* ChipFactory + tintChipColors: pill 32dp, фон (B), обводка (A),
+   текст contrastOn(B); выбранный — заливка (C), текст contrastOn(C). */
+.fg-chip,
+.fg-wk-chip,
 .fg-pchip {
   min-height: 32px;
-  padding: 0 12px;
+  padding: 0 16px;
   border: 1px solid var(--p-outline);
-  border-radius: 8px;
+  border-radius: 16px;
   background: var(--p-labels);
-  color: var(--p-labels-text);
-  font-size: 13px;
-  line-height: 1.2;
-}
-
-/* Chip из Android: 32dp, скругление 8dp, выбранный — цветом темы. */
-.fg-chip {
-  min-height: 32px;
-  padding: 0 12px;
-  border: 1px solid var(--color-stroke);
-  border-radius: 8px;
-  background: var(--color-surface-variant);
-  color: var(--color-text-main);
-  font-size: 13px;
-  line-height: 1.2;
-}
-.fg-chip-on {
-  background: var(--p-labels);
-  border-color: var(--p-labels);
   color: var(--p-on-labels);
+  font-size: 14px;
+  line-height: 1.2;
 }
-/* Выбранный чип — кругляшки (C) и авто-контраст, как tintChipColors(). */
+.fg-chip-on,
 .fg-wk-chip-on {
   background: var(--p-circle);
   border-color: var(--p-outline);

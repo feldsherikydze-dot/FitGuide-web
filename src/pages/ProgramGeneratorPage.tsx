@@ -114,8 +114,8 @@ export function ProgramGeneratorPage() {
   return (
     <div className="max-w-2xl mx-auto pb-4 w-full max-w-full">
       <PageHeader title="Новая программа" onBack={() => navigate(-1)} />
-      <div className="px-3">
-        <div className="p-5 rounded-[18px]" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}>
+      <div className="px-4">
+        <div className="p-5 rounded-[18px]" style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}>
           <div className="text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
             Индивидуальные планы по линейной периодизации
           </div>
@@ -128,7 +128,7 @@ export function ProgramGeneratorPage() {
           />
 
           <Label>Цель</Label>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-x-1.5 gap-y-0.5">
             {GOALS_ALL.map(g => (
               <Chip key={g} on={goals.includes(g)} onClick={() => toggleGoal(g)}>
                 {GOAL_LABELS[g]}
@@ -137,7 +137,7 @@ export function ProgramGeneratorPage() {
           </div>
 
           <Label>Тип программы</Label>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-x-1.5 gap-y-0.5">
             {TYPES.map(t => (
               <Chip key={t.value} on={type === t.value} onClick={() => setType(t.value)}>{t.label}</Chip>
             ))}
@@ -148,42 +148,42 @@ export function ProgramGeneratorPage() {
           </p>
 
           <Label>Уровень подготовки</Label>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-x-1.5 gap-y-0.5">
             {LEVELS.map(l => (
               <Chip key={l.value} on={level === l.value} onClick={() => setLevel(l.value)}>{l.label}</Chip>
             ))}
           </div>
 
           <Label>Тренировок в неделю</Label>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-x-1.5 gap-y-0.5">
             {[3, 4, 5, 6].map(d => (
               <Chip key={d} on={days === d} onClick={() => setDays(d)}>{d} дней в неделю</Chip>
             ))}
           </div>
 
           <Label>Длительность</Label>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-x-1.5 gap-y-0.5">
             {[4, 6, 8, 12].map(w => (
               <Chip key={w} on={weeks === w} onClick={() => setWeeks(w)}>{w} нед.</Chip>
             ))}
           </div>
 
           <Label>Направление тренировок</Label>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-x-1.5 gap-y-0.5">
             {STYLES.map(s => (
               <Chip key={s.value} on={style === s.value} onClick={() => setStyle(s.value)}>{s.label}</Chip>
             ))}
           </div>
 
           <Label>Периодизация</Label>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-x-1.5 gap-y-0.5">
             {PERIODS.map(p => (
               <Chip key={p.value} on={period === p.value} onClick={() => setPeriod(p.value)}>{p.label}</Chip>
             ))}
           </div>
 
           <Label>Оборудование</Label>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-x-1.5 gap-y-0.5">
             {EQUIPMENT.map(eq => (
               <Chip key={eq.value} on={equipment.includes(eq.value)} onClick={() => toggleEquip(eq.value)}>
                 {eq.label}
@@ -197,14 +197,14 @@ export function ProgramGeneratorPage() {
           <button
             onClick={generate}
             disabled={!db || goals.length === 0}
-            className="mt-4 w-full h-[50px] rounded-[25px] text-[16px] font-bold disabled:opacity-50"
-            style={{ background: 'var(--p-labels)', color: 'var(--p-on-labels)' }}
+            className="mt-4 w-full h-[50px] rounded-[25px] text-[16px] font-bold uppercase tracking-[0.089em] disabled:opacity-50"
+            style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)', color: 'var(--p-labels-text)' }}
           >
             Сгенерировать программу
           </button>
         </div>
 
-        <div className="mt-2 p-5 rounded-[18px]" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}>
+        <div className="mt-2 p-5 rounded-[18px]" style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}>
           <div className="text-[16px] font-bold" style={{ color: 'var(--color-text-main)' }}>Как это устроено</div>
           <p className="mt-1.5 text-[13px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
             Линейная периодизация: мезоцикл делится на фазы «накопление объёма → интенсификация → пик силы».

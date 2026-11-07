@@ -1,19 +1,21 @@
-// «Своя сборка» — полный порт CustomProgramActivity (режим редактора).
-// Курсы → дни → упражнения: имя, галочка «Периодизация», блоки (с периодизацией —
-// несколько блоков с целью и неделями; без — один курс), дни, упражнения с настройками
-// подходов/повторов/отдыха/времени подхода, сохранение в перечень тренировок.
+// «Своя сборка» — порт CustomProgramActivity (режим редактора).
+//
+// Структура 1:1 с Android: поле имени, галочка «Периодизация», карточки блоков
+// (курс/блок с целью и неделями), дни с заголовком-переименованием, строки
+// упражнений с ▲▼ и «−», кнопки «+ День» / «+ Упражнение» / «+ Блок».
+// Все кнопки — MaterialButton после tintOne: фон (B), обводка (A), текст (D).
 
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type React from 'react';
 import { useProfileStore, useProgramsStore } from '../core/store';
-import { GOALS, GOAL_LABELS, normalizeGoal } from '../core/goals';
+import { GOALS, normalizeGoal } from '../core/goals';
 import type { Program } from '../data/types';
 import {
-  Card, Dialog, DialogAction, ExercisePicker, Field, Hint, PrimaryButton,
-  ConfirmDialog, Toast, trimNum, parseInt10, parseNum,
+  Dialog, DialogAction, ExercisePicker, ConfirmDialog, Toast,
+  parseInt10, parseNum, trimNum,
 } from './progress/common';
-import { MaskIcon, asset, PageHeader } from '../components/ui';
+import { PageHeader } from '../components/ui';
 
 const REPS_OPTIONS = ['3–5', '5–8', '8–10', '10–12', '12–15', '15–20', '20–25'];
 const REST_OPTIONS = ['45–60 сек', '60–90 сек', '90–120 сек', '2–3 мин'];
@@ -22,6 +24,16 @@ const MIN_SETS = 1;
 const MAX_SETS = 6;
 const MIN_WEEKS = 1;
 const MAX_WEEKS = 12;
+
+const GOAL_ORDER = [GOALS.MASS, GOALS.LOSE, GOALS.STRENGTH, GOALS.CUT, GOALS.ENDURANCE, GOALS.RECOMP];
+const GOAL_LABELS_RU: Record<string, string> = {
+  [GOALS.MASS]: 'Масса',
+  [GOALS.LOSE]: 'Похудение',
+  [GOALS.STRENGTH]: 'Сила',
+  [GOALS.CUT]: 'Рельеф',
+  [GOALS.ENDURANCE]: 'Выносливость',
+  [GOALS.RECOMP]: 'Рекомпозиция',
+};
 
 function defaultSets(goal: string): number {
   const g = normalizeGoal(goal);
@@ -42,14 +54,6 @@ function defaultRest(goal: string): string {
   if (g === GOALS.STRENGTH) return '60–90 сек';
   if (g === GOALS.CUT || g === GOALS.LOSE || g === GOALS.ENDURANCE) return '45–60 сек';
   return '90–120 сек';
-}
-
-function goalLabelRu(code: string): string {
-  const m: Record<string, string> = {
-    [GOALS.MASS]: 'Масса', [GOALS.LOSE]: 'Похудение', [GOALS.STRENGTH]: 'Сила',
-    [GOALS.CUT]: 'Рельеф', [GOALS.RECOMP]: 'Рекомпозиция', [GOALS.ENDURANCE]: 'Выносливость',
-  };
-  return m[code] || 'Масса';
 }
 
 interface SlotDraft {
@@ -73,16 +77,16 @@ interface BlockDraft {
   days: DayDraft[];
 }
 
-function emptySlot(): SlotDraft {
-  return { exercise: '', reps: '8–12', rest: '60–90 сек', restEx: '2–3 мин', sets: 3, startWeight: 0, workSec: 0 };
+function emptySlot(exercise: string): SlotDraft {
+  return { exercise, reps: '8–12', rest: '60–90 сек', restEx: '2–3 мин', sets: 3, startWeight: 0, workSec: 0 };
 }
 
 function emptyDay(title: string): DayDraft {
   return { title, slots: [] };
 }
 
-function emptyBlock(): BlockDraft {
-  return { goal: GOALS.MASS, weeks: 4, days: [emptyDay('Тренировка 1')] };
+function emptyBlock(dayTitle: string): BlockDraft {
+  return { goal: GOALS.MASS, weeks: 4, days: [emptyDay(dayTitle)] };
 }
 
 interface SlotEdit {
@@ -91,13 +95,58 @@ interface SlotEdit {
   weight: string; workSec: string; workOn: boolean;
 }
 
+// --- кнопки как MaterialButton после tintOne -----------------------------
+
+const BTN = {
+  background: 'var(--p-labels)',
+  border: '1px solid var(--p-outline)',
+  color: 'var(--p-labels-text)',
+} as const;
+
+function AddButton({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full min-h-[44px] my-1.5 rounded-[26px] px-4 text-[14px] font-bold uppercase tracking-[0.089em] active:opacity-80"
+      style={BTN}
+    >
+      {children}
+    </button>
+  );
+}
+
+function MiniBtn({ children, onClick, disabled, size = 24, radius = 12, fontSize = 7 }: {
+  children: React.ReactNode; onClick: () => void; disabled?: boolean;
+  size?: number; radius?: number; fontSize?: number;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex items-center justify-center font-bold flex-shrink-0 active:opacity-80"
+      style={{ ...BTN, width: size, height: size, borderRadius: radius, fontSize, opacity: disabled ? 0.35 : 1 }}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Карточка редактора — createCard(): colorSurface, обводка outline, радиус 12. */
+const CARD: React.CSSProperties = {
+  background: 'var(--color-surface)',
+  border: '1px solid var(--color-outline)',
+  borderRadius: 12,
+};
+
 export function CustomProgramPage() {
   const navigate = useNavigate();
   const { add } = useProgramsStore();
   const { profile } = useProfileStore();
-  const [name, setName] = useState(profile?.name ? `${profile.name} — программа` : '');
+  const [name, setName] = useState('');
   const [periodized, setPeriodized] = useState(false);
-  const [blocks, setBlocks] = useState<BlockDraft[]>([emptyBlock()]);
+  const [blocks, setBlocks] = useState<BlockDraft[]>(() => [emptyBlock('Тренировка 1')]);
   const [toast, setToast] = useState<string | null>(null);
   const [confirmKind, setConfirmKind] = useState<'block' | 'day' | 'slot' | null>(null);
   const [confirmIdx, setConfirmIdx] = useState<{ bi: number; di?: number; si?: number } | null>(null);
@@ -105,6 +154,9 @@ export function CustomProgramPage() {
   const [slotEdit, setSlotEdit] = useState<SlotEdit | null>(null);
   const [renameFor, setRenameFor] = useState<{ bi: number; di: number } | null>(null);
   const [renameTitle, setRenameTitle] = useState('');
+  const [goalFor, setGoalFor] = useState<number | null>(null);
+  const [weeksFor, setWeeksFor] = useState<number | null>(null);
+  const [optionPick, setOptionPick] = useState<{ field: 'reps' | 'rest' | 'restEx'; options: string[]; value: string } | null>(null);
 
   const showToast = (text: string) => {
     setToast(text);
@@ -115,47 +167,46 @@ export function CustomProgramPage() {
   const getDay = (bi: number, di: number) => blocks[bi]?.days[di];
   const getSlot = (bi: number, di: number, si: number) => blocks[bi]?.days[di]?.slots[si];
 
-  const setBlocksMapped = (fn: (list: BlockDraft[]) => BlockDraft[]) => {
-    setBlocks(fn);
+  const addBlock = () => {
+    const n = blocks.reduce((s, b) => s + b.days.length, 0) + 1;
+    setBlocks(list => [...list, emptyBlock(`Тренировка ${n}`)]);
   };
-
-  const addBlock = () => setBlocksMapped(list => [...list, emptyBlock()]);
-  const removeBlock = (bi: number) => setBlocksMapped(list => {
+  const removeBlock = (bi: number) => setBlocks(list => {
     const next = list.filter((_, i) => i !== bi);
-    return next.length ? next : [emptyBlock()];
+    return next.length ? next : [emptyBlock('Тренировка 1')];
   });
-  const setBlockGoal = (bi: number, goal: string) => setBlocksMapped(list =>
+  const setBlockGoal = (bi: number, goal: string) => setBlocks(list =>
     list.map((b, i) => i === bi ? { ...b, goal } : b));
   const setBlockWeeks = (bi: number, weeks: number) => {
     const v = Math.max(MIN_WEEKS, Math.min(MAX_WEEKS, weeks));
-    setBlocksMapped(list => list.map((b, i) => i === bi ? { ...b, weeks: v } : b));
+    setBlocks(list => list.map((b, i) => i === bi ? { ...b, weeks: v } : b));
   };
 
   const addDay = (bi: number) => {
     const n = blocks.reduce((s, b) => s + b.days.length, 0) + 1;
-    setBlocksMapped(list => list.map((b, i) => i === bi
+    setBlocks(list => list.map((b, i) => i === bi
       ? { ...b, days: [...b.days, emptyDay(`Тренировка ${n}`)] } : b));
   };
-  const removeDay = (bi: number, di: number) => setBlocksMapped(list => list.map((b, i) => i === bi
+  const removeDay = (bi: number, di: number) => setBlocks(list => list.map((b, i) => i === bi
     ? { ...b, days: b.days.filter((_, d) => d !== di) } : b));
-  const renameDay = (bi: number, di: number, title: string) => setBlocksMapped(list => list.map((b, i) => i === bi
+  const renameDay = (bi: number, di: number, title: string) => setBlocks(list => list.map((b, i) => i === bi
     ? { ...b, days: b.days.map((d, d2) => d2 === di ? { ...d, title } : d) } : b));
 
-  const addSlot = (bi: number, di: number, exercise: string) => {
-    setBlocksMapped(list => list.map((b, i) => i === bi
+  const addSlots = (bi: number, di: number, exercises: string[]) => {
+    setBlocks(list => list.map((b, i) => i === bi
       ? { ...b, days: b.days.map((d, d2) => d2 === di
-        ? { ...d, slots: [...d.slots, { ...emptySlot(), exercise }] } : d) }
+        ? { ...d, slots: [...d.slots, ...exercises.map(emptySlot)] } : d) }
       : b));
     setPickFor(null);
   };
-  const removeSlot = (bi: number, di: number, si: number) => setBlocksMapped(list => list.map((b, i) => i === bi
+  const removeSlot = (bi: number, di: number, si: number) => setBlocks(list => list.map((b, i) => i === bi
     ? { ...b, days: b.days.map((d, d2) => d2 === di
       ? { ...d, slots: d.slots.filter((_, s) => s !== si) } : d) }
     : b));
   const moveSlot = (bi: number, di: number, si: number, dir: -1 | 1) => {
     const day = getDay(bi, di);
     if (!day || si + dir < 0 || si + dir >= day.slots.length) return;
-    setBlocksMapped(list => list.map((b, i) => i === bi
+    setBlocks(list => list.map((b, i) => i === bi
       ? { ...b, days: b.days.map((d, d2) => d2 === di
         ? { ...d, slots: moveArrayItem(d.slots, si, si + dir) } : d) }
       : b));
@@ -184,7 +235,7 @@ export function CustomProgramPage() {
   const applySlotEdit = () => {
     if (!slotEdit) return;
     const { bi, di, si, sets, reps, rest, restEx, weight, workSec, workOn } = slotEdit;
-    setBlocksMapped(list => list.map((b, i) => i === bi
+    setBlocks(list => list.map((b, i) => i === bi
       ? { ...b, days: b.days.map((d, d2) => d2 === di
         ? { ...d, slots: d.slots.map((s2, s3) => s3 === si
           ? { ...s2, sets: Math.max(MIN_SETS, Math.min(MAX_SETS, parseInt10(sets))), reps, rest, restEx,
@@ -195,30 +246,34 @@ export function CustomProgramPage() {
   };
 
   const save = () => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
+    const trimmed = name.trim() || 'Своя сборка';
     const pGoal = normalizeGoal(profile?.goal || GOALS.MASS);
     const pLevel = profile?.level || 'intermediate';
 
+    let weekCursor = 1;
     const phases: Program['phases'] = blocks.map(b => {
-      const weekStart = blocks.indexOf(b) * 0 + 1; // placeholder, replaced below
-      return { deload: false, weekStart: 1, weekEnd: b.weeks, label: 'Курс',
-        scheme: `${defaultSets(b.goal)} × ${defaultReps(b.goal)} · отдых ${defaultRest(b.goal)}`,
+      const sets = defaultSets(b.goal);
+      const reps = defaultReps(b.goal);
+      const rest = defaultRest(b.goal);
+      const phase: Program['phases'][number] = {
+        deload: false,
+        weekStart: weekCursor,
+        weekEnd: weekCursor + b.weeks - 1,
+        label: periodized ? (GOAL_LABELS_RU[b.goal] || 'Масса') : 'Курс',
+        scheme: `${sets} подхода × ${reps} повторений · отдых ${rest}`,
         days: b.days.map(d => ({
           title: d.title,
           slots: d.slots.map(s => ({
-            exercise: s.exercise, group: '', reps: s.reps || defaultReps(b.goal),
-            rest: s.rest || defaultRest(b.goal), restEx: s.restEx,
-            sets: s.sets > 0 ? s.sets : defaultSets(b.goal),
+            exercise: s.exercise, group: '', reps: s.reps || reps,
+            rest: s.rest || rest, restEx: s.restEx,
+            sets: s.sets > 0 ? s.sets : sets,
             startWeight: s.startWeight, workSec: s.workSec > 0 ? s.workSec : 0,
           })),
         })),
       };
+      weekCursor = phase.weekEnd + 1;
+      return phase;
     });
-
-    // неделями сквозно по всем блокам
-    let wc = 1;
-    for (const ph of phases) { ph.weekStart = wc; ph.weekEnd = wc + (ph.weekEnd - ph.weekStart); wc = ph.weekEnd + 1; }
 
     const totalWeeks = blocks.reduce((s, b) => s + b.weeks, 0);
     const maxDays = Math.max(1, ...blocks.map(b => b.days.length));
@@ -232,141 +287,77 @@ export function CustomProgramPage() {
     navigate('/programs/mine');
   };
 
-  const hasExercises = blocks.some(b => b.days.some(d => d.slots.length > 0));
+  // ---------- строки ----------
 
-  // ---------- UI ----------
-  const btnUpDown = (disabled: boolean, ch: string, onClick: () => void) => (
-    <button onClick={onClick} disabled={disabled}
-      className="w-6 h-6 flex items-center justify-center rounded-[6px] text-[10px] font-bold"
-      style={{ border: '1px solid var(--color-stroke)', color: disabled ? 'var(--color-text-secondary)' : 'var(--color-text-main)', background: 'var(--color-surface)', opacity: disabled ? 0.35 : 1 }}>
-      {ch}
-    </button>
-  );
-
-  const chipToggle = (value: string, options: string[], onChange: (v: string) => void) => {
-    const idx = options.indexOf(value);
-    const next = options[(idx + 1) % options.length];
-    return (
-      <button onClick={() => onChange(next)}
-        className="h-9 px-3 rounded-[14px] text-[12px] font-medium"
-        style={{ border: '1px solid var(--color-stroke)', background: 'var(--color-surface-variant)', color: 'var(--color-text-main)' }}>
-        {value}
-      </button>
-    );
+  const exerciseLine = (n: number, s: SlotDraft) => {
+    const weightPart = s.startWeight > 0 ? ` · старт ${trimNum(s.startWeight)} кг` : '';
+    const workPart = s.workSec > 0 ? ` · ${s.workSec} с` : '';
+    return `${n}. ${s.exercise} — ${s.sets > 0 ? s.sets : 3}×${s.reps || '8–12'} · отдых ${s.rest || '60–90 сек'}${weightPart}${workPart}`;
   };
 
   const renderSlotRow = (bi: number, di: number, si: number, s: SlotDraft) => {
-    const restTail = s.restEx ? ` · отд. упр. ${s.restEx}` : '';
-    const workTail = s.workSec > 0 ? ` · ${s.workSec} с` : '';
+    const day = getDay(bi, di);
     return (
-      <div key={si} className="flex items-center gap-2 pt-1 pb-1">
-        {btnUpDown(si === 0, '▲', () => moveSlot(bi, di, si, -1))}
-        {btnUpDown(si === (getDay(bi, di)?.slots.length || 1) - 1, '▼', () => moveSlot(bi, di, si, 1))}
-        <div className="flex-1 min-w-0">
-          <div className="text-[14px] font-bold truncate" style={{ color: 'var(--color-text-main)' }}>{s.exercise || 'Упражнение'}</div>
-          <div className="text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
-            {s.sets} × {s.reps} · отдых {s.rest}{restTail}{workTail}
-          </div>
-        </div>
-        <div className="flex gap-1">
-          <button onClick={() => openSlotEdit(bi, di, si)}
-            className="w-8 h-8 flex items-center justify-center rounded-full active:bg-black/5"
-            style={{ border: '1px solid var(--color-stroke)', color: 'var(--color-text-main)' }}
-            title="Настройки">
-            <MaskIcon src={asset('icons/ic_settings.svg')} color="var(--color-text-main)" size={16} />
-          </button>
-          <button onClick={() => { setConfirmKind('slot'); setConfirmIdx({ bi, di, si }); }}
-            className="w-8 h-8 flex items-center justify-center rounded-full active:bg-black/5"
-            style={{ border: '1px solid var(--color-warning)', color: 'var(--color-warning)' }}
-            title="Удалить">
-            <MaskIcon src={asset('icons/ic_delete.svg')} color="var(--color-warning)" size={16} />
-          </button>
-        </div>
+      <div key={si} className="flex items-center gap-1 py-1 pl-2 pr-1">
+        <MiniBtn disabled={si === 0} onClick={() => moveSlot(bi, di, si, -1)}>▲</MiniBtn>
+        <button type="button" onClick={() => openSlotEdit(bi, di, si)}
+          className="flex-1 min-w-0 text-left text-[13px] px-1 py-1"
+          style={{ color: 'var(--color-text-main)' }}>
+          {exerciseLine(si + 1, s)}
+        </button>
+        <MiniBtn disabled={si === (day?.slots.length || 1) - 1} onClick={() => moveSlot(bi, di, si, 1)}>▼</MiniBtn>
+        <MiniBtn size={28} radius={14} fontSize={14}
+          onClick={() => { setConfirmKind('slot'); setConfirmIdx({ bi, di, si }); }}>−</MiniBtn>
       </div>
     );
   };
 
   const renderDay = (bi: number, di: number, d: DayDraft) => (
-    <div key={di} className="mb-2">
-      <div className="rounded-[16px] p-3" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}>
-        <div className="flex items-center gap-2 mb-2">
-          <input value={d.title} onChange={e => renameDay(bi, di, e.target.value)}
-            className="bg-transparent text-[14px] font-bold outline-none w-full"
-            style={{ color: 'var(--color-text-main)' }} />
-          <button onClick={() => { setRenameFor({ bi, di }); setRenameTitle(d.title); }}
-            className="w-8 h-8 flex items-center justify-center rounded-full active:bg-black/5"
-            style={{ border: '1px solid var(--color-warning)', color: 'var(--color-warning)' }}
-            title="Удалить день">
-            <MaskIcon src={asset('icons/ic_delete.svg')} color="var(--color-warning)" size={16} />
-          </button>
-        </div>
-        <div className="space-y-1">
-          {d.slots.map((s, si) => renderSlotRow(bi, di, si, s))}
-          {d.slots.length === 0 && (
-            <div className="text-[12px] mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-              Упражнений нет — нажмите «+ Упражнение».
-            </div>
-          )}
-        </div>
-        <button onClick={() => setPickFor({ bi, di })}
-          className="w-full h-9 mt-1.5 rounded-[20px] text-[12px] font-semibold"
-          style={{ border: '1px solid var(--p-outline)', color: 'var(--p-labels-text)', background: 'var(--p-labels)' }}>
-          + Упражнение
+    <div key={di} className="px-3 py-2.5">
+      <div className="p-3" style={CARD}>
+        <button type="button" onClick={() => { setRenameFor({ bi, di }); setRenameTitle(d.title); }}
+          className="block w-full text-left text-[14px] font-bold"
+          style={{ color: 'var(--color-text-main)' }}>
+          {d.title}
         </button>
+        {d.slots.map((s, si) => renderSlotRow(bi, di, si, s))}
+        <AddButton onClick={() => setPickFor({ bi, di })}>+ Упражнение</AddButton>
+        <MiniBtn size={28} radius={14} fontSize={14}
+          onClick={() => { setConfirmKind('day'); setConfirmIdx({ bi, di }); }}>−</MiniBtn>
       </div>
     </div>
   );
 
   const renderBlock = (bi: number, b: BlockDraft) => (
-    <div key={bi} className="mb-2.5">
-      <div className="rounded-[16px] p-3 mb-2" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}>
-        <div className="flex items-center gap-2 mb-2">
-          <div className="text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>
-            {periodized ? `Блок ${bi + 1} · ${goalLabelRu(b.goal)} · ${b.weeks} нед.` : 'Курс'}
-          </div>
-          {periodized && (
-            <button onClick={() => setBlockGoal(bi, b.goal === GOALS.MASS ? GOALS.STRENGTH : GOALS.MASS)}
-              className="flex-1 text-[12px] text-center rounded-[16px] px-2 py-1"
-              style={{ border: '1px solid var(--p-outline)', color: 'var(--p-labels-text)', background: 'var(--p-labels)' }}>
-              сменить цель
-            </button>
-          )}
-          <button onClick={() => { setConfirmKind('block'); setConfirmIdx({ bi }); }}
-            className="w-8 h-8 flex items-center justify-center rounded-full active:bg-black/5"
-            style={{ border: '1px solid var(--color-warning)', color: 'var(--color-warning)' }}
-            title="Удалить блок">
-            <MaskIcon src={asset('icons/ic_delete.svg')} color="var(--color-warning)" size={16} />
-          </button>
-        </div>
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>Недель:</span>
-          <input type="number" min={MIN_WEEKS} max={MAX_WEEKS} value={b.weeks}
-            onChange={e => setBlockWeeks(bi, parseInt10(e.target.value))}
-            className="w-12 h-8 text-center text-[12px] rounded-[6px] outline-none"
-            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)', color: 'var(--color-text-main)' }} />
-        </div>
-        <div className="space-y-1">
-          {b.days.map((d, di) => renderDay(bi, di, d))}
-        </div>
-        <button onClick={() => addDay(bi)}
-          className="w-full h-9 mt-1.5 rounded-[20px] text-[12px] font-semibold"
-          style={{ border: '1px solid var(--p-outline)', color: 'var(--p-labels-text)', background: 'var(--p-labels)' }}>
-          + День
-        </button>
-        {!periodized && (
-          <button onClick={addBlock}
-            className="w-full h-9 mt-1 rounded-[20px] text-[12px] font-semibold"
-            style={{ border: '1px solid var(--p-outline)', color: 'var(--p-labels-text)', background: 'var(--p-labels)' }}>
-            + Блок
-          </button>
-        )}
-      </div>
+    <div key={bi} className="my-2 p-3" style={CARD}>
+      <button type="button"
+        onClick={() => periodized ? setGoalFor(bi) : setWeeksFor(bi)}
+        className="block w-full text-left text-[15px] font-bold"
+        style={{ color: 'var(--color-text-main)' }}>
+        {periodized
+          ? `Блок ${bi + 1} · ${GOAL_LABELS_RU[b.goal] || 'Масса'} · ${b.weeks} нед.`
+          : 'Курс'}
+      </button>
+      <button type="button" onClick={() => setWeeksFor(bi)}
+        className="block text-left text-[13px] py-0.5"
+        style={{ color: 'var(--color-text-secondary)' }}>
+        Недель: {b.weeks}
+      </button>
+      {periodized && (
+        <MiniBtn size={28} radius={14} fontSize={14}
+          onClick={() => { setConfirmKind('block'); setConfirmIdx({ bi }); }}>−</MiniBtn>
+      )}
+      {b.days.map((d, di) => renderDay(bi, di, d))}
+      <AddButton onClick={() => addDay(bi)}>+ День</AddButton>
     </div>
   );
+
+  // ---------- диалоги ----------
 
   const slotDialog = () => {
     if (!slotEdit) return null;
     const { bi, di, si, sets, reps, rest, restEx, weight, workSec, workOn } = slotEdit;
+    const set = (patch: Partial<SlotEdit>) => setSlotEdit(s => s ? { ...s, ...patch } : null);
     return (
       <Dialog title={getSlot(bi, di, si)?.exercise || 'Упражнение'} onClose={() => setSlotEdit(null)}
         actions={
@@ -375,42 +366,106 @@ export function CustomProgramPage() {
             <DialogAction strong onClick={applySlotEdit}>ОК</DialogAction>
           </>
         }>
-        <div className="space-y-3 pt-1">
-          <div>
-            <div className="text-[12px] mb-1" style={{ color: 'var(--color-text-secondary)' }}>Подходы</div>
-            <Field value={sets} onChange={v => setSlotEdit(s => s ? { ...s, sets: v } : null)}
-              placeholder="3" inputMode="numeric" />
+        <div className="pt-1">
+          <div className="text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>Подходы</div>
+          <input value={sets} onChange={e => set({ sets: e.target.value })} inputMode="numeric"
+            className="fg-input mt-1" />
+        </div>
+
+        <OptionRow label="Повторы" value={reps}
+          onClick={() => setOptionPick({ field: 'reps', options: REPS_OPTIONS, value: reps })} />
+        <OptionRow label="Отдых между подходами" value={rest}
+          onClick={() => setOptionPick({ field: 'rest', options: REST_OPTIONS, value: rest })} />
+        <OptionRow label="Отдых между упражнениями" value={restEx || '—'}
+          onClick={() => setOptionPick({ field: 'restEx', options: REST_OPTIONS, value: restEx })} />
+
+        <div className="mt-3 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>Стартовый вес, кг</div>
+        <input value={weight} onChange={e => set({ weight: e.target.value })} inputMode="decimal"
+          placeholder="Не задан" className="fg-input mt-1" />
+
+        <label className="flex items-center gap-2 mt-3 cursor-pointer select-none">
+          <input type="checkbox" checked={workOn} onChange={() => set({ workOn: !workOn })}
+            className="w-4 h-4" style={{ accentColor: 'var(--p-circle)' }} />
+          <span className="text-[13px]" style={{ color: 'var(--color-text-main)' }}>Считать время подхода</span>
+        </label>
+
+        {workOn && (
+          <div className="mt-2">
+            <div className="text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>Секунд на подход</div>
+            <input value={workSec} onChange={e => set({ workSec: e.target.value })} inputMode="numeric"
+              className="fg-input mt-1" />
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>Повторы</span>
-            {chipToggle(reps, REPS_OPTIONS, v => setSlotEdit(s => s ? { ...s, reps: v } : null))}
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>Отдых между подходами</span>
-            {chipToggle(rest, REST_OPTIONS, v => setSlotEdit(s => s ? { ...s, rest: v } : null))}
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>Отдых между упражнениями</span>
-            {chipToggle(restEx, REST_OPTIONS, v => setSlotEdit(s => s ? { ...s, restEx: v } : null))}
-          </div>
-          <div>
-            <div className="text-[12px] mb-1" style={{ color: 'var(--color-text-secondary)' }}>Стартовый вес, кг</div>
-            <Field value={weight} onChange={v => setSlotEdit(s => s ? { ...s, weight: v } : null)}
-              placeholder="Не задан" inputMode="decimal" />
-          </div>
-          <div className="flex items-center gap-2">
-            <input type="checkbox" checked={workOn}
-              onChange={() => setSlotEdit(s => s ? { ...s, workOn: !s.workOn } : null)}
-              className="w-4 h-4 rounded" style={{ accentColor: 'var(--p-labels)' }} />
-            <span className="text-[13px] font-medium" style={{ color: 'var(--color-text-main)' }}>Считать время подхода</span>
-          </div>
-          {workOn && (
-            <div>
-              <div className="text-[12px] mb-1 mt-1" style={{ color: 'var(--color-text-secondary)' }}>Секунд на подход</div>
-              <Field value={workSec} onChange={v => setSlotEdit(s => s ? { ...s, workSec: v } : null)}
-                placeholder="40" inputMode="numeric" />
-            </div>
-          )}
+        )}
+      </Dialog>
+    );
+  };
+
+  const optionDialog = () => {
+    if (!optionPick) return null;
+    return (
+      <Dialog title="" onClose={() => setOptionPick(null)}>
+        <div className="py-1">
+          {optionPick.options.map(o => (
+            <button key={o} type="button"
+              onClick={() => {
+                const p = optionPick;
+                setSlotEdit(s => {
+                  if (!s) return s;
+                  return p.field === 'reps' ? { ...s, reps: o }
+                    : p.field === 'rest' ? { ...s, rest: o } : { ...s, restEx: o };
+                });
+                setOptionPick(null);
+              }}
+              className="block w-full text-left px-2 py-3 text-[15px] rounded-lg active:bg-white/10"
+              style={{ color: o === optionPick.value ? 'var(--p-on-labels)' : 'var(--p-on-labels-soft)' }}>
+              {o}
+            </button>
+          ))}
+        </div>
+      </Dialog>
+    );
+  };
+
+  const goalDialog = () => {
+    if (goalFor === null) return null;
+    return (
+      <Dialog title="Цель блока" onClose={() => setGoalFor(null)}>
+        <div className="py-1">
+          {GOAL_ORDER.map(g => (
+            <button key={g} type="button"
+              onClick={() => { setBlockGoal(goalFor, g); setGoalFor(null); }}
+              className="block w-full text-left px-2 py-3 text-[15px] rounded-lg active:bg-white/10"
+              style={{ color: 'var(--p-on-labels)' }}>
+              {GOAL_LABELS_RU[g]}
+            </button>
+          ))}
+        </div>
+      </Dialog>
+    );
+  };
+
+  const weeksDialog = () => {
+    if (weeksFor === null) return null;
+    const b = getBlock(weeksFor);
+    if (!b) return null;
+    return (
+      <Dialog title={`Недель: ${b.weeks}`} onClose={() => setWeeksFor(null)}
+        actions={
+          <>
+            <DialogAction onClick={() => setWeeksFor(null)}>Отмена</DialogAction>
+            <DialogAction strong onClick={() => setWeeksFor(null)}>ОК</DialogAction>
+          </>
+        }>
+        <div className="flex items-center justify-center gap-4 py-4">
+          <button type="button" onClick={() => setBlockWeeks(weeksFor, b.weeks - 1)}
+            className="w-12 h-12 rounded-[14px] text-[18px] font-bold active:opacity-80"
+            style={{ background: 'var(--p-circle)', color: 'var(--p-on-circle)' }}>−</button>
+          <span className="min-w-[48px] text-center text-[18px]" style={{ color: 'var(--p-on-labels)' }}>
+            {b.weeks}
+          </span>
+          <button type="button" onClick={() => setBlockWeeks(weeksFor, b.weeks + 1)}
+            className="w-12 h-12 rounded-[14px] text-[18px] font-bold active:opacity-80"
+            style={{ background: 'var(--p-circle)', color: 'var(--p-on-circle)' }}>+</button>
         </div>
       </Dialog>
     );
@@ -420,11 +475,12 @@ export function CustomProgramPage() {
     if (!confirmKind || !confirmIdx) return null;
     const { bi } = confirmIdx;
     const title = confirmKind === 'block' ? 'Удалить блок?'
-      : confirmKind === 'day' ? `Удалить день «${getDay(bi, confirmIdx.di ?? 0)?.title}»?`
-      : `Удалить упражнение «${getSlot(bi, confirmIdx.di!, confirmIdx.si!)?.exercise}»?`;
-    const body = confirmKind === 'block' ? 'Блок будет удалён.'
-      : confirmKind === 'day' ? 'День будет удалён вместе с упражнениями.'
-      : 'Упражнение будет удалено из дня.';
+      : confirmKind === 'day' ? 'Удалить день?'
+      : 'Удалить упражнение?';
+    const body = confirmKind === 'block'
+      ? `Блок «${GOAL_LABELS_RU[getBlock(bi)?.goal] || 'Масса'} · ${getBlock(bi)?.weeks} нед.» будет удалён.`
+      : confirmKind === 'day' ? `День «${getDay(bi, confirmIdx.di ?? 0)?.title}» будет удалён вместе с упражнениями.`
+      : `Упражнение «${getSlot(bi, confirmIdx.di!, confirmIdx.si!)?.exercise}» будет удалено из дня.`;
     return (
       <ConfirmDialog title={title} message={body}
         onConfirm={() => {
@@ -445,70 +501,77 @@ export function CustomProgramPage() {
         actions={
           <>
             <DialogAction onClick={() => setRenameFor(null)}>Отмена</DialogAction>
-            <DialogAction strong onClick={() => { renameDay(bi, di, renameTitle); setRenameFor(null); }}>ОК</DialogAction>
+            <DialogAction strong onClick={() => {
+              const t = renameTitle.trim();
+              if (t) renameDay(bi, di, t);
+              setRenameFor(null);
+            }}>ОК</DialogAction>
           </>
         }>
-        <Field value={renameTitle} onChange={setRenameTitle} placeholder="Название дня" />
+        <input value={renameTitle} onChange={e => setRenameTitle(e.target.value)}
+          placeholder="Название дня" className="fg-input" />
       </Dialog>
     );
   };
 
   return (
     <div className="max-w-2xl mx-auto pb-4 w-full max-w-full">
-      <PageHeader title="Конструктор программы" onBack={() => navigate('/programs')} />
-      <div className="-mt-1 mb-2 ml-4 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
-        Курсы → дни → упражнения
-      </div>
+      <PageHeader title="Конструктор программы" subtitle="Курсы → дни → упражнения"
+        onBack={() => navigate('/programs')} />
 
-      <div className="px-4 space-y-3">
-        <Field value={name} onChange={setName} placeholder="Название программы" />
+      <div className="px-4">
+        <input value={name} onChange={e => setName(e.target.value)}
+          placeholder="Название программы" className="fg-input" />
 
-        <div className="flex items-center gap-2 mt-1">
-          <input type="checkbox" checked={periodized}
-            onChange={() => setPeriodized(!periodized)}
-            className="w-4 h-4 rounded" style={{ accentColor: 'var(--p-labels)' }} />
-          <label className="text-[14px] font-medium cursor-pointer select-none"
-            onClick={() => setPeriodized(!periodized)} style={{ color: 'var(--color-text-main)' }}>
-            Периодизация
-          </label>
-          <span className="text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
-            (курсы: сила → масса → рельеф)
-          </span>
-        </div>
+        <label className="flex items-center gap-2 mt-3 cursor-pointer select-none">
+          <input type="checkbox" checked={periodized} onChange={() => setPeriodized(!periodized)}
+            className="w-4 h-4" style={{ accentColor: 'var(--p-circle)' }} />
+          <span className="text-[14px]" style={{ color: 'var(--color-text-main)' }}>Периодизация</span>
+        </label>
 
-        <div className="mt-1 text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
-          {periodized ? 'Каждый блок — свой курс с целью и количеством недель.'
-            : 'Один курс без разбивки на периодизацию.'}
-        </div>
-
-        <div className="mt-2 space-y-1">
+        <div className="mt-1">
           {blocks.map((b, bi) => renderBlock(bi, b))}
-          {periodized && (
-            <button onClick={addBlock}
-              className="w-full h-9 mt-1 rounded-[20px] text-[12px] font-semibold"
-              style={{ border: '1px solid var(--p-outline)', color: 'var(--p-labels-text)', background: 'var(--p-labels)' }}>
-              + Блок
-            </button>
+          {!periodized && (
+            <div className="my-2 p-3" style={CARD}>
+              <AddButton onClick={addBlock}>+ Блок</AddButton>
+            </div>
           )}
         </div>
 
-        <PrimaryButton className="w-full h-[52px] mt-3 rounded-[26px] text-[16px] font-bold disabled:opacity-50"
-          onClick={save} disabled={!hasExercises}>
+        <button type="button" onClick={save}
+          className="mt-2 w-full h-[52px] rounded-[26px] text-[16px] font-bold uppercase tracking-[0.089em] active:opacity-80"
+          style={BTN}>
           Сохранить в перечень
-        </PrimaryButton>
+        </button>
       </div>
 
       {slotDialog()}
+      {optionDialog()}
+      {goalDialog()}
+      {weeksDialog()}
       {dayRenameDialog()}
       {confirmDialog()}
 
       {pickFor && (
         <ExercisePicker title="Выберите упражнения"
-          onPick={ex => addSlot(pickFor.bi, pickFor.di, ex)}
+          onPick={ex => addSlots(pickFor.bi, pickFor.di, [ex])}
           onClose={() => setPickFor(null)} />
       )}
 
       <Toast text={toast} />
+    </div>
+  );
+}
+
+function OptionRow({ label, value, onClick }: { label: string; value: string; onClick: () => void }) {
+  return (
+    <div className="flex items-center gap-2 mt-2">
+      <span className="flex-1 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>{label}</span>
+      <button type="button" onClick={onClick}
+        className="min-h-[36px] px-3 rounded-[14px] text-[12px] font-bold active:opacity-80"
+        style={{ background: 'var(--p-circle)', color: 'var(--p-on-circle)' }}>
+        {value || '—'}
+      </button>
     </div>
   );
 }

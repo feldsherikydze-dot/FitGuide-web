@@ -14,14 +14,11 @@ export function ProgramHubPage() {
     <div className="max-w-2xl mx-auto pb-4 w-full max-w-full">
       <PageHeader
         title="Программы"
+        subtitle="Лучшие программы и база упражнений"
         onBack={() => navigate('/')}
         right={null}
       />
       <div className="px-3">
-        <div className="-mt-1 mb-2 ml-1 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
-          Лучшие программы и база упражнений
-        </div>
-
         <HubSection>Разделы</HubSection>
 
         <HubCard
