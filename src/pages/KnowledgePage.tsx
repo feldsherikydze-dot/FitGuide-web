@@ -27,7 +27,7 @@ export function KnowledgePage() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-secondary)]" />
         <input
           type="text"
-          placeholder="Поиск по главам..."
+          placeholder="Поиск по библиотеке"
           value={query}
           onChange={e => setQuery(e.target.value)}
           className="w-full pl-10 pr-4 py-2.5 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-[var(--p-labels-text)] focus:ring-2 focus:ring-[var(--p-outline)]"

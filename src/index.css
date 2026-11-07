@@ -138,10 +138,14 @@ img, svg, video, canvas {
   box-shadow: none;
 }
 
-/* ---------- Кнопки: заливка (B), текст (D) ---------- */
+/* ---------- Кнопки: как MaterialButton — заливка (B), обводка (A), текст (D),
+   надпись uppercase 14sp bold (textAppearanceButton). ---------- */
 .fg-btn {
   border-radius: 22px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.089em;
+  text-transform: uppercase;
   transition: filter .12s ease, transform .12s ease;
 }
 
@@ -149,6 +153,7 @@ img, svg, video, canvas {
 
 .fg-btn-primary {
   background: var(--p-labels);
+  border: 1px solid var(--p-outline);
   color: var(--p-labels-text);
 }
 

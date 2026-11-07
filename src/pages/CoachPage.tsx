@@ -72,7 +72,7 @@ export function CoachPage() {
     <div className="flex items-center px-2 py-1 w-full">
       <button onClick={() => navigate('/')} className="w-12 h-12 flex items-center justify-center rounded-full active:bg-black/5"
         aria-label="Назад">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--p-labels)" strokeWidth="2.5"
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--p-labels-text)" strokeWidth="2.5"
           strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
       </button>
       <div className="ml-1 text-[20px] font-bold" style={{ color: 'var(--p-labels-text)' }}>Карманный тренер</div>
@@ -85,7 +85,7 @@ export function CoachPage() {
       <div className="max-w-2xl mx-auto pb-8 w-full max-w-full">
         {header}
         <div className="px-4">
-          <h1 className="text-[18px] font-bold mb-1" style={{ color: 'var(--p-labels-text)' }}>
+          <h1 className="text-[18px] font-bold mb-1" style={{ color: 'var(--p-circle)' }}>
             Привет! Я твой карманный тренер
           </h1>
           <p className="text-[14px] leading-relaxed" style={{ color: 'var(--color-text-main)' }}>
@@ -93,7 +93,7 @@ export function CoachPage() {
             разберу каждую тренировку и буду следить за формой. Сначала выбери, как предпочитаешь тренироваться.
           </p>
 
-          <div className="mt-5 mb-2 text-[15px] font-bold" style={{ color: 'var(--p-labels-text)' }}>
+          <div className="mt-5 mb-2 text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>
             Как предпочитаешь тренироваться?
           </div>
 
@@ -124,7 +124,7 @@ export function CoachPage() {
             }}
             className="mt-6 text-[13px] underline underline-offset-4"
             style={{ color: 'var(--color-text-secondary)' }}>
-            Сбросить программу тренера
+            Сбросить прогресс тренера
           </button>
         </div>
       </div>
