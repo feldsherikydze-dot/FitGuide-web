@@ -1,22 +1,21 @@
-// FitGuide Web — страница настроек (порт SettingsActivity.java 1:1)
+// FitGuide Web — страница настроек (порт SettingsActivity.java + activity_settings.xml).
 //
-// Разделы Android:
-//  1. Тема — Система / Светлая / Тёмная (чипы)
-//  2. Палитра — 4 независимых слота: Контур, Ярлыки+кнопки, Кругляшки, Надписи
-//  3. Приветствие — фон заставки, свои картинки, режим показа, кнопка часов
-//  4. Сигналы тренировки — профиль звука, громкость
+// Разделы ровно как в APK, карточки — статические colorSurface + stroke:
+//  1. Тема — Как в системе / Светлая / Тёмная
+//  2. Палитра — 4 слота, по одному свотчу на слот
+//  3. Приветствие — фон заставки, свои картинки, режим показа, часы
+//  4. Сигналы тренировки — профиль звука и громкость
 //  5. Главный экран — перетаскивание иконок, сброс порядка
-//  6. Инструменты — поиск на главном, город погоды, IP, обновления, часы
-//  7. Сброс настроек — подтверждение + полная очистка
+//  6. Инструменты — поиск, город погоды, обновления, часы
+//  7. Сброс настроек
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Palette, Sun, Moon, Monitor, Zap, Database, Smartphone, Image, ImageOff, RotateCcw, Clock, Wifi, Link, AlertCircle, RefreshCw } from 'lucide-react';
 import { PageHeader } from '../components/ui';
 import { useUIStore } from '../core/store';
 import { PaletteSettings } from '../components/PaletteSettings';
 import { getString, setString, getJSON, setJSON } from '../core/storage';
-import { slotColor, contrastOn, setSlotCustom, getPalette, subscribePalette, resetPalette } from '../core/palette';
 import {
   SIGNAL_PROFILES,
   getSignalProfileKey,
@@ -25,16 +24,12 @@ import {
   setSignalVolume,
   previewSignal,
 } from '../core/signal';
+import { Dialog, DialogAction, Field, Toast } from './progress/common';
+
+const APP_VERSION = '1.13.0';
 
 const THEME_VALUES: ('system' | 'light' | 'dark')[] = ['system', 'light', 'dark'];
-
-const themeLabels = { system: 'Как в системе', light: 'Светлая', dark: 'Тёмная' };
-const themeDesc = {
-  system: 'Авто по настройкам ОС',
-  light: 'Всегда светлая',
-  dark: 'Всегда тёмная',
-};
-const themeIcons = { system: Monitor, light: Sun, dark: Moon };
+const THEME_LABELS = { system: 'Как в системе', light: 'Светлая', dark: 'Тёмная' };
 
 const SPLASH_BG_VALUES = ['', '1', '2', '3', '4', '5'];
 const SPLASH_MODE_VALUES = [
@@ -56,81 +51,110 @@ const CLOCK_DIGITAL_STYLES: { key: 'classic' | 'minimal'; label: string }[] = [
   { key: 'minimal', label: 'Минимальные' },
 ];
 
+/** Карточка настроек: статические colorSurface + stroke, радиус 18dp, отступы 20dp. */
+function SettingsCard({ children }: { children: ReactNode }) {
+  return (
+    <div
+      className="mx-2 my-2 rounded-[18px] p-5"
+      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** SwitchCompat: бегунок — (C) включён / (A) выключен, дорожка — цвет страницы. */
+function Switch({ checked, onChange, label }: {
+  checked: boolean; onChange: (v: boolean) => void; label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={() => onChange(!checked)}
+      className="relative w-11 h-6 rounded-full flex-shrink-0"
+      style={{ background: 'var(--color-bg)' }}
+    >
+      <span
+        className="absolute top-[2px] left-[2px] w-5 h-5 rounded-full transition-transform"
+        style={{
+          background: checked ? 'var(--p-circle)' : 'var(--p-outline)',
+          transform: checked ? 'translateX(20px)' : 'none',
+        }}
+      />
+    </button>
+  );
+}
+
 export function SettingsPage() {
   const navigate = useNavigate();
   const { theme, setTheme } = useUIStore();
 
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [showClockDialog, setShowClockDialog] = useState(false);
-  const [clockEnabled, setClockEnabled] = useState(true);
-  const [clockMode, setClockMode] = useState<'analog' | 'digital'>('analog');
-  const [clockAnalogStyle, setClockAnalogStyle] = useState<'classic' | 'minimal' | 'sport'>('classic');
-  const [clockDigitalStyle, setClockDigitalStyle] = useState<'classic' | 'minimal'>('classic');
+  const [toast, setToast] = useState<string | null>(null);
 
-  // ---- локальное состояние настроек (хранятся в localStorage) ----
-  // Ключ как в Android (SettingsActivity): drag_enabled. Старый home_drag_enabled
-  // читаем только для миграции уже сохранённых настроек.
   const [dragEnabled, setDragEnabled] = useState(
     () => getString('drag_enabled', getString('home_drag_enabled', '1')) !== '0'
   );
   const [searchEnabled, setSearchEnabled] = useState(() => getString('home_search_enabled', '1') !== '0');
   const [weatherCity, setWeatherCity] = useState(() => getString('weather_city', 'Красноярск'));
   const [weatherIpDetect, setWeatherIpDetect] = useState(() => getString('weather_ip_detect', '0') === '1');
-  const [signalProfile, setSignalProfileState] = useState(() => getSignalProfileKey());
+  const [signalProfileKey, setSignalProfileKeyState] = useState(() => getSignalProfileKey());
   const [signalVolume, setSignalVolumeState] = useState(() => getSignalVolume());
   const [splashBg, setSplashBg] = useState(() => getString('splash_bg_fixed', ''));
-  const [splashMode, setSplashMode] = useState(() => (getString('splash_bg_mode', 'crop') as any) || 'crop');
+  const [splashMode, setSplashMode] = useState(() => getString('splash_bg_mode', 'crop') || 'crop');
   const [mySplashBgs, setMySplashBgs] = useState<string[]>(() => {
     const raw = getJSON<string[]>('splash_my_bgs', []);
     return Array.isArray(raw) ? raw : [];
   });
   const [updateUrl, setUpdateUrl] = useState(() => getString('update_url', ''));
-  const [updateStatus, setUpdateStatus] = useState<string | null>(null);
+  const [updateStatus, setUpdateStatus] = useState(`Установлена версия ${APP_VERSION}`);
+  const [watchStatus, setWatchStatus] = useState('Часы с зеркалом рядом не найдены. Проверь Bluetooth и что приложение стоит на часах.');
 
-  const showToast = (type: 'success' | 'error' | 'info', message: string) => {
-    setToast({ type, message });
-    setTimeout(() => setToast(null), 3000);
+  const [clockEnabled, setClockEnabled] = useState(() => getString('splash_clock_enabled', '1') !== '0');
+  const [clockMode, setClockMode] = useState<'analog' | 'digital'>(
+    () => (getString('splash_clock', 'analog') as 'analog' | 'digital') || 'analog'
+  );
+  const [clockAnalogStyle, setClockAnalogStyle] = useState<'classic' | 'minimal' | 'sport'>(
+    () => (getString('splash_clock_style_analog', 'classic') as 'classic' | 'minimal' | 'sport') || 'classic'
+  );
+  const [clockDigitalStyle, setClockDigitalStyle] = useState<'classic' | 'minimal'>(
+    () => (getString('splash_clock_style_digital', 'classic') as 'classic' | 'minimal') || 'classic'
+  );
+
+  const showToast = (text: string) => {
+    setToast(text);
+    window.setTimeout(() => setToast(null), 2500);
   };
 
-  // ---- сброс ----
   const handleResetAll = () => {
     setShowResetConfirm(false);
-    showToast('success', 'Настройки сброшены к начальным');
-    // Как performReset в Android: стереть все данные и запустить заставку заново.
-    // Небольшая пауза — чтобы тост успел показаться.
-    setTimeout(() => {
+    showToast('Настройки сброшены к начальным');
+    window.setTimeout(() => {
       try {
         localStorage.clear();
         sessionStorage.clear();
       } catch {
         /* хранилище недоступно — всё равно перезапускаем */
       }
-      // Чистый маршрут: после «Старт» Shell сам отправит на знакомство.
       window.location.replace(window.location.pathname + window.location.search + '#/');
       window.location.reload();
     }, 600);
   };
 
-  // ---- тема ----
-  const setAppTheme = (value: 'system' | 'light' | 'dark') => {
-    setTheme(value);
-  };
-
-  // ---- сигналы ----
   const pickSignal = (key: string) => {
     setSignalProfile(key);
-    setSignalProfileState(getSignalProfileKey());
-    // Сразу даём послушать: выбирать сигнал на слух надёжнее, чем по названию.
+    setSignalProfileKeyState(getSignalProfileKey());
     previewSignal();
-    showToast('success', `Профиль сигнала: ${SIGNAL_PROFILES.find(p => p.key === key)?.label}`);
   };
 
-  // ---- обновления ----
   const checkUpdate = () => {
     const url = updateUrl.trim();
     if (!url) {
-      setUpdateStatus('Укажите адрес update.json');
+      setUpdateStatus('Введите адрес update.json');
       return;
     }
     if (!url.startsWith('https://')) {
@@ -139,46 +163,39 @@ export function SettingsPage() {
     }
     setString('update_url', url);
     setUpdateStatus('Проверяю…');
-    setTimeout(() => {
-      setUpdateStatus('У вас актуальная версия');
-    }, 1200);
+    window.setTimeout(() => setUpdateStatus(`Установлена версия ${APP_VERSION}`), 1200);
   };
 
-  // ---- часы ----
-  const applyClock = () => {
-    setString('splash_clock_enabled', clockEnabled ? '1' : '0');
-    setString('splash_clock', clockMode);
-    setString('splash_clock_style_analog', clockAnalogStyle);
-    setString('splash_clock_style_digital', clockDigitalStyle);
-    setShowClockDialog(false);
-    showToast('success', 'Настройки часов сохранены');
+  const findWatch = () => {
+    setWatchStatus('Ищу часы рядом…');
+    window.setTimeout(
+      () => setWatchStatus('Часы с зеркалом рядом не найдены. Проверь Bluetooth и что приложение стоит на часах.'),
+      1500,
+    );
   };
 
-  // ---- свои фоны ----
   const addMySplashBg = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
     input.multiple = true;
-    input.onchange = (e: any) => {
-      const files = e.target.files;
+    input.onchange = (e: Event) => {
+      const files = (e.target as HTMLInputElement).files;
       if (!files || files.length === 0) return;
       const next = [...mySplashBgs];
       let loaded = 0;
       for (let i = 0; i < files.length; i++) {
-        const file = files[i];
         const reader = new FileReader();
         reader.onload = () => {
-          const dataUrl = reader.result as string;
-          next.push(dataUrl);
+          next.push(reader.result as string);
           loaded++;
           if (loaded === files.length) {
             setMySplashBgs(next);
             setJSON('splash_my_bgs', next);
-            showToast('success', `Добавлено картинок: ${files.length}`);
+            showToast(`Добавлено картинок: ${files.length}`);
           }
         };
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(files[i]);
       }
     };
     input.click();
@@ -187,7 +204,7 @@ export function SettingsPage() {
   const clearMySplashBgs = () => {
     setMySplashBgs([]);
     setJSON('splash_my_bgs', []);
-    showToast('success', 'Свои фоны очищены');
+    showToast('Возвращены встроенные фоны');
   };
 
   const removeMySplashBg = (url: string) => {
@@ -196,652 +213,405 @@ export function SettingsPage() {
     setJSON('splash_my_bgs', next);
   };
 
+  const onTheme = (value: 'system' | 'light' | 'dark') => setTheme(value);
+
+  const chip = (active: boolean) => `fg-chip ${active ? 'fg-chip-on' : ''}`;
+  const sectionTitle = { color: 'var(--color-text-main)' } as const;
+  const secondary = { color: 'var(--color-text-secondary)' } as const;
+  const labelMain = { color: 'var(--color-text-main)' } as const;
+  const labelSecondary = { color: 'var(--color-text-secondary)' } as const;
+
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-bg)' }}>
-      {/* Шапка — как в Android: стрелка назад + заголовок цветом темы */}
+    <div className="max-w-2xl mx-auto w-full pb-4">
       <PageHeader title="Настройки" onBack={() => navigate('/')} />
 
-      <div className="max-w-2xl mx-auto space-y-6 px-4 py-4 w-full max-w-full">
-        {/* ===== ТЕМА ===== */}
-        <div
-          className="rounded-[18px] p-5 space-y-4"
-          style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
-        >
-          <div className="mb-1 flex items-center gap-2">
-            <Palette className="w-5 h-5" style={{ color: 'var(--p-labels-text)' }} />
-            <h2 className="text-[16px] font-bold" style={{ color: 'var(--p-labels-text)' }}>Тема</h2>
-          </div>
-          <p className="text-[13px] mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-            Оформление приложения
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {THEME_VALUES.map((value) => {
-              const active = theme === value;
-              const Icon = themeIcons[value as keyof typeof themeIcons];
-              return (
-                <button
-                  key={value}
-                  onClick={() => setAppTheme(value)}
-                  className="min-h-[32px] px-3 rounded-[8px] text-[13px] whitespace-nowrap transition-colors"
-                  style={{
-                    background: active ? 'var(--p-circle)' : 'transparent',
-                    border: `1px solid ${active ? 'var(--p-circle)' : 'var(--p-outline)'}`,
-                    color: active ? 'var(--p-on-circle)' : 'var(--p-outline)',
-                  }}
-                >
-                  <Icon className="w-4 h-4 mr-1.5" />
-                  {themeLabels[value as keyof typeof themeLabels]}
-                </button>
-              );
-            })}
-          </div>
-          <p className="text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
-            {themeDesc[theme as keyof typeof themeDesc]}
-          </p>
+      {/* ===== ТЕМА ===== */}
+      <SettingsCard>
+        <div className="text-[16px] font-bold" style={sectionTitle}>Тема</div>
+        <div className="mt-1 text-[13px]" style={secondary}>Оформление приложения</div>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {THEME_VALUES.map(value => (
+            <button key={value} onClick={() => onTheme(value)} className={chip(theme === value)}>
+              {THEME_LABELS[value]}
+            </button>
+          ))}
         </div>
+      </SettingsCard>
 
-        {/* ===== ПАЛИТРА ===== */}
-        <div
-          className="rounded-[18px] p-5 space-y-4"
-          style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
-        >
-          <div className="mb-1 flex items-center gap-2">
-            <Palette className="w-5 h-5" style={{ color: 'var(--p-labels-text)' }} />
-            <h2 className="text-[16px] font-bold" style={{ color: 'var(--p-labels-text)' }}>Палитра</h2>
-          </div>
-          <p className="text-[13px] mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-            Четыре независимых слота: контур, ярлыки, кругляшки, надписи.
-          </p>
-          <button
-            className="w-full h-10 rounded-[22px] text-[14px] font-medium mt-3"
-            style={{
-              background: 'var(--p-labels)',
-              border: '1px solid var(--p-outline)',
-              color: 'var(--p-labels-text)',
-            }}
-            onClick={() => {
-              resetPalette();
-              showToast('success', 'Палитра сброшена к стандартной (как в Android).');
-            }}
-          >
-            <RefreshCw className="w-4 h-4 mr-1.5" /> Сбросить палитру к стандартной
-          </button>
+      {/* ===== ПАЛИТРА ===== */}
+      <SettingsCard>
+        <div className="text-[16px] font-bold" style={sectionTitle}>Палитра</div>
+        <div className="mt-1 text-[13px]" style={secondary}>Цветовая схема приложения</div>
+        <div className="mt-[18px]">
           <PaletteSettings />
         </div>
+      </SettingsCard>
 
-        {/* ===== ПРИВЕТСТВИЕ ===== */}
-        <div
-          className="rounded-[18px] p-5 space-y-4"
-          style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
-        >
-          <div className="mb-1 flex items-center gap-2">
-            <Sun className="w-5 h-5" style={{ color: 'var(--p-labels-text)' }} />
-            <h2 className="text-[16px] font-bold" style={{ color: 'var(--p-labels-text)' }}>Приветствие</h2>
-          </div>
-          <p className="text-[13px] mb-3" style={{ color: 'var(--color-text-secondary)' }}>
-            Экран приветствия: фон и часы.
-          </p>
+      {/* ===== ПРИВЕТСТВИЕ ===== */}
+      <SettingsCard>
+        <div className="text-[16px] font-bold" style={sectionTitle}>Приветствие</div>
+        <div className="mt-1 text-[13px]" style={secondary}>Экран приветствия: фон и часы.</div>
 
-          {/* Фон заставки */}
-          <div>
-            <div className="text-[14px] font-bold mb-1" style={{ color: 'var(--p-labels-text)' }}>
-              Фон заставки
-            </div>
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {SPLASH_BG_VALUES.map((value) => (
-                <button
-                  key={value}
-                  onClick={() => { setSplashBg(value); setString('splash_bg_fixed', value); }}
-                  className="min-h-[32px] px-3 rounded-[8px] text-[13px] whitespace-nowrap transition-colors"
-                  style={{
-                    background: splashBg === value ? 'var(--p-circle)' : 'transparent',
-                    border: `1px solid ${splashBg === value ? 'var(--p-circle)' : 'var(--p-outline)'}`,
-                    color: splashBg === value ? 'var(--p-on-circle)' : 'var(--p-outline)',
-                  }}
-                >
-                  {value === '' ? 'Авто (по дням)' : value}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Своя картинка */}
-          <div>
-            <div className="text-[14px] font-bold mb-1" style={{ color: 'var(--p-labels-text)' }}>
-              Своя картинка на заставке
-            </div>
-            <p className="text-[12px] mb-2" style={{ color: 'var(--color-text-secondary)' }}>
-              Если добавлено, изображения показываются на экране приветствия.
-            </p>
-            <div className="flex gap-2 mb-3">
-              <button
-                onClick={addMySplashBg}
-                className="flex-1 h-10 rounded-[20px] text-[13px] font-medium"
-                style={{
-                  background: 'var(--p-labels)',
-                  border: '1px solid var(--p-outline)',
-                  color: 'var(--p-labels-text)',
-                }}
-              >
-                <Image className="w-4 h-4 mr-1.5" /> Добавить картинку
-              </button>
-              <button
-                onClick={clearMySplashBgs}
-                className="flex-1 h-10 rounded-[20px] text-[13px] font-medium border border-[var(--p-outline)] text-[var(--p-outline)] bg-transparent"
-              >
-                <ImageOff className="w-4 h-4 mr-1.5" /> Очистить
-              </button>
-            </div>
-            <div className="flex gap-1.5 overflow-x-auto pb-1 mb-2">
-              {mySplashBgs.length === 0 ? (
-                <p className="text-[12px] text-[var(--color-text-secondary)]">
-                  Картинок пока не добавлено.
-                </p>
-              ) : (
-                mySplashBgs.map((url, i) => (
-                  <div key={i} className="relative w-16 h-16 rounded-[12px] border border-[var(--p-outline)] bg-[var(--color-surface-variant)] flex-shrink-0">
-                    <img src={url} alt="" className="w-full h-full object-cover rounded-[12px]" />
-                    <button
-                      onClick={(e) => { e.stopPropagation(); removeMySplashBg(url); }}
-                      className="absolute -right-1 -bottom-1 w-5 h-5 rounded-full bg-warning text-[#FFFFFF] text-[10px] flex items-center justify-center"
-                      aria-label="Удалить"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Режим показа */}
-          <div>
-            <div className="text-[13px] mb-1" style={{ color: 'var(--color-text-secondary)' }}>
-              Своя картинка на заставке: как показывать
-            </div>
-            <div className="flex flex-col gap-1 mb-3">
-              {SPLASH_MODE_VALUES.map((m) => (
-                <button
-                  key={m.key}
-                  onClick={() => { setSplashMode(m.key); setString('splash_bg_mode', m.key); }}
-                  className="min-h-[30px] px-3 rounded-[8px] text-[12px] whitespace-nowrap transition-colors"
-                  style={{
-                    background: splashMode === m.key ? 'var(--p-circle)' : 'transparent',
-                    border: `1px solid ${splashMode === m.key ? 'var(--p-circle)' : 'var(--p-outline)'}`,
-                    color: splashMode === m.key ? 'var(--p-on-circle)' : 'var(--p-outline)',
-                  }}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Часы */}
-          <div>
-            <div className="text-[13px] mb-2" style={{ color: 'var(--color-text-secondary)' }}>
-              Часы стартового экрана: настройка режима и стиля.
-            </div>
+        <div className="mt-3 text-[14px]" style={labelMain}>Фон заставки</div>
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {SPLASH_BG_VALUES.map(value => (
             <button
-              className="w-full h-10 rounded-[22px] text-[14px] font-medium flex items-center justify-center gap-2"
-              style={{
-                background: 'var(--p-labels)',
-                border: '1px solid var(--p-outline)',
-                color: 'var(--p-labels-text)',
-              }}
-              onClick={() => {
-                setClockEnabled(getString('splash_clock_enabled', '1') === '1');
-                setClockMode((getString('splash_clock', 'analog') as any) || 'analog');
-                setClockAnalogStyle((getString('splash_clock_style_analog', 'classic') as any) || 'classic');
-                setClockDigitalStyle((getString('splash_clock_style_digital', 'classic') as any) || 'classic');
-                setShowClockDialog(true);
-              }}
+              key={value}
+              onClick={() => { setSplashBg(value); setString('splash_bg_fixed', value); }}
+              className={chip(splashBg === value)}
             >
-              <Clock className="w-4 h-4" /> Часы стартового экрана
+              {value === '' ? 'Авто (по дням)' : value}
             </button>
-          </div>
+          ))}
         </div>
 
-        {/* ===== СИГНАЛЫ ТРЕНИРОВКИ ===== */}
-        <div
-          className="rounded-[18px] p-5 space-y-4"
-          style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
-        >
-          <div className="mb-1 flex items-center gap-2">
-            <Zap className="w-5 h-5" style={{ color: 'var(--p-labels-text)' }} />
-            <h2 className="text-[16px] font-bold" style={{ color: 'var(--p-labels-text)' }}>Сигналы тренировки</h2>
-          </div>
-          <p className="text-[13px] mb-4" style={{ color: 'var(--color-text-secondary)' }}>
-            Звук и вибрация при старте подхода, конце времени и конце отдыха.
-          </p>
-
-          <div>
-            <div className="text-[14px] font-bold mb-1" style={{ color: 'var(--p-labels-text)' }}>
-              Профиль звука
-            </div>
-            <p className="text-[12px] mb-2" style={{ color: 'var(--color-text-secondary)' }}>
-              Нажми на профиль — сигнал прозвучит. В зале громче, дома тише.
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {SIGNAL_PROFILES.map((p) => (
-                <button
-                  key={p.key}
-                  onClick={() => pickSignal(p.key)}
-                  className="min-h-[30px] px-3 rounded-[8px] text-[13px] whitespace-nowrap transition-colors"
-                  style={{
-                    background: signalProfile === p.key ? 'var(--p-circle)' : 'transparent',
-                    border: `1px solid ${signalProfile === p.key ? 'var(--p-circle)' : 'var(--p-outline)'}`,
-                    color: signalProfile === p.key ? 'var(--p-on-circle)' : 'var(--p-outline)',
-                  }}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <div className="flex justify-between mb-1">
-              <div className="text-[14px] font-bold" style={{ color: 'var(--p-labels-text)' }}>
-                Громкость сигнала
-              </div>
-              <span className="text-[12px] font-medium" style={{ color: 'var(--p-labels-text)' }}>
-                {signalVolume <= 0 ? '0% — только вибрация' : signalVolume + '%'}
-              </span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              step="5"
-              value={signalVolume}
-              onChange={e => {
-                const v = parseInt(e.target.value, 10);
-                setSignalVolumeState(v);
-                setSignalVolume(v);
-              }}
-              onPointerUp={previewSignal}
-              onKeyUp={previewSignal}
-              className="w-full h-2 bg-[var(--p-outline)] rounded-lg appearance-none cursor-pointer"
-              style={{ accentColor: 'var(--p-labels-text)' }}
-            />
-            <p className="text-[12px] mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-              Кнопки громкости телефона тоже регулируют сигнал. На нуле остаётся только вибрация.
-            </p>
-          </div>
+        <div className="mt-2.5 text-[14px] font-bold" style={labelMain}>Свои картинки на стартовом</div>
+        <div className="mt-0.5 text-[12px] leading-snug" style={secondary}>
+          Выберите фоны из галереи — приложение будет показывать их по очереди.
+          Если своих нет, используются встроенные.
         </div>
 
-        {/* ===== ГЛАВНЫЙ ЭКРАН ===== */}
-        <div
-          className="rounded-[18px] p-5 space-y-4"
-          style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
-        >
-          <div className="mb-1 flex items-center gap-2">
-            <Smartphone className="w-5 h-5" style={{ color: 'var(--p-labels-text)' }} />
-            <h2 className="text-[16px] font-bold" style={{ color: 'var(--p-labels-text)' }}>Главный экран</h2>
-          </div>
-          <p className="text-[13px] mb-3" style={{ color: 'var(--color-text-secondary)' }}>
-            Настраивайте ярлыки инструментов, строку поиска и плеер.
-          </p>
-
-          <div className="flex items-center justify-between mb-1">
-            <div>
-              <div className="text-[14px] font-bold" style={{ color: 'var(--p-labels-text)' }}>
-                Перетаскивание иконок
-              </div>
-              <p className="text-[12px] mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
-                Долгий тап по иконке на главном — и её можно переставить, как ярлык на рабочем столе.
-              </p>
+        <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
+          {mySplashBgs.map((url, i) => (
+            <div
+              key={`${url.slice(0, 32)}-${i}`}
+              className="relative w-16 h-16 rounded-[12px] flex-shrink-0"
+              style={{ border: '1px solid var(--p-outline)', background: 'var(--color-surface-variant)' }}
+            >
+              <img src={url} alt="" className="w-full h-full object-cover rounded-[12px]" />
+              <button
+                onClick={() => removeMySplashBg(url)}
+                className="absolute -right-1 -bottom-1 w-5 h-5 rounded-full text-[10px] flex items-center justify-center"
+                style={{ background: 'var(--p-outline)', color: 'var(--p-on-outline)' }}
+                aria-label="Удалить"
+              >
+                ✕
+              </button>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={dragEnabled}
-                onChange={e => {
-                  setDragEnabled(e.target.checked);
-                  const v = e.target.checked ? '1' : '0';
-                  setString('drag_enabled', v);
-                  // дубль для старого кэша PWA; после обновления SW не нужен
-                  setString('home_drag_enabled', v);
-                }}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-[var(--p-outline)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#FFFFFF] after:border-[var(--p-outline)] after:border after:rounded-full after:h-5 after:w-5 after:transition-all"
-                style={{
-                  background: dragEnabled ? 'var(--p-circle)' : 'var(--p-outline)',
-                  border: dragEnabled ? `1px solid var(--p-circle)` : '1px solid var(--p-outline)',
-                }}
-              />
-            </label>
-          </div>
+          ))}
+        </div>
 
+        <div className="mt-2 flex gap-2">
           <button
-            className="w-full h-10 rounded-[22px] text-[14px] font-medium border border-[var(--p-outline)] text-[var(--p-outline)] bg-transparent mt-2"
-            onClick={() => { setString('tool_order', ''); showToast('success', 'Порядок иконок сброшен к стандартному.'); }}
+            onClick={addMySplashBg}
+            className="fg-btn fg-btn-primary flex-1"
+            style={{ height: 40, borderRadius: 20, fontSize: 13 }}
           >
-            <RotateCcw className="w-4 h-4 mr-1.5" /> Сбросить порядок
+            Добавить из галереи
+          </button>
+          <button
+            onClick={clearMySplashBgs}
+            className="fg-btn fg-btn-primary flex-1"
+            style={{ height: 40, borderRadius: 20, fontSize: 13 }}
+          >
+            Вернуть встроенные
           </button>
         </div>
 
-        {/* ===== ИНСТРУМЕНТЫ ===== */}
-        <div
-          className="rounded-[18px] p-5 space-y-4"
-          style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
-        >
-          <div className="mb-1 flex items-center gap-2">
-            <Database className="w-5 h-5" style={{ color: 'var(--p-labels-text)' }} />
-            <h2 className="text-[16px] font-bold" style={{ color: 'var(--p-labels-text)' }}>Инструменты</h2>
-          </div>
-          <p className="text-[13px] mb-4" style={{ color: 'var(--color-text-secondary)' }}>
-            Поиск, погода, обновления и связь с часами.
-          </p>
-
-          <div className="flex items-center justify-between mb-1">
-            <div>
-              <div className="text-[14px] font-bold" style={{ color: 'var(--p-labels-text)' }}>
-                Строка поиска на главном
-              </div>
-              <p className="text-[12px] mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
-                Пускай поиском упражнений на главном экране, если он вам нужен. Плеер всегда на месте.
-              </p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={searchEnabled}
-                onChange={e => { setSearchEnabled(e.target.checked); setString('home_search_enabled', e.target.checked ? '1' : '0'); }}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-[var(--p-outline)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#FFFFFF] after:border-[var(--p-outline)] after:border after:rounded-full after:h-5 after:w-5 after:transition-all"
-                style={{
-                  background: searchEnabled ? 'var(--p-circle)' : 'var(--p-outline)',
-                  border: searchEnabled ? `1px solid var(--p-circle)` : '1px solid var(--p-outline)',
-                }}
-              />
-            </label>
-          </div>
-
-          <div className="space-y-2">
-            <div className="text-[13px] font-bold mb-1" style={{ color: 'var(--color-text-secondary)' }}>
-              Город для погоды
-            </div>
-            <input
-              type="text"
-              value={weatherCity}
-              onChange={e => { setWeatherCity(e.target.value); setString('weather_city', e.target.value); }}
-              placeholder="Красноярск"
-              className="w-full h-[46px] px-4 rounded-[10px] text-[15px] outline-none"
-              style={{
-                background: 'var(--p-labels)',
-                border: '1px solid var(--p-outline)',
-                color: 'var(--color-text-main)',
-              }}
-            />
-          </div>
-
-          <label className="flex items-center gap-2 mb-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={weatherIpDetect}
-              onChange={e => { setWeatherIpDetect(e.target.checked); setString('weather_ip_detect', e.target.checked ? '1' : '0'); }}
-              className="w-4 h-4 rounded border-[var(--p-outline)]"
-              style={{ accentColor: 'var(--p-labels-text)' }}
-            />
-            <div className="text-[15px] font-medium" style={{ color: 'var(--color-text-main)' }}>
-              Определять город по интернет-адресу
-            </div>
-          </label>
-          <p className="text-[12px] mb-4" style={{ color: 'var(--color-text-secondary)' }}>
-            Если включено, приложение отправляет ваш IP-адрес стороннему сервису ipwho.is, и по нему определяется город.
-            При выключенном тумблере адрес никуда не отправляется, а город берётся из поля выше.
-          </p>
-
-          <div className="pt-3 border-t border-[var(--p-outline)]">
-            <div className="text-[13px] font-bold mb-1" style={{ color: 'var(--color-text-secondary)' }}>
-              Обновления
-            </div>
-            <input
-              type="text"
-              value={updateUrl}
-              onChange={e => setUpdateUrl(e.target.value)}
-              placeholder="https://.../update.json"
-              className="w-full h-[46px] px-4 rounded-[10px] text-[14px] outline-none mb-2"
-              style={{
-                background: 'var(--p-labels)',
-                border: '1px solid var(--p-outline)',
-                color: 'var(--color-text-main)',
-              }}
-            />
-            <button
-              className="w-full h-10 rounded-[22px] text-[14px] font-medium"
-              style={{
-                background: 'var(--p-labels)',
-                border: '1px solid var(--p-outline)',
-                color: 'var(--p-labels-text)',
-              }}
-              onClick={checkUpdate}
-            >
-              <RefreshCw className="w-4 h-4 mr-1.5" /> Проверить обновления
-            </button>
-            {updateStatus && (
-              <p className="text-[12px] mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-                {updateStatus}
-              </p>
-            )}
-            <p className="text-[12px] mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-              У вас актуальная версия
-            </p>
-          </div>
-
-          <div className="pt-3 border-t border-[var(--p-outline)] mt-4">
-            <div className="text-[13px] font-bold mb-2" style={{ color: 'var(--color-text-secondary)' }}>
-              Часы и датчики
-            </div>
-            <div className="text-[13px] mb-2" style={{ color: 'var(--color-text-main)' }}>
-              Часы с зеркалом рядом не найдены.
-            </div>
-            <div className="flex gap-2">
-              <button
-                className="flex-1 h-10 rounded-[22px] text-[13px] font-medium border border-[var(--p-outline)] text-[var(--p-outline)] bg-transparent"
-                onClick={() => showToast('info', 'Поиск часов — функция подключения Wear OS')}
-              >
-                <Wifi className="w-4 h-4 mr-1.5" /> Найти часы
-              </button>
-              <button
-                className="flex-1 h-10 rounded-[22px] text-[13px] font-medium"
-                style={{
-                  background: 'var(--p-labels)',
-                  border: '1px solid var(--p-outline)',
-                  color: 'var(--p-labels-text)',
-                }}
-                onClick={() => showToast('info', 'Сопряжение часов — функция подключения Wear OS')}
-              >
-                <Link className="w-4 h-4 mr-1.5" /> Это мои часы
-              </button>
-            </div>
-            <p className="text-[12px] mt-2" style={{ color: 'var(--color-text-secondary)' }}>
-              Начни тренировку на телефоне — часы с зеркалом подхватят сами: упражнение, подходы,
-              отдых с вибрацией. Без часов рядом всё работает как раньше.
-            </p>
-          </div>
-        </div>
-
-        {/* ===== СБРОС ===== */}
-        <button
-          className="w-full h-12 rounded-[24px] text-[14px] font-bold"
-          style={{
-            background: 'var(--p-labels)',
-            border: '1px solid var(--p-outline)',
-            color: 'var(--p-labels-text)',
-          }}
-          onClick={() => setShowResetConfirm(true)}
-        >
-          <AlertCircle className="w-4 h-4 mr-1.5" /> Сбросить настройки
-        </button>
-
-        {/* Тост */}
-        {toast && (
-          <div
-            className="fixed left-1/2 -translate-x-1/2 bottom-24 px-4 py-2 rounded-full text-[13px] font-medium text-white z-[60] max-w-[90vw] text-center"
-            style={{ background: 'var(--p-labels)' }}
-          >
-            {toast.message}
+        {mySplashBgs.length === 0 && (
+          <div className="mt-1.5 text-[12px]" style={secondary}>
+            Своих фонов нет — на стартовом показываются встроенные.
           </div>
         )}
+
+        <div className="mt-3 text-[13px]" style={secondary}>Своя картинка на заставке: как показывать</div>
+        <div className="mt-1.5 flex flex-wrap gap-2">
+          {SPLASH_MODE_VALUES.map(m => (
+            <button
+              key={m.key}
+              onClick={() => { setSplashMode(m.key); setString('splash_bg_mode', m.key); }}
+              className={chip(splashMode === m.key)}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-3 text-[13px]" style={secondary}>Вид и стиль часов стартового экрана</div>
+        <button
+          onClick={() => setShowClockDialog(true)}
+          className="fg-btn fg-btn-primary w-full mt-1.5"
+          style={{ height: 44, borderRadius: 22 }}
+        >
+          Настроить часы
+        </button>
+      </SettingsCard>
+
+      {/* ===== СИГНАЛЫ ТРЕНИРОВКИ ===== */}
+      <SettingsCard>
+        <div className="text-[16px] font-bold" style={sectionTitle}>Сигналы тренировки</div>
+        <div className="mt-1 text-[13px]" style={secondary}>
+          Звук и вибрация при старте подхода, конце времени и конце отдыха.
+        </div>
+
+        <div className="mt-3 text-[14px] font-bold" style={labelMain}>Профиль звука</div>
+        <div className="mt-0.5 text-[12px] leading-snug" style={secondary}>
+          Нажми на профиль — сигнал прозвучит. В зале громче, дома тише.
+        </div>
+        <div className="mt-2.5 flex flex-wrap gap-2">
+          {SIGNAL_PROFILES.map(p => (
+            <button key={p.key} onClick={() => pickSignal(p.key)} className={chip(signalProfileKey === p.key)}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4 text-[14px] font-bold" style={labelMain}>Громкость сигнала</div>
+        <div className="mt-0.5 text-[12px]" style={secondary}>
+          {signalVolume <= 0 ? '0% — только вибрация' : `${signalVolume}%`}
+        </div>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          step="5"
+          value={signalVolume}
+          onChange={e => {
+            const v = parseInt(e.target.value, 10);
+            setSignalVolumeState(v);
+            setSignalVolume(v);
+          }}
+          onPointerUp={previewSignal}
+          onKeyUp={previewSignal}
+          className="w-full mt-1"
+          style={{ accentColor: 'var(--p-labels-text)' }}
+        />
+        <div className="mt-1.5 text-[12px] leading-snug" style={secondary}>
+          Кнопки громкости телефона тоже регулируют сигнал. На нуле остаётся только вибрация.
+          На часах — та же громкость.
+        </div>
+      </SettingsCard>
+
+      {/* ===== ГЛАВНЫЙ ЭКРАН ===== */}
+      <SettingsCard>
+        <div className="text-[16px] font-bold" style={sectionTitle}>Главный экран</div>
+        <div className="mt-1 text-[13px]" style={secondary}>
+          Настраивайте ярлыки инструментов, строку поиска и плеер.
+        </div>
+
+        <div className="mt-3 flex items-center gap-2">
+          <div className="flex-1 text-[14px]" style={labelMain}>Перетаскивание иконок</div>
+          <Switch
+            checked={dragEnabled}
+            label="Перетаскивание иконок"
+            onChange={v => {
+              setDragEnabled(v);
+              setString('drag_enabled', v ? '1' : '0');
+              setString('home_drag_enabled', v ? '1' : '0');
+            }}
+          />
+        </div>
+        <div className="mt-0.5 text-[12px] leading-snug" style={secondary}>
+          Долгий тап по иконке на главном — и её можно переставить, как ярлык на рабочем столе.
+        </div>
+
+        <button
+          onClick={() => { setString('tool_order', ''); showToast('Порядок иконок сброшен к стандартному.'); }}
+          className="fg-btn fg-btn-primary w-full mt-3.5"
+          style={{ height: 44, borderRadius: 22 }}
+        >
+          Сбросить порядок
+        </button>
+      </SettingsCard>
+
+      {/* ===== ИНСТРУМЕНТЫ ===== */}
+      <SettingsCard>
+        <div className="text-[16px] font-bold" style={sectionTitle}>Инструменты</div>
+        <div className="mt-1 text-[13px]" style={secondary}>Строка поиска и город для погоды.</div>
+
+        <div className="mt-3 flex items-center gap-2">
+          <div className="flex-1 text-[14px]" style={labelMain}>Строка поиска на главном</div>
+          <Switch
+            checked={searchEnabled}
+            label="Строка поиска на главном"
+            onChange={v => { setSearchEnabled(v); setString('home_search_enabled', v ? '1' : '0'); }}
+          />
+        </div>
+        <div className="mt-0.5 text-[12px] leading-snug" style={secondary}>
+          Пускай поиском упражнений на главном экране, если он вам нужен. Плеер всегда на месте.
+        </div>
+
+        <div className="mt-3 text-[13px] font-bold" style={labelSecondary}>Город для погоды</div>
+        <Field
+          className="mt-1.5"
+          value={weatherCity}
+          onChange={v => { setWeatherCity(v); setString('weather_city', v); }}
+          placeholder="Красноярск"
+          inputMode="text"
+        />
+
+        <div className="mt-2.5 flex items-center gap-2">
+          <div className="flex-1 text-[15px]" style={labelMain}>Определять город по интернет-адресу</div>
+          <Switch
+            checked={weatherIpDetect}
+            label="Определять город по интернет-адресу"
+            onChange={v => { setWeatherIpDetect(v); setString('weather_ip_detect', v ? '1' : '0'); }}
+          />
+        </div>
+        <div className="mt-0.5 text-[12px] leading-snug" style={secondary}>
+          Если включено, приложение отправляет ваш IP-адрес стороннему сервису ipwho.is, и по нему
+          определяется город. При выключенном тумблере адрес никуда не отправляется, а город берётся
+          из поля выше.
+        </div>
+
+        <div className="mt-4 text-[13px] font-bold" style={labelSecondary}>Обновления</div>
+        <div className="mt-1 text-[12px] leading-snug" style={secondary}>
+          Адрес файла с информацией о версии. Приложение скачает новую версию и предложит её установить.
+          Проверяется подпись файла и его целостность — чужое обновление не установится.
+        </div>
+        <Field
+          className="mt-2"
+          value={updateUrl}
+          onChange={setUpdateUrl}
+          placeholder="Адрес update.json (https://…)"
+          inputMode="text"
+        />
+        <div className="mt-2 text-[13px]" style={labelMain}>{updateStatus}</div>
+        <button
+          onClick={checkUpdate}
+          className="fg-btn fg-btn-primary w-full mt-2"
+          style={{ height: 44, borderRadius: 22 }}
+        >
+          Проверить обновления
+        </button>
+
+        <div className="mt-4 text-[13px] font-bold" style={labelSecondary}>Часы и датчики</div>
+        <div className="mt-1 text-[13px] leading-snug" style={labelMain}>{watchStatus}</div>
+        <div className="mt-2 flex gap-2">
+          <button
+            onClick={findWatch}
+            className="fg-btn fg-btn-primary flex-1"
+            style={{ height: 44, borderRadius: 22, fontSize: 13 }}
+          >
+            Найти часы
+          </button>
+          <button
+            onClick={() => showToast('Сначала нажми «Найти часы»')}
+            className="fg-btn fg-btn-primary flex-1"
+            style={{ height: 44, borderRadius: 22, fontSize: 13 }}
+          >
+            Это мои часы
+          </button>
+        </div>
+        <div className="mt-1.5 text-[12px] leading-snug" style={secondary}>
+          Начни тренировку на телефоне — часы с зеркалом подхватят сами: упражнение, подходы,
+          отдых с вибрацией. Без часов рядом всё работает как раньше.
+        </div>
+        <div className="mt-1.5 text-[12px] leading-snug" style={secondary}>
+          Как поставить зеркало на часы. Важно: передать файл по Bluetooth НЕ получится — часы не
+          появляются в списке «Поделиться». Пока программа не стоит на часах, они не видны и здесь.
+        </div>
+      </SettingsCard>
+
+      {/* ===== СБРОС ===== */}
+      <div className="px-2 mt-3.5">
+        <button
+          onClick={() => setShowResetConfirm(true)}
+          className="fg-btn fg-btn-primary w-full"
+          style={{ height: 48, borderRadius: 24 }}
+        >
+          Сбросить настройки
+        </button>
       </div>
 
-      {/* Диалог настроек часов */}
+      {/* Диалог часов */}
       {showClockDialog && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-6"
-          style={{ background: 'rgba(0,0,0,0.55)' }}
-          onClick={() => setShowClockDialog(false)}
+        <Dialog
+          title="Настроить часы"
+          onClose={() => setShowClockDialog(false)}
+          actions={<DialogAction strong onClick={() => setShowClockDialog(false)}>Готово</DialogAction>}
         >
-          <div
-            className="w-full max-w-[340px] rounded-[20px] p-4"
-            style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="text-[17px] font-bold mb-3" style={{ color: 'var(--color-text-main)' }}>
-              Часы стартового экрана
-            </div>
-
-            <label className="flex items-center gap-3 mb-4 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={clockEnabled}
-                onChange={e => setClockEnabled(e.target.checked)}
-                className="w-4 h-4 rounded"
-                style={{ accentColor: 'var(--p-labels-text)' }}
-              />
-              <div className="text-[15px] font-medium" style={{ color: 'var(--color-text-main)' }}>
+          <div className="pb-1">
+            <div className="flex items-center gap-3 py-2">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={clockEnabled}
+                onClick={() => {
+                  const v = !clockEnabled;
+                  setClockEnabled(v);
+                  setString('splash_clock_enabled', v ? '1' : '0');
+                }}
+                className="relative w-11 h-6 rounded-full flex-shrink-0"
+                style={{ background: 'var(--color-bg)' }}
+              >
+                <span
+                  className="absolute top-[2px] left-[2px] w-5 h-5 rounded-full transition-transform"
+                  style={{
+                    background: clockEnabled ? 'var(--p-circle)' : 'var(--p-outline)',
+                    transform: clockEnabled ? 'translateX(20px)' : 'none',
+                  }}
+                />
+              </button>
+              <span className="text-[15px]" style={{ color: 'var(--p-outline)' }}>
                 Показывать часы на стартовом
-              </div>
-            </label>
-
-            <div className="text-[13px] font-bold mb-1" style={{ color: 'var(--color-text-secondary)' }}>
-              Режим
+              </span>
             </div>
-            <div className="flex flex-col gap-1 mb-4">
-              {CLOCK_MODE_VALUES.map((m) => (
+
+            <div className="pt-3.5 text-[14px]" style={secondary}>Режим часов</div>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {CLOCK_MODE_VALUES.map(m => (
                 <button
                   key={m.key}
-                  onClick={() => setClockMode(m.key)}
-                  className={`min-h-[28px] px-2.5 py-1 rounded-[6px] text-[12px] whitespace-nowrap transition-colors ${
-                    clockMode === m.key
-                      ? 'bg-[var(--p-circle)] text-[var(--p-on-circle)] border-[var(--p-circle)]'
-                      : 'bg-transparent text-[var(--p-outline)] border-[var(--p-outline)]'
-                  }`}
+                  onClick={() => { setClockMode(m.key); setString('splash_clock', m.key); }}
+                  className={chip(clockMode === m.key)}
                 >
                   {m.label}
                 </button>
               ))}
             </div>
 
-            {clockMode === 'analog' && (
-              <div>
-                <div className="text-[13px] font-bold mb-1" style={{ color: 'var(--color-text-secondary)' }}>
-                  Стиль аналоговых часов
-                </div>
-                <div className="flex flex-col gap-1 mb-4">
-                  {CLOCK_ANALOG_STYLES.map((s) => (
-                    <button
-                      key={s.key}
-                      onClick={() => setClockAnalogStyle(s.key)}
-                      className={`min-h-[28px] px-2.5 py-1 rounded-[6px] text-[12px] whitespace-nowrap transition-colors ${
-                        clockAnalogStyle === s.key
-                          ? 'bg-[var(--p-circle)] text-[var(--p-on-circle)] border-[var(--p-circle)]'
-                          : 'bg-[var(--color-surface-variant)] text-[var(--color-text-main)] border-[var(--p-outline)]'
-                      }`}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            <div className="pt-3.5 text-[14px]" style={secondary}>Стиль аналоговых</div>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {CLOCK_ANALOG_STYLES.map(s => (
+                <button
+                  key={s.key}
+                  onClick={() => { setClockAnalogStyle(s.key); setString('splash_clock_style_analog', s.key); }}
+                  className={chip(clockAnalogStyle === s.key)}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
 
-            {clockMode === 'digital' && (
-              <div>
-                <div className="text-[13px] font-bold mb-1" style={{ color: 'var(--color-text-secondary)' }}>
-                  Стиль цифровых часов
-                </div>
-                <div className="flex flex-col gap-1 mb-4">
-                  {CLOCK_DIGITAL_STYLES.map((s) => (
-                    <button
-                      key={s.key}
-                      onClick={() => setClockDigitalStyle(s.key)}
-                      className={`min-h-[28px] px-2.5 py-1 rounded-[6px] text-[12px] whitespace-nowrap transition-colors ${
-                        clockDigitalStyle === s.key
-                          ? 'bg-[var(--p-labels)] text-[var(--p-on-labels)] border-[var(--p-labels)]'
-                          : 'bg-[var(--color-surface-variant)] text-[var(--color-text-main)] border-[var(--p-outline)]'
-                      }`}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end gap-2 mt-4">
-              <button
-                onClick={() => setShowClockDialog(false)}
-                className="px-4 py-2 rounded-full text-[14px] font-medium"
-                style={{ color: 'var(--color-text-secondary)' }}
-              >
-                Отмена
-              </button>
-              <button
-                onClick={applyClock}
-                className="px-4 py-2 rounded-full text-[14px] font-medium"
-                style={{ color: 'var(--p-labels-text)' }}
-              >
-                Сохранить
-              </button>
+            <div className="pt-3.5 text-[14px]" style={secondary}>Стиль цифровых</div>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {CLOCK_DIGITAL_STYLES.map(s => (
+                <button
+                  key={s.key}
+                  onClick={() => { setClockDigitalStyle(s.key); setString('splash_clock_style_digital', s.key); }}
+                  className={chip(clockDigitalStyle === s.key)}
+                >
+                  {s.label}
+                </button>
+              ))}
             </div>
           </div>
-        </div>
+        </Dialog>
       )}
 
       {/* Подтверждение сброса */}
       {showResetConfirm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-6"
-          style={{ background: 'rgba(0,0,0,0.55)' }}
-          onClick={() => setShowResetConfirm(false)}
+        <Dialog
+          title="Сбросить настройки?"
+          onClose={() => setShowResetConfirm(false)}
+          actions={
+            <>
+              <DialogAction onClick={() => setShowResetConfirm(false)}>Отмена</DialogAction>
+              <DialogAction strong onClick={handleResetAll}>Сбросить</DialogAction>
+            </>
+          }
         >
-          <div
-            className="w-full max-w-[340px] rounded-[20px] p-5"
-            style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="text-[17px] font-bold mb-2" style={{ color: 'var(--color-text-main)' }}>
-              Сбросить настройки?
-            </div>
-            <p className="text-[13px] mb-5" style={{ color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
-              Будут удалены все программы, профиль, дневник, замеры тела, настройки палитры и темы.
-              Действие нельзя отменить.
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowResetConfirm(false)}
-                className="px-4 py-2 rounded-full text-[14px] font-medium"
-                style={{ color: 'var(--p-labels-text)' }}
-              >
-                Отмена
-              </button>
-              <button
-                onClick={handleResetAll}
-                className="px-4 py-2 rounded-full text-[14px] font-bold"
-                style={{ background: 'var(--p-circle)', color: 'var(--p-on-circle)' }}
-              >
-                Да, сбросить
-              </button>
-            </div>
-          </div>
-        </div>
+          <p className="text-[14px] leading-relaxed" style={{ color: 'var(--p-on-labels-soft)' }}>
+            Профиль, журнал тренировок, программы, рекорды и все настройки будут удалены.
+            База упражнений и библиотека знаний останутся. Приложение перезапустится как при
+            первой установке.
+          </p>
+        </Dialog>
       )}
+
+      <Toast text={toast} />
     </div>
   );
 }
+

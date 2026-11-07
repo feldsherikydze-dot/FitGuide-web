@@ -167,7 +167,7 @@ export function RecordsTab() {
                 {formatFullDate(r.bestDate)} · подходов за всё время: {r.totalSets} · объём: {Math.round(r.totalTonnage)} кг
               </div>
               {r.manual && (
-                <div className="text-[12px]" style={{ color: 'var(--color-warning)' }}>
+                <div className="text-[12px]" style={{ color: 'var(--p-outline)' }}>
                   добавлено вручную · долгое нажатие — удалить
                 </div>
               )}

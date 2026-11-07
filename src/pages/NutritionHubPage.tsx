@@ -24,7 +24,22 @@ const RENDER: Record<string, () => React.ReactElement> = {
 };
 
 export function NutritionHubPage() {
-  const [tab, setTab] = useState<string>('kbju');
+  // Выбранная вкладка переживает переход в карточку добавки и назад — как Activity в Android.
+  const [tab, setTabState] = useState<string>(() => {
+    try {
+      return sessionStorage.getItem('nutrition_tab') || 'kbju';
+    } catch {
+      return 'kbju';
+    }
+  });
+  const setTab = (key: string) => {
+    setTabState(key);
+    try {
+      sessionStorage.setItem('nutrition_tab', key);
+    } catch {
+      /* приватный режим — просто не запоминаем */
+    }
+  };
   const Comp = RENDER[tab] || KbjuTab;
 
   return (

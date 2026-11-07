@@ -133,6 +133,36 @@ export function caloriesFor(tdee: number, goal: string, gender?: string | null):
   return target;
 }
 
+/** Коэффициент активности как Profile.getActivityFactor в Android. */
+export function activityFactor(level: string | null | undefined): number {
+  switch (level) {
+    case 'light': return 1.375;
+    case 'moderate': return 1.55;
+    case 'high': return 1.725;
+    case 'athlete': return 1.9;
+    case 'sedentary': return 1.2;
+    default: return 1.2;
+  }
+}
+
+/**
+ * Норма калорий из профиля — порт Profile.getDailyCalories():
+ * BMR по Миффлину × коэффициент активности → поправка на цель.
+ */
+export function dailyCalories(profile: {
+  weightKg?: number; heightCm?: number; age?: number;
+  gender?: string; activityLevel?: string; goal?: string;
+} | null | undefined): number {
+  if (!profile) return 0;
+  const w = profile.weightKg || 0;
+  const h = profile.heightCm || 0;
+  const a = profile.age || 0;
+  if (w <= 0 || h <= 0 || a <= 0) return 0;
+  const male = profile.gender === 'male';
+  const bmr = Math.max(0, 10 * w + 6.25 * h - 5 * a + (male ? 5 : -161));
+  return caloriesFor(bmr * activityFactor(profile.activityLevel), profile.goal || '', profile.gender);
+}
+
 /** Нормы белка, г на кг массы тела. */
 export function proteinPerKg(goal: string): number {
   switch (normalizeGoal(goal)) {

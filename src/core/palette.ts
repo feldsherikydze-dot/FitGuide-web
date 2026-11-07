@@ -36,6 +36,17 @@ export const SECONDARY_COLORS = [
   '#F3C20F', // kolizey
 ];
 
+/** Градиент пресета (p_*_grad_start / p_*_grad_end) — фон bg_banner в Android. */
+export const PRESET_GRADIENTS = [
+  { from: '#2EB0A1', to: '#0E8476' }, // emerald
+  { from: '#4880EF', to: '#2659BE' }, // ocean
+  { from: '#7E70EA', to: '#564AB9' }, // indigo
+  { from: '#DD3673', to: '#AD164D' }, // berry
+  { from: '#EB6D29', to: '#BA470A' }, // sunset
+  { from: '#5F656B', to: '#3A4046' }, // graphite
+  { from: '#00A546', to: '#007C33' }, // kolizey
+];
+
 /** Базовые цвета интерфейса (colors.xml). */
 export const BASE = {
   surface: '#FFFFFF',
@@ -167,6 +178,15 @@ export function circleGradient(): { from: string; to: string } {
 /** Градиент шапки — тот же, что у кругляшков (C), как tintHeader(). */
 export function topBarGradient(): { from: string; to: string } {
   return circleGradient();
+}
+
+/**
+ * Градиент bg_banner — из пресета темы (appGradientStart/End), а не из (C):
+ * в Android ThemeManager.themeRes() берёт оверлей по индексу Primary-палитры,
+ * поэтому кастомные A/B/C/D этот фон не меняют.
+ */
+export function presetGradient(): { from: string; to: string } {
+  return PRESET_GRADIENTS[state.primary] ?? PRESET_GRADIENTS[0];
 }
 
 /** Контрастный цвет текста на заливке (как ThemeManager.contrastOn). */

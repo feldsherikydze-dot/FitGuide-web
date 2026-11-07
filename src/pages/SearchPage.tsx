@@ -44,7 +44,7 @@ export function SearchPage() {
         out.push({
           key: `g:${g.id}`, title: g.name, sub: 'Группа мышц',
           icon: asset('icons/ic_tool_strength.svg'),
-          go: () => navigate(`/exercises?group=${g.id}`),
+          go: () => navigate(`/exercises/${g.id}`),
         });
       }
     }
@@ -54,7 +54,7 @@ export function SearchPage() {
           out.push({
             key: `sg:${g.id}:${sg.id}`, title: sg.name, sub: g.name,
             icon: asset('icons/ic_tool_strength.svg'),
-            go: () => navigate(`/exercises?group=${g.id}`),
+            go: () => navigate(`/exercises/${g.id}`),
           });
         }
       }
@@ -64,7 +64,7 @@ export function SearchPage() {
         out.push({
           key: `e:${e.id}`, title: e.name, sub: e.target || '',
           icon: asset('icons/ic_tool_strength.svg'),
-          go: () => navigate(`/exercises?open=${e.id}`),
+          go: () => navigate(`/exercise/${e.id}`),
         });
       }
     }

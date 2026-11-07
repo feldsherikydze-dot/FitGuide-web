@@ -53,7 +53,7 @@ export function JournalTab() {
           Тренировок: {list.length}
         </div>
         <div className="mt-0.5 text-[14px]" style={{ color: 'var(--color-text-main)' }}>
-          Общий объём: {fmtNum(stats.tonnage)} кг
+          Общий объём: {Math.round(stats.tonnage)} кг
         </div>
         {stats.bestName && (
           <div className="mt-0.5 text-[14px]" style={{ color: 'var(--p-labels-text)' }}>
@@ -75,14 +75,14 @@ export function JournalTab() {
               <div
                 key={s.id}
                 className="mb-2 rounded-[16px] p-4"
-                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-outline)' }}
+                style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
               >
                 <div className="flex items-start gap-2">
                   <div className="flex-1 min-w-0">
-                    <div className="text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>
+                    <div className="text-[15px] font-bold" style={{ color: 'var(--p-on-labels)' }}>
                       {formatDate(s.ts, true)}
                     </div>
-                    <div className="mt-0.5 text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
+                    <div className="mt-0.5 text-[13px]" style={{ color: 'var(--p-on-labels-soft)' }}>
                       {s.dayTitle || 'Тренировка'}
                     </div>
                   </div>
@@ -91,17 +91,17 @@ export function JournalTab() {
                     aria-label="Удалить"
                     className="w-10 h-10 -mt-1 -mr-1 flex items-center justify-center rounded-full active:bg-black/5 flex-shrink-0"
                   >
-                    <MaskIcon src={asset('icons/ic_close.svg')} color="var(--color-text-secondary)" size={20} />
+                    <MaskIcon src={asset('icons/ic_close.svg')} color="var(--p-on-labels-soft)" size={20} />
                   </button>
                 </div>
 
-                <div className="mt-2 text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
-                  {s.items.length} упр., {totalSets} подх., объём {fmtNum(tonnage)} кг, {duration(sessionDurationSec(s))}
+                <div className="mt-2 text-[13px]" style={{ color: 'var(--p-on-labels-soft)' }}>
+                  {s.items.length} упр., {totalSets} подх., объём {Math.round(tonnage)} кг, {duration(sessionDurationSec(s))}
                 </div>
 
                 <div className="mt-1 space-y-0.5">
                   {s.items.map((it, i) => (
-                    <div key={`${it.exercise}-${i}`} className="text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
+                    <div key={`${it.exercise}-${i}`} className="text-[13px]" style={{ color: 'var(--p-on-labels-soft)' }}>
                       {it.exercise}: {it.sets} × {it.reps}, {it.weightKg.toFixed(1)} кг
                     </div>
                   ))}

@@ -4,9 +4,9 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useProfileStore } from '../../core/store';
 import { getJSON, setJSON, KEYS } from '../../core/storage';
-import { proteinPerKg } from '../../core/goals';
-import { Card, Dialog, DialogAction, Field, Hint, PrimaryButton, Toast, parseInt10, parseNum } from '../progress/common';
-import { MaskIcon, asset } from '../../components/ui';
+import { dailyCalories, proteinPerKg } from '../../core/goals';
+import { Dialog, DialogAction, Field, Toast, parseInt10, parseNum } from '../progress/common';
+import type { Day } from '../../core/nutrition';
 
 interface DiaryEntry {
   id: string;
@@ -20,12 +20,13 @@ interface DiaryEntry {
   carbs: number;
 }
 
-const MONTHS_RU = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+const WEEKDAYS_RU = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
 
 function dayKeyOf(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/** Формат tvDay: «d MMMM yyyy», для сегодня — с префиксом diary_today_fmt. */
 function displayDay(offset: number): string {
   const d = new Date();
   d.setDate(d.getDate() + offset);
@@ -34,37 +35,62 @@ function displayDay(offset: number): string {
   return offset === 0 ? `Сегодня · ${fmt}` : fmt;
 }
 
+/** Порт DiaryStore.mealByTime: до 11 — завтрак, до 16 — обед, до 19 — перекус. */
 function mealByTime(ts: number): string {
   const h = new Date(ts).getHours();
-  if (h >= 6 && h < 11) return 'Завтрак';
-  if (h >= 12 && h < 16) return 'Обед';
-  if (h >= 17 && h < 22) return 'Ужин';
-  return 'Перекус';
+  if (h < 11) return 'Завтрак';
+  if (h < 16) return 'Обед';
+  if (h < 19) return 'Перекус';
+  return 'Ужин';
 }
 
 function format1(v: number): string {
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
 }
 
+/** Порт KitchenStore.menuFor: день меню по названию дня недели. */
+function menuFor(menu: Day[], date: Date): Day | null {
+  const weekday = WEEKDAYS_RU[date.getDay()];
+  const found = menu.find(d => (d.name || '').trim().toLowerCase() === weekday);
+  return found || null;
+}
+
+interface MenuDish {
+  meal: string;
+  name: string;
+  kcal: number;
+  p: number;
+  f: number;
+  c: number;
+}
+
 export function DiaryTab() {
   const { profile } = useProfileStore();
   const [dayOffset, setDayOffset] = useState(0);
-  const [entries, setEntries] = useState<DiaryEntry[]>([]);
+  const [entries, setEntries] = useState<DiaryEntry[]>(() => getJSON<DiaryEntry[]>(KEYS.DIARY_ENTRIES, []));
   const [toast, setToast] = useState<string | null>('');
-  const [adding, setAdding] = useState(false);
-  const [custom, setCustom] = useState<{ name: string; kcal: string; protein: string }>({ name: '', kcal: '', protein: '' });
-  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [custom, setCustom] = useState({ name: '', kcal: '', protein: '' });
+  const [confirmEntry, setConfirmEntry] = useState<DiaryEntry | null>(null);
 
   const showToast = (text: string) => {
     setToast(text);
     window.setTimeout(() => setToast(null), 2500);
   };
 
-  const ready = !!profile && profile.weightKg > 0 && profile.age > 0;
-  const kcalTarget = ready ? Math.max(1200, Math.round(profile.weightKg * 25)) : 0;
-  const proteinTarget = ready ? profile.weightKg * proteinPerKg(profile.goal) : 0;
+  // Норма — из профиля, её же считает КБЖУ-калькулятор (Profile.getDailyCalories).
+  const kcalTarget = Math.round(dailyCalories(profile));
+  const ready = !!profile && (profile.weightKg || 0) > 0 && kcalTarget > 0;
+  const proteinTarget = ready ? (profile!.weightKg || 0) * proteinPerKg(profile!.goal) : 0;
 
-  const dayKeyStr = useMemo(() => dayKeyOf(new Date(Date.now() + dayOffset * 86400000)), [dayOffset]);
+  const date = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + dayOffset);
+    return d;
+  }, [dayOffset]);
+
+  const dayKeyStr = dayKeyOf(date);
   const dayEntries = useMemo(() => entries.filter(e => e.day === dayKeyStr), [entries, dayKeyStr]);
 
   const totals = useMemo(() => {
@@ -73,24 +99,20 @@ export function DiaryTab() {
     return { kcal, p, f, c };
   }, [dayEntries]);
 
-  // Средний факт за 7 дней
+  // Средний факт за 7 дней (DiaryStore.average).
   const weekAvg = useMemo(() => {
-    const now = Date.now();
-    let sum = 0, sumP = 0, count = 0;
-    for (let i = 0; i < 7; i++) {
-      const k = dayKeyOf(new Date(now - i * 86400000));
-      const es = entries.filter(e => e.day === k);
-      if (es.length) {
-        count++;
-        for (const e of es) { sum += e.kcal; sumP += e.protein; }
-      }
+    const from = Date.now() - 7 * 86400000;
+    const seen = new Set<string>();
+    let sum = 0, sumP = 0;
+    for (const e of entries) {
+      if (e.ts < from) continue;
+      sum += e.kcal;
+      sumP += e.protein;
+      seen.add(e.day);
     }
+    const count = seen.size;
     return { count, kcal: count ? Math.round(sum / count) : 0, protein: count ? sumP / count : 0 };
   }, [entries]);
-
-  const loadEntries = useCallback((): DiaryEntry[] => {
-    return getJSON<DiaryEntry[]>(KEYS.DIARY_ENTRIES, []);
-  }, []);
 
   const saveEntries = useCallback((list: DiaryEntry[]) => {
     setJSON(KEYS.DIARY_ENTRIES, list);
@@ -99,136 +121,232 @@ export function DiaryTab() {
 
   const addEntry = useCallback((e: Omit<DiaryEntry, 'id'>) => {
     const entry: DiaryEntry = { ...e, id: crypto.randomUUID() };
-    const list = [entry, ...entries];
-    saveEntries(list);
+    // Как DiaryStore.add: новые записи дописываются в конец списка.
+    saveEntries([...entries, entry]);
     showToast(`Записал: ${entry.name} · ${entry.kcal} ккал`);
   }, [entries, saveEntries, showToast]);
 
-  const removeEntry = useCallback((id: string) => {
-    saveEntries(entries.filter(e => e.id !== id));
-    showToast('Запись удалена');
+  const removeEntry = useCallback((entry: DiaryEntry) => {
+    saveEntries(entries.filter(e => e.id !== entry.id));
   }, [entries, saveEntries]);
 
-  const addFromMenu = (meal: string, name: string, kcal: number, p: number, f: number, c: number) => {
-    setAdding(false);
-    addEntry({ ts: Date.now(), day: dayKeyStr, meal, name, kcal, protein: p, fat: f, carbs: c });
+  // Блюда меню «Кухни» на выбранный день недели.
+  const menuDishes = useMemo<MenuDish[]>(() => {
+    const menu = getJSON<Day[]>(KEYS.KITCHEN_MENU, []) || [];
+    const day = menuFor(menu, date);
+    if (!day) return [];
+    const out: MenuDish[] = [];
+    for (const m of day.meals || []) {
+      for (const d of m.dishes || []) {
+        out.push({ meal: m.title, name: d.name, kcal: d.kcal, p: d.p, f: d.f, c: d.c });
+      }
+    }
+    return out;
+  }, [date, picking]);
+
+  const openAdd = () => {
+    if (menuDishes.length === 0) {
+      setCustomOpen(true);
+      return;
+    }
+    setPicking(true);
+  };
+
+  const pickDish = (md: MenuDish) => {
+    setPicking(false);
+    const ts = Date.now();
+    addEntry({
+      ts, day: dayKeyStr, meal: md.meal || mealByTime(ts),
+      name: md.name, kcal: md.kcal, protein: md.p, fat: md.f, carbs: md.c,
+    });
+  };
+
+  const saveCustom = () => {
+    const name = custom.name.trim();
+    const kcal = parseInt10(custom.kcal);
+    const protein = parseNum(custom.protein);
+    setCustomOpen(false);
+    setCustom({ name: '', kcal: '', protein: '' });
+    if (!name || kcal <= 0) {
+      showToast('Впиши название и калории');
+      return;
+    }
+    const ts = Date.now();
+    addEntry({ ts, day: dayKeyStr, meal: mealByTime(ts), name, kcal, protein, fat: 0, carbs: 0 });
   };
 
   return (
-    <div className="pb-6 space-y-2">
-      <div className="flex items-center justify-between mt-1 px-2">
+    <div className="pb-6 px-2">
+      {/* День: ‹ дата › */}
+      <div className="flex items-center mt-1">
         <button
           onClick={() => setDayOffset(o => o - 1)}
           aria-label="Предыдущий день"
-          className="w-10 h-10 flex items-center justify-center rounded-full active:bg-black/5 flex-shrink-0"
+          className="w-12 h-12 flex items-center justify-center rounded-full active:bg-black/5 flex-shrink-0 text-[22px]"
+          style={{ color: 'var(--p-labels-text)', background: 'transparent' }}
         >
-          <MaskIcon src={asset('icons/ic_skip_prev.svg')} color="var(--p-labels)" size={20} />
+          ‹
         </button>
-        <div className="text-[16px] font-bold" style={{ color: 'var(--color-text-main)' }}>
+        <div className="flex-1 text-center text-[16px] font-bold truncate" style={{ color: 'var(--p-labels-text)' }}>
           {displayDay(dayOffset)}
         </div>
         <button
           onClick={() => dayOffset < 0 && setDayOffset(o => o + 1)}
           disabled={dayOffset >= 0}
           aria-label="Следующий день"
-          className={`w-10 h-10 flex items-center justify-center rounded-full active:bg-black/5 flex-shrink-0 ${dayOffset >= 0 ? 'opacity-35' : ''}`}
+          className="w-12 h-12 flex items-center justify-center rounded-full active:bg-black/5 flex-shrink-0 text-[22px]"
+          style={{
+            color: 'var(--p-labels-text)',
+            background: 'transparent',
+            opacity: dayOffset >= 0 ? 0.35 : 1,
+          }}
         >
-          <MaskIcon src={asset('icons/ic_skip_next.svg')} color="var(--p-labels)" size={20} />
+          ›
         </button>
       </div>
 
-      {!ready && (
-        <Hint className="px-3">Заполни профиль — тогда покажу норму калорий и белка.</Hint>
-      )}
-
-      <div className="flex justify-between px-3 mt-1 text-[14px]">
-        <div>
+      {/* Карточка нормы */}
+      <div
+        className="mt-1 rounded-[16px] p-4"
+        style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
+      >
+        <div className="text-[15px]" style={{ color: 'var(--color-text-main)' }}>
           {ready
-            ? `Ккал: ${totals.kcal} из ${kcalTarget} · осталось ${kcalTarget - totals.kcal >= 0 ? kcalTarget - totals.kcal : 0}`
+            ? (kcalTarget - totals.kcal >= 0
+              ? `Ккал: ${totals.kcal} из ${kcalTarget} · осталось ${kcalTarget - totals.kcal}`
+              : `Ккал: ${totals.kcal} из ${kcalTarget} · перебор ${totals.kcal - kcalTarget}`)
             : `Съедено: ${totals.kcal} ккал`}
         </div>
-        <div>
-          {ready ? `Белок: ${format1(totals.p)} из ${format1(proteinTarget)} г` : `Белок: ${format1(totals.p)} г`}
+        <div className="mt-1 text-[15px]" style={{ color: 'var(--p-labels-text)' }}>
+          {ready
+            ? `Белок: ${format1(totals.p)} из ${format1(proteinTarget)} г`
+            : `Белок: ${format1(totals.p)} г`}
         </div>
-        <div className="text-[13px]">Жиры ${format1(totals.f)} · Углеводы ${format1(totals.c)} г</div>
+        <div className="mt-1 text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
+          Жиры {format1(totals.f)} · Углеводы {format1(totals.c)} г
+        </div>
+        {!ready && (
+          <div className="mt-1 text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
+            Заполни профиль — тогда покажу норму калорий и белка.
+          </div>
+        )}
       </div>
 
-      {dayEntries.length === 0 && (
-        <Hint className="px-8 py-6 text-center">
-          Пока пусто. Добавьте еду — и следите за питанием.
-        </Hint>
-      )}
+      {/* Добавить еду */}
+      <button
+        onClick={openAdd}
+        className="fg-btn fg-btn-primary w-full h-12 mt-3"
+        style={{ borderRadius: 24 }}
+      >
+        + ДОБАВИТЬ ЕДУ
+      </button>
+      <div className="mt-2 text-[12px] leading-snug" style={{ color: 'var(--color-text-secondary)' }}>
+        Выбери блюдо из меню кухни или впиши своё. Долгое нажатие на запись — удалить.
+      </div>
 
-      <div className="mt-1">
+      {/* Записи дня */}
+      <div className="mt-4">
         {dayEntries.map(e => (
-          <div key={e.id} className="select-none pt-2 pb-2">
-            <div className="text-[15px] font-bold truncate" style={{ color: 'var(--color-text-main)' }}>
+          <div
+            key={e.id}
+            className="pt-2.5 select-none"
+            onContextMenu={ev => { ev.preventDefault(); setConfirmEntry(e); }}
+            onTouchStart={() => {
+              const t = window.setTimeout(() => setConfirmEntry(e), 550);
+              const cancel = () => { window.clearTimeout(t); window.removeEventListener('touchend', cancel); window.removeEventListener('touchmove', cancel); };
+              window.addEventListener('touchend', cancel);
+              window.addEventListener('touchmove', cancel);
+            }}
+          >
+            <div className="text-[15px] truncate" style={{ color: 'var(--color-text-main)' }}>
               {e.meal ? `${e.meal} · ${e.name}` : e.name}
             </div>
-            <div className="mt-0.5 text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
+            <div className="text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
               {e.kcal} ккал · Б {format1(e.protein)} · Ж {format1(e.fat)} · У {format1(e.carbs)}
             </div>
-            <div className="flex justify-end mt-1">
-              <button
-                onClick={() => removeEntry(e.id)}
-                aria-label="Удалить запись"
-                className="w-8 h-8 flex items-center justify-center rounded-full active:bg-black/5 flex-shrink-0"
-              >
-                <MaskIcon src={asset('icons/ic_delete.svg')} color="var(--color-text-secondary)" size={16} />
-              </button>
-            </div>
-            <div className="h-px my-1.5" style={{ background: 'var(--color-outline)' }} />
+            <div className="mt-2.5 h-px" style={{ background: 'var(--color-outline)' }} />
           </div>
         ))}
       </div>
 
-      <div className="mt-2 text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
+      {dayEntries.length === 0 && (
+        <div className="mt-4 text-center text-[14px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
+          Пока пусто.
+          <br />
+          Отмечай съеденное — тренер подскажет, чего не хватает.
+        </div>
+      )}
+
+      <div className="mt-5 text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
         {weekAvg.count === 0
           ? 'Итоги за неделю появятся, когда отметишь питание.'
           : `Средний факт за ${weekAvg.count} дн.: ${weekAvg.kcal} ккал · белок ${format1(weekAvg.protein)} г`}
       </div>
 
-      <PrimaryButton className="mt-2 w-full h-11" onClick={() => setAdding(true)}>
-        + ДОБАВИТЬ ЕДУ
-      </PrimaryButton>
-
-      {adding && (
+      {/* Выбор блюда из меню кухни */}
+      {picking && (
         <Dialog
           title="Что съел?"
-          onClose={() => setAdding(false)}
+          onClose={() => setPicking(false)}
+          actions={<DialogAction onClick={() => setPicking(false)}>Отмена</DialogAction>}
+        >
+          <div className="-mx-2">
+            {menuDishes.map((md, i) => (
+              <button
+                key={`${md.meal}:${md.name}:${i}`}
+                onClick={() => pickDish(md)}
+                className="block w-full text-left px-2 py-3 text-[15px] active:bg-black/5 rounded-lg"
+                style={{ color: 'var(--p-on-labels)' }}
+              >
+                {md.kcal} ккал · {md.name}
+              </button>
+            ))}
+            <button
+              onClick={() => { setPicking(false); setCustomOpen(true); }}
+              className="block w-full text-left px-2 py-3 text-[15px] active:bg-black/5 rounded-lg"
+              style={{ color: 'var(--p-on-labels)' }}
+            >
+              Ввести своё…
+            </button>
+          </div>
+        </Dialog>
+      )}
+
+      {/* Своя еда */}
+      {customOpen && (
+        <Dialog
+          title="Своя еда"
+          onClose={() => setCustomOpen(false)}
           actions={
             <>
-              <DialogAction onClick={() => setAdding(false)}>Отмена</DialogAction>
-              <DialogAction strong onClick={() => setAdding(false)}>Готово</DialogAction>
+              <DialogAction onClick={() => setCustomOpen(false)}>Отмена</DialogAction>
+              <DialogAction strong onClick={saveCustom}>Сохранить</DialogAction>
             </>
           }
         >
-          <div className="pt-1 space-y-3">
-            {/* Блюда из меню кухни на этот день недели */}
-            <div>
-              <div className="text-[13px] font-bold mb-1" style={{ color: 'var(--color-text-main)' }}>Из меню кухни</div>
-              <div className="text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>Выберите блюдо из сохранённого меню</div>
-            </div>
-
-            <div className="space-y-2 pt-1">
-              <Field value={custom.name} onChange={(v: string) => setCustom({ ...custom, name: v })} placeholder="Название" />
-              <Field value={custom.kcal} onChange={(v: string) => setCustom({ ...custom, kcal: v })} placeholder="Ккал" inputMode="numeric" />
-              <Field value={custom.protein} onChange={(v: string) => setCustom({ ...custom, protein: v })} placeholder="Белок, г" inputMode="decimal" />
-              <PrimaryButton className="mt-1 h-10" onClick={() => {
-                if (!custom.name || parseInt10(custom.kcal) <= 0) {
-                  showToast('Впиши название и калории');
-                  return;
-                }
-                addEntry({
-                  ts: Date.now(), day: dayKeyStr, meal: mealByTime(Date.now()),
-                  name: custom.name, kcal: parseInt10(custom.kcal),
-                  protein: parseNum(custom.protein), fat: 0, carbs: 0,
-                });
-                setCustom({ name: '', kcal: '', protein: '' });
-                setAdding(false);
-              }}>Сохранить</PrimaryButton>
-            </div>
+          <div className="pt-1 space-y-2">
+            <Field value={custom.name} onChange={(v: string) => setCustom({ ...custom, name: v })} placeholder="Название" inputMode="text" />
+            <Field value={custom.kcal} onChange={(v: string) => setCustom({ ...custom, kcal: v })} placeholder="Ккал" inputMode="numeric" />
+            <Field value={custom.protein} onChange={(v: string) => setCustom({ ...custom, protein: v })} placeholder="Белок, г" inputMode="decimal" />
           </div>
+        </Dialog>
+      )}
+
+      {/* Подтверждение удаления */}
+      {confirmEntry && (
+        <Dialog
+          title="Удалить запись?"
+          onClose={() => setConfirmEntry(null)}
+          actions={
+            <>
+              <DialogAction onClick={() => setConfirmEntry(null)}>Отмена</DialogAction>
+              <DialogAction strong onClick={() => { removeEntry(confirmEntry); setConfirmEntry(null); }}>ОК</DialogAction>
+            </>
+          }
+        >
+          <p className="text-[14px] leading-relaxed" style={{ color: 'var(--p-on-labels-soft)' }}>
+            Убрать «{confirmEntry.name}» из дневника?
+          </p>
         </Dialog>
       )}
 

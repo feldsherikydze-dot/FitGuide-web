@@ -96,12 +96,7 @@ export function AnalysisTab() {
               <button
                 key={d}
                 onClick={() => setPeriodDays(d)}
-                className="min-h-[32px] px-3 rounded-[8px] text-[13px] font-medium"
-                style={{
-                  background: on ? 'var(--p-labels)' : 'var(--color-surface-variant)',
-                  border: `1px solid ${on ? 'var(--p-labels)' : 'var(--color-stroke)'}`,
-                  color: on ? 'var(--p-on-labels)' : 'var(--color-text-main)',
-                }}
+                className={`fg-chip ${on ? 'fg-chip-on' : ''}`}
               >
                 {d} дней
               </button>

@@ -1,257 +1,155 @@
-// FitGuide Web — страница упражнений
+// FitGuide Web — «База упражнений» (порт GroupsActivity + activity_groups.xml).
+// Сетка мышечных групп 2 колонки, режим выбора групп, кнопки
+// «Смотреть выбранные (N)» и «Начать тренировку» — как в Android 1.18.
 
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Search, Filter, Dumbbell, Target, ChevronLeft, ChevronDown, ChevronUp, ExternalLink, AlertTriangle } from 'lucide-react';
-import { clsx } from 'clsx';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { PageHeader, MaskIcon, asset } from '../components/ui';
 import { useExercises } from '../hooks/useExercises';
-import type { Exercise, MuscleGroup } from '../data/types';
-
-const EQUIPMENT_FILTERS = [
-  { id: 'all', label: 'Все', icon: null },
-  { id: 'barbell', label: 'Штанга', icon: Dumbbell },
-  { id: 'dumbbell', label: 'Гантели', icon: Dumbbell },
-  { id: 'cable', label: 'Блоки/Кроссовер', icon: Target },
-  { id: 'smith', label: 'Смит', icon: Dumbbell },
-  { id: 'machine', label: 'Тренажёры', icon: Dumbbell },
-  { id: 'free', label: 'Свой вес', icon: null },
-] as const;
+import { useProfileStore } from '../core/store';
+import {
+  buildExerciseIndex, byGroupPrimary, filterByStyle, pluralExercises,
+} from '../core/exerciseIndex';
 
 export function ExercisesPage() {
   const navigate = useNavigate();
-  const { exercises, muscleGroups, search, filterByAvail, getEquipCategory, isBasic, isIsolation, loading } = useExercises();
-  const [query, setQuery] = useState('');
-  const [selectedGroup, setSelectedGroup] = useState<string>('all');
-  const [selectedEquip, setSelectedEquip] = useState<string>('all');
-  const [showBasic, setShowBasic] = useState(false);
-  const [showIsolation, setShowIsolation] = useState(false);
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [params] = useSearchParams();
+  const { exercises, muscleGroups, loading } = useExercises();
+  const profile = useProfileStore(s => s.profile);
 
-  const filteredExercises = useMemo(() => {
-    let result = exercises;
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
 
-    if (query) {
-      result = search(query);
-    }
+  const index = useMemo(
+    () => buildExerciseIndex(muscleGroups, exercises),
+    [muscleGroups, exercises],
+  );
 
-    if (selectedGroup !== 'all') {
-      result = result.filter(e => e.muscleGroup === selectedGroup);
-    }
+  // Счётчик — только целевые упражнения группы (без синергистов), как в Android.
+  const counts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const g of muscleGroups) map.set(g.id, byGroupPrimary(index, g.id).length);
+    return map;
+  }, [index, muscleGroups]);
 
-    if (selectedEquip !== 'all') {
-      if (selectedEquip === 'free') {
-        result = result.filter(e => getEquipCategory(e) === 'free');
-      } else {
-        result = result.filter(e => getEquipCategory(e) === selectedEquip);
+  // Старые ссылки из поиска: ?group= и ?open= — ведём на новые маршруты.
+  const legacyGroup = params.get('group');
+  const legacyOpen = params.get('open');
+  useEffect(() => {
+    if (legacyOpen) navigate(`/exercise/${legacyOpen}`, { replace: true });
+    else if (legacyGroup) navigate(`/exercises/${legacyGroup}`, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [legacyGroup, legacyOpen]);
+
+  const toggle = (id: string) => {
+    setSelected(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
+  };
+
+  const toggleSelectMode = () => {
+    setSelectMode(v => !v);
+    setSelected([]);
+  };
+
+  /** Как startGroupWorkout: до 12 силовых упражнений из выбранных групп. */
+  const startWorkout = () => {
+    if (!selected.length) return;
+    const style = profile?.trainStyle || 'any';
+    const names: string[] = [];
+    for (const id of selected) {
+      for (const ex of filterByStyle(byGroupPrimary(index, id), style)) {
+        names.push(ex.name);
+        if (names.length >= 12) break;
       }
+      if (names.length >= 12) break;
     }
-
-    if (showBasic) {
-      result = result.filter(isBasic);
-    }
-    if (showIsolation) {
-      result = result.filter(isIsolation);
-    }
-
-    return result;
-  }, [exercises, query, selectedGroup, selectedEquip, showBasic, showIsolation, search, getEquipCategory, isBasic, isIsolation]);
-
-  const toggleExpanded = (id: string) => {
-    setExpandedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    if (!names.length) return;
+    const qs = names.map(n => encodeURIComponent(n)).join('|');
+    navigate(`/workout?names=${qs}&title=${encodeURIComponent('Мышечные группы')}`);
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 w-full max-w-full">
-      {/* Header — как activity_muscle_group: назад + заголовок */}
-      <div className="flex items-center gap-1">
-        <button onClick={() => navigate(-1)} className="w-12 h-12 -ml-2 flex items-center justify-center rounded-full active:bg-black/5 flex-shrink-0"
-          aria-label="Назад">
-          <ChevronLeft size={26} style={{ color: 'var(--p-labels-text)' }} />
-        </button>
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-[var(--p-labels-text)]">База упражнений</h1>
-          <p className="text-[var(--color-text-secondary)]">
-            {exercises.length} упражнений · {muscleGroups.length} мышечных групп
-          </p>
-        </div>
-      </div>
-
-      {/* Search & Filters */}
-      <div className="bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)] p-4 space-y-4">
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-secondary)]" />
-          <input
-            type="text"
-            placeholder="Поиск по названию, мышце, инвентарю..."
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-[var(--p-labels-text)] focus:ring-2 focus:ring-[var(--p-outline)]"
-          />
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-wrap gap-2">
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-[var(--color-text-secondary)]" />
-            <select
-              value={selectedGroup}
-              onChange={e => setSelectedGroup(e.target.value)}
-              className="px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-[var(--p-labels-text)] text-sm min-w-[200px]"
+    <div className="max-w-2xl mx-auto w-full flex flex-col min-h-[calc(100vh-56px)]">
+      <PageHeader
+        title="База упражнений"
+        onBack={() => navigate(-1)}
+        right={
+          <>
+            <button
+              onClick={toggleSelectMode}
+              aria-label="Выбрать группы"
+              className="w-12 h-12 flex items-center justify-center rounded-full active:bg-black/5 flex-shrink-0"
             >
-              <option value="all">Все группы мышц</option>
-              {muscleGroups.map(g => (
-                <option key={g.id} value={g.id}>{g.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-center gap-2">
-            <select
-              value={selectedEquip}
-              onChange={e => setSelectedEquip(e.target.value)}
-              className="px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-[var(--p-labels-text)] text-sm min-w-[180px]"
+              <MaskIcon src={asset('icons/ic_select.svg')} color="var(--p-labels-text)" size={24} />
+            </button>
+            <button
+              onClick={() => navigate('/search')}
+              aria-label="Поиск"
+              className="w-12 h-12 flex items-center justify-center rounded-full active:bg-black/5 flex-shrink-0"
             >
-              {EQUIPMENT_FILTERS.map(f => (
-                <option key={f.id} value={f.id}>{f.label}</option>
-              ))}
-            </select>
-          </div>
-          <label className="flex items-center gap-2 px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-sm cursor-pointer hover:bg-black/5">
-            <input type="checkbox" checked={showBasic} onChange={e => setShowBasic(e.target.checked)} className="w-4 h-4 accent-[var(--p-circle)] rounded border-[var(--p-outline)]" />
-            Только базовые
-          </label>
-          <label className="flex items-center gap-2 px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-sm cursor-pointer hover:bg-black/5">
-            <input type="checkbox" checked={showIsolation} onChange={e => setShowIsolation(e.target.checked)} className="w-4 h-4 accent-[var(--p-circle)] rounded border-[var(--p-outline)]" />
-            Только изолирующие
-          </label>
-        </div>
-      </div>
+              <MaskIcon src={asset('icons/ic_search.svg')} color="var(--p-labels-text)" size={24} />
+            </button>
+          </>
+        }
+      />
 
-      {/* Results */}
       {loading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--p-outline)] mx-auto mb-2" />
-          <p className="text-[var(--color-text-secondary)]">Загрузка базы упражнений...</p>
-        </div>
-      ) : filteredExercises.length === 0 ? (
-        <div className="text-center py-12 bg-[var(--p-labels)] rounded-xl border border-[var(--p-outline)]">
-          <Dumbbell className="w-16 h-16 text-[var(--color-text-secondary)] mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-[var(--p-labels-text)] mb-2">Ничего не найдено</h3>
-          <p className="text-[var(--color-text-secondary)]">Попробуй изменить фильтры или поисковый запрос</p>
-        </div>
+        <div className="text-center py-12 text-[var(--color-text-secondary)]">Загрузка базы упражнений…</div>
       ) : (
-        <div className="space-y-3">
-          {filteredExercises.map((exercise, index) => {
-            const isExpanded = expandedIds.has(exercise.id);
-            const equipCat = getEquipCategory(exercise);
-            
+        <div className="grid grid-cols-2 gap-4 px-4 pt-1 pb-2">
+          {muscleGroups.map(g => {
+            const on = selected.includes(g.id);
+            const count = counts.get(g.id) || 0;
             return (
-              <div
-                key={exercise.id}
-                className={clsx(
-                  'bg-[var(--p-labels)] rounded-xl border overflow-hidden transition-all',
-                  isExpanded ? 'border-[var(--p-outline)] ring-2 ring-[var(--p-outline)]/20' : 'border-[var(--p-outline)]'
-                )}
+              <button
+                key={g.id}
+                onClick={() => (selectMode ? toggle(g.id) : navigate(`/exercises/${g.id}`))}
+                className="relative rounded-[20px] p-[18px] flex flex-col items-center justify-center text-center active:brightness-95"
+                style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
               >
-                <button
-                  onClick={() => toggleExpanded(exercise.id)}
-                  className="w-full p-4 flex items-start justify-between gap-4 text-left"
+                <span className="relative w-[64px] h-[64px] flex items-center justify-center">
+                  <MaskIcon
+                    src={asset(`icons/muscle_${g.icon || 'legs'}.svg`)}
+                    color="var(--p-circle)"
+                    size={52}
+                  />
+                  {selectMode && (
+                    <span className="absolute -bottom-0.5 -right-0.5">
+                      <MaskIcon
+                        src={asset(on ? 'icons/ic_check_circle.svg' : 'icons/ic_uncheck_circle.svg')}
+                        color="var(--p-circle)"
+                        size={22}
+                      />
+                    </span>
+                  )}
+                </span>
+                <span
+                  className="mt-3 text-[15px] font-bold leading-tight"
+                  style={{ color: 'var(--p-on-labels)' }}
                 >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={clsx(
-                        'px-2 py-0.5 rounded text-xs font-medium',
-                        isBasic(exercise) ? 'bg-[var(--p-circle)] text-[var(--p-on-circle)]' :
-                        isIsolation(exercise) ? 'bg-[var(--p-circle)] text-[var(--p-on-circle)]' :
-                        'bg-[var(--p-outline)]/20 text-[var(--p-outline)]'
-                      )}>
-                        {isBasic(exercise) ? 'Базовое' : isIsolation(exercise) ? 'Изолирующее' : 'Упражнение'}
-                      </span>
-                      {equipCat !== 'free' && (
-                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-[var(--p-circle)] text-[var(--p-on-circle)]">
-                          {equipCat.charAt(0).toUpperCase() + equipCat.slice(1)}
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="font-semibold text-[var(--p-labels-text)] truncate">{exercise.name}</h3>
-                    <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--color-text-secondary)] mt-1">
-                      <span>{exercise.sets} × {exercise.reps}</span>
-                      <span>⏱ {exercise.rest}</span>
-                      {exercise.target && <span>{exercise.target}</span>}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <ExternalLink className="w-5 h-5 text-[var(--color-text-secondary)] hover:text-[var(--p-labels-text)]" />
-                    {isExpanded ? <ChevronUp className="w-5 h-5 text-[var(--color-text-secondary)]" /> : <ChevronDown className="w-5 h-5 text-[var(--color-text-secondary)]" />}
-                  </div>
-                </button>
-
-                {isExpanded && (
-                  <div className="border-t border-[var(--p-outline)] bg-[var(--color-bg)] p-4 space-y-4 animate-slide-down">
-                    <div className="prose prose-sm dark:prose-invert max-w-none">
-                      <p className="text-[var(--color-text-secondary)]">{exercise.description}</p>
-                    </div>
-
-                    {exercise.steps.length > 0 && (
-                      <div>
-                        <h4 className="font-medium text-[var(--p-labels-text)] mb-2">Техника выполнения:</h4>
-                        <ol className="space-y-1 text-sm text-[var(--color-text-secondary)]">
-                          {exercise.steps.map((step, i) => (
-                            <li key={i} className="flex gap-2">
-                              <span className="font-mono text-[var(--p-labels-text)]">{i + 1}.</span>
-                              <span>{step}</span>
-                            </li>
-                          ))}
-                        </ol>
-                      </div>
-                    )}
-
-                    {(exercise.mistakes.length > 0 || exercise.tips.length > 0) && (
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        {exercise.mistakes.length > 0 && (
-                          <div className="bg-warning/20 border border-warning rounded-lg p-3">
-                            <h5 className="font-medium text-warning mb-2 flex items-center gap-1">
-                              <AlertTriangle className="w-4 h-4" />
-                              Типичные ошибки
-                            </h5>
-                            <ul className="space-y-1 text-sm text-warning">
-                              {exercise.mistakes.map((m, i) => (
-                                <li key={i} className="flex gap-1">• {m}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        {exercise.tips.length > 0 && (
-                          <div className="bg-[var(--p-circle)]/20 border border-[var(--p-outline)] rounded-lg p-3">
-                            <h5 className="font-medium text-[var(--p-outline)] mb-2 flex items-center gap-1">
-                              <Target className="w-4 h-4" />
-                              Советы
-                            </h5>
-                            <ul className="space-y-1 text-sm text-[var(--p-outline)]">
-                              {exercise.tips.map((t, i) => (
-                                <li key={i} className="flex gap-1">• {t}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="flex flex-wrap gap-2 text-xs text-[var(--color-text-secondary)] pt-2 border-t border-[var(--p-outline)]">
-                      <span>ID: {exercise.id}</span>
-                      <span>Категория: {exercise.category || '—'}</span>
-                      <span>Сложность: {exercise.difficulty || '—'}</span>
-                    </div>
-                  </div>
+                  {g.name}
+                </span>
+                {count > 0 && (
+                  <span className="mt-0.5 text-[12px]" style={{ color: 'var(--p-on-labels-soft)' }}>
+                    {pluralExercises(count)}
+                  </span>
                 )}
-              </div>
+              </button>
             );
           })}
+        </div>
+      )}
+
+      {selectMode && selected.length > 0 && (
+        <div className="mt-auto px-4 pt-1 pb-2.5 space-y-1">
+          <button
+            onClick={() => navigate(`/exercises/selection?ids=${selected.join(',')}`)}
+            className="fg-btn fg-btn-primary w-full h-[52px]"
+          >
+            Смотреть выбранные ({selected.length})
+          </button>
+          <button onClick={startWorkout} className="fg-btn fg-btn-primary w-full h-[52px]">
+            Начать тренировку
+          </button>
         </div>
       )}
     </div>

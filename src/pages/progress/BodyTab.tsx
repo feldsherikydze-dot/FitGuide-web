@@ -193,7 +193,10 @@ export function BodyTab() {
           {latest ? `${latest.weightKg.toFixed(1)} кг` : '—'}
         </div>
         {delta !== null && (
-          <div className="mt-0.5 text-[13px]" style={{ color: delta < 0 ? 'var(--p-labels)' : 'var(--color-warning)' }}>
+          <div
+            className="mt-0.5 text-[13px]"
+            style={{ color: delta < 0 ? 'var(--p-circle)' : 'var(--p-outline)' }}
+          >
             {delta > 0 ? '+' : ''}{delta.toFixed(1)} кг с начала
           </div>
         )}
@@ -228,16 +231,10 @@ export function BodyTab() {
               <button
                 key={t.id}
                 onClick={() => {
-                  const next = on ? '' : t.id;
-                  setTarget(next);
-                  setString('target_physique', next);
+                  setTarget(t.id);
+                  setString('target_physique', t.id);
                 }}
-                className="min-h-[32px] px-3 rounded-[8px] text-[13px]"
-                style={{
-                  background: on ? 'var(--p-labels)' : 'var(--color-surface-variant)',
-                  border: `1px solid ${on ? 'var(--p-labels)' : 'var(--color-stroke)'}`,
-                  color: on ? 'var(--p-on-labels)' : 'var(--color-text-main)',
-                }}
+                className={`fg-chip ${on ? 'fg-chip-on' : ''}`}
               >
                 {t.label}
               </button>
@@ -256,13 +253,14 @@ export function BodyTab() {
       </div>
 
       {logs.length === 0 ? (
-        <Hint className="mt-4 text-center whitespace-pre-line">
+        <Hint className="mt-8 text-center whitespace-pre-line">
           {'Нет записей.\nДобавьте свой вес и обхваты — и следите за прогрессом.'}
         </Hint>
       ) : (
         <div>
-          {sorted.map((log, i) => {
-            const prev = i > 0 ? sorted[i - 1] : null;
+          {[...sorted].reverse().map(log => {
+            const idx = sorted.indexOf(log);
+            const prev = idx > 0 ? sorted[idx - 1] : null;
             const d = prev ? log.weightKg - prev.weightKg : null;
             const m = measurements(log);
             return (
@@ -280,8 +278,8 @@ export function BodyTab() {
                         <span
                           className="text-[12px]"
                           style={{
-                            color: d > 0 ? 'var(--color-warning)'
-                              : d < 0 ? 'var(--p-labels)' : 'var(--color-text-secondary)',
+                            color: d > 0 ? 'var(--p-outline)'
+                              : d < 0 ? 'var(--p-circle)' : 'var(--color-text-secondary)',
                           }}
                         >
                           {d > 0 ? `▲ +${d.toFixed(1)}` : d < 0 ? `▼ ${d.toFixed(1)}` : '— 0.0'}

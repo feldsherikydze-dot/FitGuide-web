@@ -118,9 +118,9 @@ export function OneRmTab() {
           Выбери упражнение и посчитай максимум — сохранённый 1ПМ будет подсказывать рабочие веса на тренировке.
         </Hint>
 
-        <OutlineButton className="mt-3" onClick={() => setPicking(true)}>
+        <PrimaryButton className="mt-3 h-11" onClick={() => setPicking(true)}>
           {exercise || 'Выбрать упражнение'}
-        </OutlineButton>
+        </PrimaryButton>
 
         <div className="mt-2.5 flex gap-2">
           <Field value={weight} onChange={setWeight} placeholder="Рабочий вес, кг" className="flex-1" />
@@ -133,7 +133,7 @@ export function OneRmTab() {
           </div>
         )}
 
-        <Hint className="mt-1.5">
+        <Hint className="mt-1.5" style={{ fontSize: 11 }}>
           Формула Эпли (оценка, не заменяет реальный максимум). Если упражнение есть в рекордах —
           лучший подход подставится сам.
         </Hint>

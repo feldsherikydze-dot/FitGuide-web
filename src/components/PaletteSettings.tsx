@@ -161,24 +161,17 @@ export function PaletteSettings() {
   const editTitle = SLOTS.find(s => s.id === editSlot)?.title ?? '';
 
   return (
-    <div
-      className="rounded-[18px] p-4"
-      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}
-    >
-      <h2 className="text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>Палитра</h2>
-      <p className="text-[13px] mt-0.5 mb-3" style={{ color: 'var(--color-text-secondary)' }}>
-        Цветовая схема приложения
-      </p>
-
-      <div className="space-y-3">
+    <div>
+      <div className="space-y-4">
         {SLOTS.map(slot => {
           const custom = palette.custom[slot.id];
+          // Android: заливка — свой цвет или colorSurface; обводка — статический textMain 3dp;
+          // глиф — контраст к заливке, а без своего цвета — textMain.
           const bg = custom || 'var(--color-surface)';
-          // На сворче палитры галочка/карандаш всегда белые (как на скриншоте Android).
-          const fg = '#FFFFFF';
+          const fg = custom ? contrastOn(custom) : 'var(--color-text-main)';
           return (
             <div key={slot.id}>
-              <div className="text-[15px] font-bold mb-1.5" style={{ color: 'var(--color-text-main)' }}>
+              <div className="text-[15px] font-bold mb-2.5" style={{ color: 'var(--color-text-main)' }}>
                 {slot.title}
               </div>
               <button
@@ -189,7 +182,7 @@ export function PaletteSettings() {
                   height: 34,
                   borderRadius: 17,
                   background: bg,
-                  border: '3px solid var(--p-outline)',
+                  border: '3px solid var(--color-text-main)',
                   color: fg,
                   fontSize: 15,
                   lineHeight: 1,
@@ -210,13 +203,13 @@ export function PaletteSettings() {
         >
           <div
             className="w-full max-w-[360px] rounded-[20px] p-4"
-            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-stroke)' }}
+            style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
             onClick={e => e.stopPropagation()}
           >
-            <div className="text-[17px] font-bold mb-1" style={{ color: 'var(--color-text-main)' }}>
-              Свой цвет
+            <div className="text-[17px] font-bold mb-1" style={{ color: 'var(--p-on-labels)' }}>
+              Выберите цвет
             </div>
-            <div className="text-[13px] mb-3" style={{ color: 'var(--color-text-secondary)' }}>
+            <div className="text-[13px] mb-3" style={{ color: 'var(--p-on-labels-soft)' }}>
               {editTitle}
             </div>
 
@@ -236,7 +229,7 @@ export function PaletteSettings() {
                 value={Math.round(val * 100)}
                 onChange={e => setVal(Number(e.target.value) / 100)}
                 className="w-full mt-3"
-                style={{ accentColor: 'var(--p-labels-text)' }}
+                style={{ accentColor: 'var(--p-on-labels)' }}
               />
             </div>
 
@@ -244,14 +237,14 @@ export function PaletteSettings() {
               <button
                 onClick={() => setEditSlot(null)}
                 className="px-4 py-2 rounded-full text-[14px] font-medium"
-                style={{ color: 'var(--color-text-secondary)' }}
+                style={{ background: 'var(--p-circle)', color: 'var(--p-on-circle)' }}
               >
                 Отмена
               </button>
               <button
                 onClick={() => { setSlotCustom(editSlot, preview); setEditSlot(null); }}
                 className="px-4 py-2 rounded-full text-[14px] font-medium"
-                style={{ color: 'var(--p-labels-text)' }}
+                style={{ background: 'var(--p-circle)', color: 'var(--p-on-circle)' }}
               >
                 Сохранить
               </button>

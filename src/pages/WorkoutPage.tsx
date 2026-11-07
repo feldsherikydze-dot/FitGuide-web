@@ -13,7 +13,7 @@ import { useCoachStore, useProgramsStore, useOneRmStore, useProfileStore } from 
 import { createSession, applyFeelProgression, setDelta, readinessScore, dayKey } from '../core/coach';
 import { playSignal } from '../core/signal';
 import { useExercises } from '../hooks/useExercises';
-import type { Session, SessionItem, Slot } from '../data/types';
+import type { Session, SessionItem, Slot, Program } from '../data/types';
 
 const FEELS = [
   { v: 1 as const, label: 'Тяжело' },
@@ -75,13 +75,39 @@ export function WorkoutPage() {
   const { profile } = useProfileStore();
   const { exercises } = useExercises();
 
-  const programId = searchParams.get('program') || '';
-  const week = parseInt(searchParams.get('week') || '1', 10);
-  const dayTitle = decodeURIComponent(searchParams.get('day') || '');
+  const adHocNames = (searchParams.get('names') || '').split('|').map(s => s.trim()).filter(Boolean);
+  const adHoc = adHocNames.length > 0;
+  const programId = adHoc ? 'adhoc' : (searchParams.get('program') || '');
+  const week = adHoc ? 1 : parseInt(searchParams.get('week') || '1', 10);
+  const dayTitle = adHoc
+    ? (searchParams.get('title') || 'Своя тренировка')
+    : decodeURIComponent(searchParams.get('day') || '');
 
-  const program = getById(programId);
+  // Тренировка «с нуля» (WorkoutActivity.EXTRA_EXERCISES в Android):
+  // упражнения, повторы, подходы и отдых приходят параметрами.
+  const adHocProgram = useMemo<Program | null>(() => {
+    if (!adHoc) return null;
+    const reps = searchParams.get('reps') || '10';
+    const sets = parseInt(searchParams.get('sets') || '0', 10) || 3;
+    const rest = searchParams.get('rest') || '';
+    const slots: Slot[] = adHocNames.map(name => ({
+      exercise: name, group: '', reps, rest, sets,
+    }));
+    return {
+      id: 'adhoc', name: dayTitle, goal: '', level: '', daysPerWeek: 1, weeks: 1,
+      createdAt: Date.now(),
+      phases: [{
+        weekStart: 1, weekEnd: 1, label: '', scheme: '', deload: false,
+        days: [{ title: dayTitle, slots }],
+      }],
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adHoc, searchParams]);
+
+  const storedProgram = getById(programId);
+  const program = adHocProgram || storedProgram;
   const phase = program?.phases.find(p => week >= p.weekStart && week <= p.weekEnd);
-  const day = phase?.days.find(d => d.title === dayTitle);
+  const day = adHoc ? adHocProgram?.phases[0].days[0] : phase?.days.find(d => d.title === dayTitle);
 
   const [session, setSession] = useState<Session | null>(null);
   const [idx, setIdx] = useState(0);
@@ -114,12 +140,15 @@ export function WorkoutPage() {
   // ------------------------------------------------------------ сессия
   useEffect(() => {
     if (!program || !day) return;
-    const valid = coach.sessions.find(s =>
-      s.programId === programId && s.week === week && s.dayTitle === dayTitle
-      && s.items.length === day.slots.length);
-    if (valid) {
-      setSession(valid);
-      return;
+    // Тренировка «с нуля» всегда начинается заново: у неё нет сохранённого дня программы.
+    if (!adHoc) {
+      const valid = coach.sessions.find(s =>
+        s.programId === programId && s.week === week && s.dayTitle === dayTitle
+        && s.items.length === day.slots.length);
+      if (valid) {
+        setSession(valid);
+        return;
+      }
     }
     const created = createSession(programId, week, dayTitle, program, day.slots);
     coach.addSession(created);

@@ -1,13 +1,15 @@
 // Вкладка «Спортпит» (порт SportPitFragment + activity_sportpit.xml).
-// Подбор добавок под цель, уровень и бюджет.
+// Подбор добавок под цель, уровень и бюджет. Форма плоская (без карточки-обёртки),
+// результат появляется только после нажатия «Подобрать добавки» — как в Android.
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useProfileStore } from '../../core/store';
-import { GOALS_ALL, GOAL_LABELS, normalizeGoal, goalLabel } from '../../core/goals';
+import { getString } from '../../core/storage';
+import { dailyCalories, GOALS_ALL, GOAL_LABELS, goalLabel, normalizeGoal, proteinPerKg } from '../../core/goals';
 import { additivesForProfile } from '../../core/additives';
 import type { Additive } from '../../core/additives';
-import { Card, Hint, SectionTitle, Toast } from '../progress/common';
-import { MaskIcon, asset } from '../../components/ui';
+import { Toast } from '../progress/common';
 
 const LEVELS = [
   { value: 'beginner', label: 'Новичок' },
@@ -21,10 +23,12 @@ const BUDGETS = [
 ];
 
 export function SportPitTab() {
+  const navigate = useNavigate();
   const { profile } = useProfileStore();
-  const [goal, setGoal] = useState(profile?.goal || 'mass');
-  const [level, setLevel] = useState(profile?.level || 'beginner');
+  const [goal, setGoal] = useState(() => (profile?.goal ? normalizeGoal(profile.goal) : 'maintain'));
+  const [level, setLevel] = useState(() => getString('user_level', '') || 'beginner');
   const [budget, setBudget] = useState('medium');
+  const [adds, setAdds] = useState<Additive[] | null>(null);
   const [toast, setToast] = useState<string | null>('');
 
   const showToast = (text: string) => {
@@ -34,130 +38,123 @@ export function SportPitTab() {
 
   const weight = profile?.weightKg || 0;
   const age = profile?.age || 0;
-  const gender = profile?.gender || 'male';
-  const ready = weight > 0 && age > 0;
+  const complete = !!profile && age > 0 && (profile.heightCm || 0) > 0 && weight > 0 && !!profile.gender;
 
-  const adds = useMemo(() => additivesForProfile({
-    goal, level, budget, weightKg: weight, age, gender,
-  }), [goal, level, budget, weight, age, gender]);
+  const calculate = useCallback(() => {
+    const list = additivesForProfile({
+      goal, level, budget,
+      weightKg: weight, age, gender: profile?.gender || 'male',
+    });
+    if (list.length === 0) {
+      showToast('Выберите параметры для подбора');
+      return;
+    }
+    setAdds(list);
+  }, [goal, level, budget, weight, age, profile?.gender]);
 
-  const proteinNeed = ready ? weight * 2.0 : 0;
-  const kcalNeed = ready ? Math.round(weight * 25) : 0;
-
-  const calculate = () => showToast(adds.length ? 'Подбор обновлён' : 'Выберите параметры для подбора');
+  const openDetail = (a: Additive) => {
+    navigate(`/sportpit/${encodeURIComponent(a.key)}?goal=${goal}&level=${level}&budget=${budget}`);
+  };
 
   return (
-    <div className="pb-6 space-y-2">
-      <Card className="mt-2">
-        <SectionTitle>Спортпит</SectionTitle>
-        <Hint className="mt-0.5">Рекомендации основаны на научных данных. Начните с малого, следите за самочувствием.</Hint>
+    <div className="pb-6 px-2">
+      <div className="mt-2 text-[13px] leading-snug" style={{ color: 'var(--color-text-secondary)' }}>
+        Рекомендации основаны на научных данных. Начните с малого, следите за самочувствием.
+      </div>
 
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          <div className="text-[12px] font-bold mb-1" style={{ color: 'var(--color-text-secondary)' }}>Цель</div>
-          {GOALS_ALL.map(g => {
-            const on = goal === g;
-            return (
-              <button key={g} onClick={() => setGoal(g)}
-                className="min-h-[32px] px-3 rounded-[8px] text-[13px]"
-                style={{
-                  background: on ? 'var(--p-labels)' : 'var(--color-surface-variant)',
-                  border: `1px solid ${on ? 'var(--p-labels)' : 'var(--color-stroke)'}`,
-                  color: on ? 'var(--p-on-labels)' : 'var(--color-text-main)',
-                }}
-              >
-                {GOAL_LABELS[g]}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          <div className="text-[12px] font-bold mb-1" style={{ color: 'var(--color-text-secondary)' }}>Уровень подготовки</div>
-          {LEVELS.map(l => {
-            const on = level === l.value;
-            return (
-              <button key={l.value} onClick={() => setLevel(l.value)}
-                className="min-h-[32px] px-3 rounded-[8px] text-[13px]"
-                style={{
-                  background: on ? 'var(--p-labels)' : 'var(--color-surface-variant)',
-                  border: `1px solid ${on ? 'var(--p-labels)' : 'var(--color-stroke)'}`,
-                  color: on ? 'var(--p-on-labels)' : 'var(--color-text-main)',
-                }}
-              >
-                {l.label}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          <div className="text-[12px] font-bold mb-1" style={{ color: 'var(--color-text-secondary)' }}>Бюджет</div>
-          {BUDGETS.map(b => {
-            const on = budget === b.value;
-            return (
-              <button key={b.value} onClick={() => setBudget(b.value)}
-                className="min-h-[32px] px-3 rounded-[8px] text-[13px]"
-                style={{
-                  background: on ? 'var(--p-labels)' : 'var(--color-surface-variant)',
-                  border: `1px solid ${on ? 'var(--p-labels)' : 'var(--color-stroke)'}`,
-                  color: on ? 'var(--p-on-labels)' : 'var(--color-text-main)',
-                }}
-              >
-                {b.label}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="mt-2">
-          <button onClick={calculate} className="w-full h-11 rounded-[22px] text-[14px] font-bold"
-            style={{ background: 'var(--p-labels)', color: 'var(--p-on-labels)' }}>
-            Подобрать добавки
+      <div className="mt-4 text-[14px] font-bold" style={{ color: 'var(--color-text-secondary)' }}>
+        Цель
+      </div>
+      <div className="mt-1 flex flex-wrap gap-1.5">
+        {GOALS_ALL.map(g => (
+          <button
+            key={g}
+            onClick={() => setGoal(g)}
+            className={`fg-chip ${goal === g ? 'fg-chip-on' : ''}`}
+          >
+            {GOAL_LABELS[g]}
           </button>
-        </div>
-      </Card>
+        ))}
+      </div>
 
-      {!ready && (
-        <Hint className="mt-2 px-3">
-          Дозировки рассчитаны приблизительно — заполните профиль (вес, возраст, пол, цель), чтобы подобрать точнее.
-        </Hint>
-      )}
+      <div className="mt-3 text-[14px] font-bold" style={{ color: 'var(--color-text-secondary)' }}>
+        Уровень подготовки
+      </div>
+      <div className="mt-1 flex flex-wrap gap-1.5">
+        {LEVELS.map(l => (
+          <button
+            key={l.value}
+            onClick={() => setLevel(l.value)}
+            className={`fg-chip ${level === l.value ? 'fg-chip-on' : ''}`}
+          >
+            {l.label}
+          </button>
+        ))}
+      </div>
 
-      {adds.length > 0 && (
-        <>
-          <div className="mt-2 text-[16px] font-bold" style={{ color: 'var(--color-text-main)' }}>
+      <div className="mt-3 text-[14px] font-bold" style={{ color: 'var(--color-text-secondary)' }}>
+        Бюджет
+      </div>
+      <div className="mt-1 flex flex-wrap gap-1.5">
+        {BUDGETS.map(b => (
+          <button
+            key={b.value}
+            onClick={() => setBudget(b.value)}
+            className={`fg-chip ${budget === b.value ? 'fg-chip-on' : ''}`}
+          >
+            {b.label}
+          </button>
+        ))}
+      </div>
+
+      <button
+        onClick={calculate}
+        className="fg-btn fg-btn-primary w-full mt-5"
+        style={{ height: 50, borderRadius: 25, fontSize: 16 }}
+      >
+        Подобрать добавки
+      </button>
+
+      {adds && adds.length > 0 && (
+        <div className="mt-4">
+          <p className="text-[13px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
+            {complete
+              ? `Ваш профиль: ${weight.toFixed(0)} кг · ${age} лет · ${goalLabel(goal)} — `
+                + `${dailyCalories(profile).toFixed(0)} ккал/сутки, белок ~${(weight * proteinPerKg(goal)).toFixed(0)} г`
+              : 'Дозировки рассчитаны приблизительно — заполните профиль (вес, возраст, пол, цель), чтобы подобрать точнее.'}
+          </p>
+
+          <div className="mt-[18px] text-[16px] font-bold" style={{ color: 'var(--color-text-main)' }}>
             Вам подойдут
           </div>
-          {ready && (
-            <p className="mt-0.5 text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
-              Ваш профиль: {weight.toFixed(0)} кг · {age} лет · {goalLabel(goal)} — {kcalNeed} ккал/сутки, белок ~{proteinNeed.toFixed(0)} г
-            </p>
-          )}
-          <div className="mt-1 space-y-2">
-            {adds.map((a: Additive) => (
-              <div key={a.key}
-                className="rounded-[16px] p-3 mb-1"
-                style={{ background: 'var(--color-surface-variant)', border: '1px solid var(--color-outline)' }}
-              >
-                <div className="text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>{a.name}</div>
-                <div className="mt-0.5 text-[13px]" style={{ color: 'var(--p-labels-text)' }}>Дозировка: {a.dose}</div>
-                <div className="mt-0.5 text-[13px] leading-snug" style={{ color: 'var(--color-text-secondary)' }}>{a.why}</div>
-                {a.products.length > 0 && (
-                  <div className="mt-1 text-[13px] font-bold" style={{ color: 'var(--p-labels-text)' }}>
-                    Рекомендуемые варианты →
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-          <Hint className="mt-2 text-[12px]">
-            Перед приёмом добавок проконсультируйтесь с врачом. Не заменяйте полноценное питание добавками.
-          </Hint>
-        </>
-      )}
 
-      {adds.length === 0 && ready && (
-        <Hint className="mt-2 px-3">Выберите параметры для подбора</Hint>
+          {adds.map(a => (
+            <button
+              key={a.key}
+              onClick={() => openDetail(a)}
+              className="fg-banner-grad block w-full text-left mt-2.5 px-4 py-[14px]"
+            >
+              <div className="text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>
+                {a.name}
+              </div>
+              <div className="pt-1 text-[13px]" style={{ color: 'var(--p-labels)' }}>
+                Дозировка: {a.dose}
+              </div>
+              <div className="pt-1.5 text-[13px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
+                {a.why}
+              </div>
+              {a.products.length > 0 && (
+                <div className="pt-1.5 text-[13px] font-bold" style={{ color: 'var(--p-labels)' }}>
+                  Рекомендуемые варианты →
+                </div>
+              )}
+            </button>
+          ))}
+
+          <p className="mt-[18px] text-[12px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
+            Перед приёмом добавок проконсультируйтесь с врачом. Не заменяйте полноценное питание добавками.
+          </p>
+        </div>
       )}
 
       <Toast text={toast} />

@@ -5,8 +5,8 @@ import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import {
-  slotColor, circleGradient, topBarGradient, contrastOn, withAlpha, subscribePalette, getPalette,
-  type SlotName,
+  slotColor, circleGradient, topBarGradient, presetGradient, contrastOn, withAlpha,
+  subscribePalette, getPalette, type SlotName,
 } from '../core/palette';
 
 // ---------------------------------------------------------------- палитра
@@ -32,6 +32,7 @@ export function usePaletteVars() {
   const circle = slotColor('circleIcons');
   const circleGrad = circleGradient();
   const grad = topBarGradient();
+  const presetGrad = presetGradient();
 
   const root = document.documentElement;
   root.style.setProperty('--p-outline', outline);
@@ -42,6 +43,8 @@ export function usePaletteVars() {
   root.style.setProperty('--p-circle-to', circleGrad.to);
   root.style.setProperty('--p-grad-from', grad.from);
   root.style.setProperty('--p-grad-to', grad.to);
+  root.style.setProperty('--p-preset-grad-from', presetGrad.from);
+  root.style.setProperty('--p-preset-grad-to', presetGrad.to);
   // Авто-контраст к заливкам (как contrastOn в Android)
   root.style.setProperty('--p-on-outline', contrastOn(outline));
   root.style.setProperty('--p-on-labels', contrastOn(labels));

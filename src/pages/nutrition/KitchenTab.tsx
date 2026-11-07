@@ -1,13 +1,14 @@
 // Вкладка «Кухня» (порт KitchenFragment + activity_kitchen.xml).
-// Меню на неделю под целевые калории с БЖУ.
+// Меню на неделю под целевые калории с БЖУ. Разметка — плоская форма,
+// как в Android: заголовок, подзаголовок, цель, поля, кнопка, список дней.
 
 import { useCallback, useMemo, useState } from 'react';
 import { useProfileStore } from '../../core/store';
 import { getJSON, setJSON, KEYS } from '../../core/storage';
-import { goalList, goalLabel } from '../../core/goals';
+import { dailyCalories, goalList, goalLabel } from '../../core/goals';
 import { week } from '../../core/nutrition';
 import type { Day } from '../../core/nutrition';
-import { Card, Field, Hint, PrimaryButton, SectionTitle, Toast } from '../progress/common';
+import { Field, PrimaryButton, Toast } from '../progress/common';
 
 interface MenuState {
   kcal: string;
@@ -19,7 +20,7 @@ interface MenuState {
 export function KitchenTab() {
   const { profile } = useProfileStore();
   const [state, setState] = useState<MenuState>(() => {
-    const calc = profile ? Math.round(profile.weightKg * 25) : 2200;
+    const calc = Math.round(dailyCalories(profile)) || 2200;
     return { kcal: String(calc), favs: '', dislikes: '', menu: null };
   });
   const [toast, setToast] = useState<string | null>('');
@@ -54,7 +55,6 @@ export function KitchenTab() {
     const days = week(targetKcal, profile?.goal || 'mass', favs, dis);
     saveMenu(days);
     setState(s => ({ ...s, menu: days }));
-    setJSON(KEYS.KITCHEN_MENU, days);
     showToast('Меню готово');
   }, [state.favs, state.dislikes, targetKcal, profile?.goal, saveMenu, showToast]);
 
@@ -69,68 +69,56 @@ export function KitchenTab() {
   const hasMenu = menu.length > 0;
 
   return (
-    <div className="pb-6 space-y-2">
-      <Card className="mt-2">
-        <SectionTitle>Кухня — меню на неделю</SectionTitle>
-        <Hint className="mt-0.5">По профилю, целям и КБЖУ. Разнообразие каждый день.</Hint>
+    <div className="pb-6 px-2">
+      <div className="text-[18px] font-bold" style={{ color: 'var(--color-text-main)' }}>
+        Кухня — меню на неделю
+      </div>
+      <div className="mt-1 text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
+        По профилю, целям и КБЖУ. Разнообразие каждый день.
+      </div>
 
-        <div className="mt-2 space-y-1.5">
-          <Field value={state.kcal} onChange={v => setState(s => ({ ...s, kcal: v }))}
-            placeholder="Калории в день" inputMode="numeric" />
-          <Field value={state.favs} onChange={v => setState(s => ({ ...s, favs: v }))}
-            placeholder="Любимые продукты/блюда через запятую" />
-          <Field value={state.dislikes} onChange={v => setState(s => ({ ...s, dislikes: v }))}
-            placeholder="Не ем (исключить) через запятую" />
-        </div>
+      <div className="mt-3 text-[14px] font-bold" style={{ color: 'var(--p-labels-text)' }}>
+        Цель: {goals} · ~{targetKcal} ккал/день
+      </div>
 
-        <div className="mt-1 text-[13px] font-bold" style={{ color: 'var(--color-text-main)' }}>
-          Цель: {goals} · ~{targetKcal} ккал/день
-        </div>
+      <div className="mt-1.5 space-y-2">
+        <Field value={state.kcal} onChange={v => setState(s => ({ ...s, kcal: v }))}
+          placeholder="Калории в день" inputMode="numeric" />
+        <Field value={state.favs} onChange={v => setState(s => ({ ...s, favs: v }))}
+          placeholder="Любимые продукты/блюда через запятую" inputMode="text" multiline />
+        <Field value={state.dislikes} onChange={v => setState(s => ({ ...s, dislikes: v }))}
+          placeholder="Не ем (исключить) через запятую" inputMode="text" multiline />
+      </div>
 
-        <PrimaryButton className="mt-2 h-11" onClick={hasMenu ? clear : generate}>
-          {hasMenu ? 'Очистить меню' : 'Сгенерировать меню'}
-        </PrimaryButton>
+      <PrimaryButton className="mt-2.5 h-12" onClick={hasMenu ? clear : generate}>
+        {hasMenu ? 'Очистить меню' : 'Сгенерировать меню'}
+      </PrimaryButton>
 
-        {hasMenu && (
-          <Hint className="mt-1" style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
-            Меню очищено — нажмите «Сгенерировать меню», чтобы составить новое.
-          </Hint>
-        )}
-      </Card>
-
-      {menu.length > 0 && (
-        <div className="mt-3 space-y-1">
-          {menu.map((day, di) => (
-            <div key={day.name}>
-              <div className="text-[16px] font-bold mb-1" style={{ color: 'var(--color-text-main)', paddingTop: 16, paddingBottom: 6 }}>
-                {day.name} · {day.meals.reduce((s, m) => s + m.dishes.reduce((d2, d) => d2 + d.kcal, 0), 0)} ккал
-              </div>
-              {day.meals.map((meal, mi) => (
-                <div key={meal.title}>
-                  <div className="text-[14px] font-bold mb-0.5" style={{ color: 'var(--color-text-main)', paddingTop: 8, paddingBottom: 2 }}>
-                    {meal.title} · {meal.dishes.reduce((s, d) => s + d.kcal, 0)} ккал
-                  </div>
-                  {meal.dishes.map((d, dk) => (
-                    <div key={`${mi}-${dk}`} className="text-[13px] pl-2 mb-0.5" style={{ color: 'var(--color-text-secondary)' }}>
-                      • {d.name} — {d.kcal} ккал (Б{d.p}/Ж{d.f}/У{d.c})
-                    </div>
-                  ))}
-                </div>
-              ))}
-              <div className="text-[12px] mb-2" style={{ color: 'var(--color-text-secondary)', paddingBottom: 8 }}>
-                Итого: Б{day.meals.reduce((s, m) => s + m.dishes.reduce((d2, d) => d2 + d.p, 0), 0)}/Ж{day.meals.reduce((s, m) => s + m.dishes.reduce((d2, d) => d2 + d.f, 0), 0)}/У{day.meals.reduce((s, m) => s + m.dishes.reduce((d2, d) => d2 + d.c, 0), 0)}
-              </div>
-              <div className="h-px" style={{ background: 'var(--color-outline)', marginBottom: 4 }} />
+      <div className="mt-2">
+        {menu.map(day => (
+          <div key={day.name}>
+            <div className="pt-4 pb-1.5 text-[16px] font-bold" style={{ color: 'var(--color-text-main)' }}>
+              {day.name} · {day.meals.reduce((s, m) => s + m.dishes.reduce((d2, d) => d2 + d.kcal, 0), 0)} ккал
             </div>
-          ))}
-        </div>
-      )}
-
-      {!hasMenu && menu.length === 0 && (
-        <Hint className="mt-4 text-center">
-          Меню пока не сформировано. Укажите калории и нажмите «Сгенерировать меню».
-        </Hint>
-      )}
+            {day.meals.map((meal, mi) => (
+              <div key={`${meal.title}-${mi}`}>
+                <div className="pt-2 pb-0.5 text-[14px] font-bold" style={{ color: 'var(--color-text-main)' }}>
+                  {meal.title} · {meal.dishes.reduce((s, d) => s + d.kcal, 0)} ккал
+                </div>
+                {meal.dishes.map((d, dk) => (
+                  <div key={`${mi}-${dk}`} className="pl-2 mb-0.5 text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
+                    • {d.name} — {d.kcal} ккал (Б{d.p}/Ж{d.f}/У{d.c})
+                  </div>
+                ))}
+              </div>
+            ))}
+            <div className="pb-2 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
+              Итого: Б{day.meals.reduce((s, m) => s + m.dishes.reduce((d2, d) => d2 + d.p, 0), 0)}/Ж{day.meals.reduce((s, m) => s + m.dishes.reduce((d2, d) => d2 + d.f, 0), 0)}/У{day.meals.reduce((s, m) => s + m.dishes.reduce((d2, d) => d2 + d.c, 0), 0)}
+            </div>
+            <div className="h-px mb-1" style={{ background: 'var(--color-outline)' }} />
+          </div>
+        ))}
+      </div>
 
       <Toast text={toast} />
     </div>

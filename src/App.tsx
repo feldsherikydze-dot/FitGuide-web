@@ -14,9 +14,12 @@ import { CustomProgramPage } from './pages/CustomProgramPage';
 import { WorkoutPage } from './pages/WorkoutPage';
 import { ProgressHubPage } from './pages/ProgressHubPage';
 import { ExercisesPage } from './pages/ExercisesPage';
+import { MuscleGroupPage } from './pages/MuscleGroupPage';
+import { ExerciseDetailPage } from './pages/ExerciseDetailPage';
 import { AssessmentPage } from './pages/AssessmentPage';
 import { DiaryPage } from './pages/DiaryPage';
 import { NutritionHubPage } from './pages/NutritionHubPage';
+import { SportPitDetailPage } from './pages/SportPitDetailPage';
 import { KnowledgePage, KnowledgeDetailPage } from './pages/KnowledgePage';
 import { SearchPage } from './pages/SearchPage';
 import { TimerPage } from './pages/TimerPage';
@@ -42,9 +45,13 @@ function AppRoutes() {
         <Route path="/workout" element={<WorkoutPage />} />
         <Route path="/progress" element={<ProgressHubPage />} />
         <Route path="/exercises" element={<ExercisesPage />} />
+        <Route path="/exercises/selection" element={<MuscleGroupPage />} />
+        <Route path="/exercises/:groupId" element={<MuscleGroupPage />} />
+        <Route path="/exercise/:exerciseId" element={<ExerciseDetailPage />} />
         <Route path="/assessment" element={<AssessmentPage />} />
         <Route path="/diary" element={<DiaryPage />} />
         <Route path="/nutrition" element={<NutritionHubPage />} />
+        <Route path="/sportpit/:key" element={<SportPitDetailPage />} />
         <Route path="/knowledge" element={<KnowledgePage />} />
         <Route path="/knowledge/:number" element={<KnowledgeDetailPage />} />
         <Route path="/search" element={<SearchPage />} />

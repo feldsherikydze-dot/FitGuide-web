@@ -130,6 +130,12 @@ img, svg, video, canvas {
   border: 1px solid var(--color-stroke);
 }
 
+/* ---------- Баннер-градиент (bg_banner): пресет темы, радиус 22dp ---------- */
+.fg-banner-grad {
+  background: linear-gradient(135deg, var(--p-preset-grad-from) 0%, var(--p-preset-grad-to) 100%);
+  border-radius: 22px;
+}
+
 /* ---------- Мини-плеер (mini_player): фон (B), обводка (A) ---------- */
 .fg-miniplayer {
   background: var(--p-labels);
