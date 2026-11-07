@@ -5,6 +5,7 @@ import { SplashPage } from './pages/SplashPage';
 import { HubPage } from './pages/HubPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { CoachPage } from './pages/CoachPage';
+import { CoachOnboardingPage } from './pages/CoachOnboardingPage';
 import { ProgramsPage, ProgramDetailPage } from './pages/ProgramsPage';
 import { ProgramHubPage } from './pages/ProgramHubPage';
 import { MyProgramsPage } from './pages/MyProgramsPage';
@@ -36,6 +37,7 @@ function AppRoutes() {
         <Route path="/" element={<HubPage />} />
         <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/coach" element={<CoachPage />} />
+        <Route path="/coach/onboarding" element={<CoachOnboardingPage />} />
         <Route path="/programs" element={<ProgramHubPage />} />
         <Route path="/programs/mine" element={<MyProgramsPage />} />
         <Route path="/programs/new" element={<ProgramGeneratorPage />} />

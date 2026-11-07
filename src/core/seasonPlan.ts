@@ -14,6 +14,7 @@
 import type { Program, UserProfile, SeasonBlock, CoachState } from '../data/types';
 import { COMP_PHASE, GOAL, STYLE } from '../data/types';
 import { GOALS } from './goals';
+import * as CompCategory from './compCategory';
 
 export const PERIOD_NONE = 0;
 export const PERIOD_LINEAR = 1;
@@ -39,17 +40,17 @@ export function blockFor(phase: string | null, programType: string): SeasonBlock
   const type = programType || TYPE_AUTO;
   switch (phase) {
     case COMP_PHASE.OFFSEASON:
-      return { phase, name: 'Межсезонье', goal: GOALS.MASS, style: STYLE.BB, weeks: 8, period: PERIOD_LINEAR, type };
+      return { phase, name: 'Межсезонье · база на массу', goal: GOALS.MASS, style: STYLE.BB, weeks: 8, period: PERIOD_LINEAR, type };
     case COMP_PHASE.BUILD:
-      return { phase, name: 'База', goal: GOALS.STRENGTH, style: STYLE.BB, weeks: 6, period: PERIOD_LINEAR, type };
+      return { phase, name: 'База · сила', goal: GOALS.STRENGTH, style: STYLE.BB, weeks: 6, period: PERIOD_LINEAR, type };
     case COMP_PHASE.CUT:
-      return { phase, name: 'Сушка', goal: GOALS.CUT, style: STYLE.BB, weeks: 5, period: PERIOD_WAVE, type };
+      return { phase, name: 'Сушка · рельеф', goal: GOALS.CUT, style: STYLE.BB, weeks: 5, period: PERIOD_WAVE, type };
     case COMP_PHASE.PEAK:
-      return { phase, name: 'Пик', goal: GOALS.STRENGTH, style: STYLE.PL, weeks: 3, period: PERIOD_WAVE, type };
+      return { phase, name: 'Пик · реализация силы', goal: GOALS.STRENGTH, style: STYLE.PL, weeks: 3, period: PERIOD_WAVE, type };
     case COMP_PHASE.DAY:
-      return { phase, name: 'День старта', goal: GOALS.STRENGTH, style: STYLE.PL, weeks: 1, period: PERIOD_NONE, type: TYPE_AUTO };
+      return { phase, name: 'Старт · подводка', goal: GOALS.STRENGTH, style: STYLE.PL, weeks: 1, period: PERIOD_NONE, type: TYPE_AUTO };
     case COMP_PHASE.RECOVERY:
-      return { phase, name: 'Восстановление', goal: GOALS.MAINTAIN, style: STYLE.ANY, weeks: 3, period: PERIOD_NONE, type: TYPE_AUTO };
+      return { phase, name: 'Восстановление после старта', goal: GOALS.MAINTAIN, style: STYLE.ANY, weeks: 3, period: PERIOD_NONE, type: TYPE_AUTO };
     default:
       return null;
   }
@@ -115,19 +116,48 @@ export function shouldRotate(params: {
   return rotate;
 }
 
-/** Ориентир веса на сцене по категории и росту (упрощённая формула CompCategory). */
+/** Ориентир веса на сцене по категории и росту (CompCategory.stageWeightKg). */
 export function stageWeightKg(heightCm: number, category: string): number {
-  if (heightCm <= 0) return 0;
-  const perCm: Record<string, number> = {
-    '60': 0.55, '70': 0.62, '80': 0.68, '90': 0.73, '100': 0.78, '110+': 0.83,
-  };
-  const k = perCm[category] ?? 0.68;
-  return Math.round(heightCm * k);
+  return CompCategory.stageWeightKg(heightCm, category);
 }
 
-/** Ориентир межсезонья: ориентир сцены + 8% сухой массы сверху. */
-export function offseasonWeightKg(heightCm: number, category: string, currentWeight: number): number {
-  const stage = stageWeightKg(heightCm, category);
-  if (stage <= 0) return 0;
-  return Math.round((stage + currentWeight * 0.08) * 10) / 10;
+/** Ориентир межсезонья: сцена плюс запас на сушку (CompCategory.offseasonKg). */
+export function offseasonWeightKg(heightCm: number, category: string, _currentWeight?: number): number {
+  return CompCategory.offseasonKg(heightCm, category);
+}
+
+// ---------------------------------------------------------------- фазы сезона
+
+/** Сколько дней до старта отводим на сушку (10 недель) — минимум. */
+export const CUT_DAYS = 70;
+/** Сколько дней базы отводим до начала сушки. */
+export const BUILD_AFTER_CUT_DAYS = 70;
+/** Последняя неделя перед стартом — пик. */
+export const PEAK_DAYS = 7;
+/** Сколько дней после старта держим восстановление. */
+export const RECOVERY_DAYS = 14;
+
+/** Дней до старта: 0 — старт сегодня, меньше нуля — уже прошёл. null — даты нет. */
+export function daysToComp(compDate: number | null | undefined, now: number): number | null {
+  if (!compDate || compDate <= 0) return null;
+  const day = 86400000;
+  const from = Math.floor(now / day);
+  const to = Math.floor(compDate / day);
+  return to - from;
+}
+
+/** Фаза сезона по числу дней до старта (отрицательное — уже прошёл). */
+export function compPhaseForDays(
+  days: number,
+  cutDays: number = CUT_DAYS,
+  buildAfterCutDays: number = BUILD_AFTER_CUT_DAYS,
+): string {
+  if (days < 0) {
+    return days >= -RECOVERY_DAYS ? COMP_PHASE.RECOVERY : COMP_PHASE.OFFSEASON;
+  }
+  if (days === 0) return COMP_PHASE.DAY;
+  if (days <= PEAK_DAYS) return COMP_PHASE.PEAK;
+  if (days <= cutDays) return COMP_PHASE.CUT;
+  if (days <= cutDays + buildAfterCutDays) return COMP_PHASE.BUILD;
+  return COMP_PHASE.OFFSEASON;
 }

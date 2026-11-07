@@ -234,8 +234,16 @@ export function AssessmentPage() {
       return;
     }
 
-    // Первая программа — по цели и уровню
-    if (db) {
+    // Программа тренера уже собрана на знакомстве — только расставляем стартовые веса.
+    const active = coach.activeProgramId
+      ? programs.find(p => p.id === coach.activeProgramId) ?? null
+      : null;
+    if (active) {
+      applyStartWeights(active, e1rms);
+      savePrograms(programs.map(p => (p.id === active.id ? active : p)));
+      coach.setCoachPath('coach');
+    } else if (db) {
+      // Первая программа — по цели и уровню
       const goal = profile?.goal || GOALS.MASS;
       const level = profile?.level || 'intermediate';
       const days = profile?.workoutsPerWeek || recommendDays(level, goal);

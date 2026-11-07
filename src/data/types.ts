@@ -260,6 +260,10 @@ export interface CoachState {
   programUpdatedNote: string;
   resetAt: number | null;
   compPhase: string | null;
+  compDate: number | null;
+  compCategory: string;
+  /** Травмы и запреты: lowback | knee | shoulder | wrist. */
+  restrictions: string[];
 }
 
 // --- Генератор программ ---

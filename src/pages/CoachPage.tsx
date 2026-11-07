@@ -113,7 +113,7 @@ export function CoachPage() {
             Пройдём знакомство и подготовку к старту: соберу о тебе всё, что нужно, дам вводную тренировку
             для калибровки рабочих весов, а затем поведу по индивидуальной программе до пика формы.
           </p>
-          <button onClick={() => navigate('/onboarding')} className="fg-btn fg-btn-primary w-full py-3">
+          <button onClick={() => navigate('/coach/onboarding')} className="fg-btn fg-btn-primary w-full py-3">
             Знакомство и подготовка к старту
           </button>
 

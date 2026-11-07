@@ -81,6 +81,9 @@ const initialCoachState: CoachState = {
   programUpdatedNote: '',
   resetAt: null,
   compPhase: null,
+  compDate: null,
+  compCategory: '',
+  restrictions: [],
 };
 
 interface CoachSlice extends CoachState {
@@ -91,6 +94,9 @@ interface CoachSlice extends CoachState {
   setProgramPhase: (phase: string) => void;
   setProgramType: (type: string) => void;
   setCompPhase: (phase: string | null) => void;
+  setCompDate: (ts: number | null) => void;
+  setCompCategory: (key: string) => void;
+  setRestrictions: (list: string[]) => void;
   addSession: (s: Session) => void;
   updateSession: (id: string, updates: Partial<Session>) => void;
   removeSession: (id: string) => void;
@@ -114,6 +120,9 @@ export const useCoachStore = create<CoachSlice>()(
       setProgramPhase: (phase) => set({ programPhase: phase }),
       setProgramType: (type) => set({ programType: type }),
       setCompPhase: (phase) => set({ compPhase: phase }),
+      setCompDate: (ts) => set({ compDate: ts && ts > 0 ? ts : null }),
+      setCompCategory: (key) => set({ compCategory: key }),
+      setRestrictions: (list) => set({ restrictions: list }),
       addSession: (s) => set((st) => ({ sessions: [s, ...st.sessions].slice(0, 600) })),
       updateSession: (id, updates) => set((st) => ({
         sessions: st.sessions.map(s => (s.id === id ? { ...s, ...updates } : s)),
