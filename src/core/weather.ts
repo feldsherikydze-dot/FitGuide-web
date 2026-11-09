@@ -30,6 +30,39 @@ export function weatherEmoji(code: number): string {
   return '🌧';
 }
 
+export interface DayForecast {
+  /** yyyy-MM-dd, как dateLabel в WeatherClient.DayForecast. */
+  date: string;
+  tMin: number;
+  tMax: number;
+  code: number;
+}
+
+/** Прогноз на 7 дней (WeatherClient.fetchWeek). Пустой массив — данных нет. */
+export async function fetchWeek(cityName: string): Promise<DayForecast[]> {
+  if (!cityName?.trim()) return [];
+  const geoRes = await fetch(
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ru&format=json`
+  );
+  const geo = await geoRes.json();
+  const place = geo?.results?.[0];
+  if (!place) return [];
+
+  const res = await fetch(
+    `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}` +
+    `&daily=weather_code,temperature_2m_min,temperature_2m_max&timezone=auto&forecast_days=7`
+  );
+  const j = await res.json();
+  const d = j?.daily;
+  if (!d?.time?.length) return [];
+  return d.time.map((t: string, i: number) => ({
+    date: t,
+    tMin: Math.round(d.temperature_2m_min?.[i] ?? 0),
+    tMax: Math.round(d.temperature_2m_max?.[i] ?? 0),
+    code: d.weather_code?.[i] ?? 0,
+  }));
+}
+
 export function useWeather(cityName: string): Weather {
   const [weather, setWeather] = useState<Weather>(EMPTY);
 

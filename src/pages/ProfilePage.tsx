@@ -22,10 +22,10 @@ import { slotColor, contrastOn, withAlpha } from '../core/palette';
 
 const ACTIVITY_LEVELS = [
   { value: 'sedentary', label: 'Сидячий', factor: 1.2 },
-  { value: 'light', label: 'Лёгкий', factor: 1.375 },
+  { value: 'light', label: 'Низкий', factor: 1.375 },
   { value: 'moderate', label: 'Умеренный', factor: 1.55 },
   { value: 'high', label: 'Высокий', factor: 1.725 },
-  { value: 'athlete', label: 'Спортсмен', factor: 1.9 },
+  { value: 'athlete', label: 'Очень высокий', factor: 1.9 },
 ];
 
 const LEVELS = [
@@ -35,7 +35,7 @@ const LEVELS = [
 ];
 
 const STYLES = [
-  { value: 'any', label: 'Любое' },
+  { value: 'any', label: 'Без разницы' },
   { value: 'bb', label: 'Бодибилдинг' },
   { value: 'pl', label: 'Пауэрлифтинг' },
 ];
@@ -108,6 +108,14 @@ export function ProfilePage() {
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [selectedGoalChips, setSelectedGoalChips] = useState<string[]>([]);
   const [savedProfiles, setSavedProfiles] = useState<Array<{profile: UserProfile, index: number}>>([]);
+  const [toast, setToast] = useState('');
+  const [confirmBox, setConfirmBox] = useState<{ title: string; message: string; action: () => void } | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const id = window.setTimeout(() => setToast(''), 2500);
+    return () => window.clearTimeout(id);
+  }, [toast]);
 
   useEffect(() => {
     if (profile) {
@@ -184,6 +192,23 @@ export function ProfilePage() {
     setForm(p);
     const goals = p.goal.split(',').filter(Boolean);
     setSelectedGoalChips(goals.length ? goals : [GOALS.MASS]);
+    setToast('Профиль загружен');
+  };
+
+  const askRemoveProfile = (p: UserProfile, index: number) => {
+    setConfirmBox({
+      title: 'Удалить профиль?',
+      message: `Профиль «${p.name || 'Без имени'}» будет удалён. Действие нельзя отменить.`,
+      action: () => removeProfileFromHistory(index),
+    });
+  };
+
+  const askClearProfiles = () => {
+    setConfirmBox({
+      title: 'Очистить все профили?',
+      message: 'Будут удалены все сохранённые профили. Действие нельзя отменить.',
+      action: () => clearProfileHistory(),
+    });
   };
 
   const bmr = form.age && form.heightCm && form.weightKg
@@ -198,12 +223,15 @@ export function ProfilePage() {
   const bmi = form.heightCm && form.weightKg ? (form.weightKg / Math.pow(form.heightCm / 100, 2)).toFixed(1) : '—';
 
   const save = () => {
+    if (!form.name.trim() || !form.gender || !(form.age > 0) || !(form.heightCm > 0) || !(form.weightKg > 0)) {
+      setToast('Заполните имя, пол и основные параметры');
+      return;
+    }
     const goalStr = selectedGoalChips.join(',') || GOALS.MASS;
     const toSave: UserProfile = { ...form, goal: goalStr };
     setProfile(toSave);
     saveProfileToHistory(toSave);
-    // Как ProfileActivity: после сохранения закрываем экран
-    navigate('/');
+    setToast('Профиль сохранён');
   };
 
   const doDelete = () => {
@@ -532,13 +560,13 @@ export function ProfilePage() {
                     </div>
                     <div style={{ fontSize: '12px', color: textSecondary, marginTop: '2px' }}>
                       {p.gender === 'female' ? 'Женский' : p.gender === 'male' ? 'Мужской' : '—'}
-                      {p.age > 0 ? `, ${p.age} лет` : ''}
-                      {p.heightCm > 0 ? `, ${p.heightCm} см` : ''}
-                      {p.weightKg > 0 ? `, ${p.weightKg} кг` : ''}
+                      {p.age > 0 ? ` · ${p.age} лет` : ''}
+                      {p.heightCm > 0 ? ` · ${p.heightCm} см` : ''}
+                      {p.weightKg > 0 ? ` · ${p.weightKg.toFixed(1)} кг` : ''}
                     </div>
                   </div>
                   <button
-                    onClick={e => { e.stopPropagation(); removeProfileFromHistory(index); }}
+                    onClick={e => { e.stopPropagation(); askRemoveProfile(p, index); }}
                     style={{
                       width: '28px', height: '28px', borderRadius: '50%',
                       background: 'transparent', border: `1px solid ${outline}`,
@@ -557,7 +585,7 @@ export function ProfilePage() {
           {savedProfiles.length > 0 && (
             <button
               onClick={() => {
-                if (confirm('Удалить все сохранённые профили?')) clearProfileHistory();
+                askClearProfiles();
               }}
               style={{
                 marginTop: '16px', width: '100%', height: '48px', borderRadius: '24px',
@@ -582,6 +610,36 @@ export function ProfilePage() {
           Сохранить
         </button>
       </div>
+
+      {confirmBox && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-6"
+          onClick={() => setConfirmBox(null)}>
+          <div className="w-full max-w-md rounded-2xl p-5"
+            style={{ background: labels, border: `1px solid ${outline}` }}
+            onClick={e => e.stopPropagation()}>
+            <h3 style={{ color: textMain, fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{confirmBox.title}</h3>
+            <p style={{ color: textMain, fontSize: 15, lineHeight: 1.35 }}>{confirmBox.message}</p>
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setConfirmBox(null)}
+                style={{ flex: 1, height: 44, borderRadius: 22, background: 'transparent', border: `1px solid ${outline}`, color: textMain, fontWeight: 600 }}>
+                Отмена
+              </button>
+              <button
+                onClick={() => { const a = confirmBox.action; setConfirmBox(null); a(); }}
+                style={{ flex: 1, height: 44, borderRadius: 22, background: circle, border: `1px solid ${circle}`, color: 'var(--p-on-circle)', fontWeight: 600 }}>
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed left-1/2 -translate-x-1/2 bottom-8 px-4 py-2 rounded-full text-[13px] font-medium z-50"
+          style={{ background: labels, color: labelsText, border: `1px solid ${outline}` }}>
+          {toast}
+        </div>
+      )}
     </div>
   );
 }

@@ -230,7 +230,7 @@ export function AssessmentPage() {
     // Чекпоинт — программу не пересобираем, только обновляем замеры
     if (isCheckpoint) {
       coach.clearProgramUpdated();
-      navigate('/coach');
+      finishNavigate();
       return;
     }
 
@@ -271,7 +271,13 @@ export function AssessmentPage() {
       coach.setCoachProgram(program.id);
     }
 
-    navigate('/coach');
+    finishNavigate();
+  };
+
+  /** Тост «Замеры сохранены» + переход — как Toast + finish() в Android. */
+  const finishNavigate = () => {
+    setToast('Замеры сохранены — тренер видит твоё тело');
+    window.setTimeout(() => navigate('/coach'), 1100);
   };
 
   const stepIndex = STEPS.findIndex(s => s.id === step);

@@ -12,9 +12,9 @@ import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { useProfileStore, useProgramsStore, useCoachStore } from '../core/store';
 import { usePaletteVars, TopBar, TopBarButton, ToolTile, MiniPlayer, SearchField, MaskIcon, type ToolDef, asset } from '../components/ui';
-import { getJSON, setJSON, KEYS, getString } from '../core/storage';
+import { getJSON, setJSON, setString, KEYS, getString } from '../core/storage';
 import { usePlayer } from '../core/player';
-import { useWeather } from '../core/weather';
+import { fetchWeek, weatherEmoji, useWeather, type DayForecast } from '../core/weather';
 import { slotColor } from '../core/palette';
 
 // Порядок ярлыков — как buildTools() в MainActivity
@@ -32,6 +32,15 @@ const TOOLS: ToolDef[] = [
 ];
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+/** «Сегодня» / «Понедельник» — как в refreshWeekDialog(). */
+function dayLabel(date: string, index: number): string {
+  if (index === 0) return 'Сегодня';
+  const [y, m, d] = date.split('-').map(Number);
+  const dt = new Date(y, (m || 1) - 1, d || 1);
+  const name = dt.toLocaleDateString('ru-RU', { weekday: 'long' });
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
 
 export function HubPage() {
   const navigate = useNavigate();
@@ -53,8 +62,78 @@ export function HubPage() {
   const [searchEnabled, setSearchEnabled] = useState(() => getString('home_search_enabled', '1') !== '0');
   const [dragSrc, setDragSrc] = useState<number | null>(null);
   const player = usePlayer();
-  const weatherCity = getString('weather_city', 'Красноярск');
-  const weather = useWeather(weatherCity);
+  const [city, setCity] = useState(() => getString('weather_city', 'Красноярск'));
+  const weather = useWeather(city);
+
+  // Диалог «Погода на неделю» (showWeatherWeekDialog в MainActivity).
+  const [weatherOpen, setWeatherOpen] = useState(false);
+  const [weatherCity, setWeatherCity] = useState(city);
+  const [week, setWeek] = useState<DayForecast[] | null>(null);
+
+  // Диалог «До встречи!» на системную «назад» — как OnBackPressedCallback в Android.
+  const [farewellOpen, setFarewellOpen] = useState(false);
+  const leaveRef = useRef(false);
+  const [toast, setToast] = useState('');
+
+  useEffect(() => {
+    if (!toast) return;
+    const id = window.setTimeout(() => setToast(''), 3000);
+    return () => window.clearTimeout(id);
+  }, [toast]);
+
+  // Подсказка про перетаскивание — один раз, как maybeShowDragHint().
+  useEffect(() => {
+    if (!dragEnabled) return;
+    if (getString('home_drag_hint_shown', '') === '1') return;
+    setString('home_drag_hint_shown', '1');
+    setToast('Удерживайте иконку, чтобы переставить её.');
+  }, [dragEnabled]);
+
+  useEffect(() => {
+    const onPop = () => {
+      if (leaveRef.current) return;
+      if (getString('farewell_enabled', '1') === '0') {
+        leaveRef.current = true;
+        window.history.back();
+        return;
+      }
+      window.history.pushState({ fgGuard: 1 }, '');
+      setFarewellOpen(true);
+    };
+    window.history.pushState({ fgGuard: 1 }, '');
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  const loadWeek = async (name: string) => {
+    setWeek(null);
+    try {
+      setWeek(await fetchWeek(name));
+    } catch {
+      setWeek([]);
+    }
+  };
+
+  const openWeather = () => {
+    setWeatherCity(city);
+    setWeatherOpen(true);
+    loadWeek(city);
+  };
+
+  const applyWeatherCity = () => {
+    const next = weatherCity.trim();
+    if (next.length >= 2) {
+      setString('weather_city', next);
+      setCity(next);
+    }
+    setWeatherOpen(false);
+  };
+
+  const exitApp = () => {
+    leaveRef.current = true;
+    setFarewellOpen(false);
+    window.history.back();
+  };
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
@@ -278,7 +357,8 @@ export function HubPage() {
       </header>
 
       {/* Карточка: часы, погода, неделя — чёрный фон (B), розовая обводка (A) */}
-      <div className="mx-4 mt-2 mb-1 fg-banner px-3.5 py-2.5 select-none"
+      <div className="mx-4 mt-2 mb-1 fg-banner px-3.5 py-2.5 select-none cursor-pointer"
+        onClick={openWeather}
         style={{ background: labels, border: `1px solid ${outline}`, borderRadius: '16px', color: 'var(--p-on-labels)' }}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -414,6 +494,82 @@ export function HubPage() {
           }} />
         </div>
       </div>
+
+      {/* Диалог «Погода на неделю» — showWeatherWeekDialog() */}
+      {weatherOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-6"
+          onClick={() => setWeatherOpen(false)}>
+          <div className="w-full max-w-md rounded-2xl p-5 max-h-[85vh] overflow-y-auto"
+            style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
+            onClick={e => e.stopPropagation()}>
+            <h3 className="text-[18px] font-bold mb-2" style={{ color: 'var(--p-labels-text)' }}>
+              Погода на неделю
+            </h3>
+            <div className="text-[15px] leading-relaxed whitespace-pre-line" style={{ color: 'var(--p-labels-text)' }}>
+              {week === null
+                ? 'Погода загружается…'
+                : week.length === 0
+                  ? 'Нет данных о погоде. Проверьте интернет и город.'
+                  : week.map((d, i) => `${dayLabel(d.date, i)}: ${weatherEmoji(d.code)} ${d.tMin}°…${d.tMax}°`).join('\n')}
+            </div>
+            <input
+              value={weatherCity}
+              onChange={e => setWeatherCity(e.target.value)}
+              placeholder="Красноярск"
+              className="mt-3 w-full px-3 py-3 rounded-xl border text-[15px]"
+              style={{ background: 'var(--p-labels)', borderColor: 'var(--p-outline)', color: 'var(--p-labels-text)' }}
+            />
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setWeatherOpen(false)}
+                className="flex-1 rounded-xl border font-semibold py-3"
+                style={{ borderColor: 'var(--p-outline)', color: 'var(--p-labels-text)' }}>
+                Отмена
+              </button>
+              <button onClick={applyWeatherCity}
+                className="flex-1 rounded-xl border font-semibold py-3"
+                style={{ background: 'var(--p-circle)', borderColor: 'var(--p-circle)', color: 'var(--p-on-circle)' }}>
+                Обновить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Диалог «До встречи!» — confirmFarewell() */}
+      {farewellOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-6"
+          onClick={() => setFarewellOpen(false)}>
+          <div className="w-full max-w-md rounded-2xl p-5"
+            style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
+            onClick={e => e.stopPropagation()}>
+            <h3 className="text-[18px] font-bold mb-2" style={{ color: 'var(--p-labels-text)' }}>
+              До встречи!
+            </h3>
+            <p className="text-[15px] leading-snug" style={{ color: 'var(--p-labels-text)' }}>
+              Спасибо за тренировку. Возвращайтесь за новыми рекордами!
+            </p>
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setFarewellOpen(false)}
+                className="flex-1 rounded-xl border font-semibold py-3"
+                style={{ borderColor: 'var(--p-outline)', color: 'var(--p-labels-text)' }}>
+                Остаться
+              </button>
+              <button onClick={exitApp}
+                className="flex-1 rounded-xl border font-semibold py-3"
+                style={{ background: 'var(--p-circle)', borderColor: 'var(--p-circle)', color: 'var(--p-on-circle)' }}>
+                Уйти
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed left-1/2 -translate-x-1/2 bottom-28 px-4 py-2 rounded-full text-[13px] font-medium z-50"
+          style={{ background: 'var(--p-labels)', color: 'var(--p-labels-text)', border: '1px solid var(--p-outline)' }}>
+          {toast}
+        </div>
+      )}
     </div>
   );
 }

@@ -25,6 +25,7 @@ import { KnowledgePage, KnowledgeDetailPage } from './pages/KnowledgePage';
 import { SearchPage } from './pages/SearchPage';
 import { TimerPage } from './pages/TimerPage';
 import { MusicPage } from './pages/MusicPage';
+import { MusicEqPage } from './pages/MusicEqPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { SettingsPage } from './pages/SettingsPage';
 import { useProfileStore } from './core/store';
@@ -59,6 +60,7 @@ function AppRoutes() {
         <Route path="/search" element={<SearchPage />} />
         <Route path="/timer" element={<TimerPage />} />
         <Route path="/music" element={<MusicPage />} />
+        <Route path="/music/eq" element={<MusicEqPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>

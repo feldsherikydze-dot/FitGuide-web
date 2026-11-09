@@ -10,7 +10,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { ChevronLeft } from 'lucide-react';
 import { useCoachStore, useProgramsStore, useOneRmStore, useProfileStore } from '../core/store';
-import { createSession, applyFeelProgression, setDelta, readinessScore, dayKey } from '../core/coach';
+import { createSession, applyFeelProgression, setDelta, readinessScore, dayKey, estimateOneRepMax } from '../core/coach';
 import { playSignal } from '../core/signal';
 import { useExercises } from '../hooks/useExercises';
 import type { Session, SessionItem, Slot, Program } from '../data/types';
@@ -124,6 +124,9 @@ export function WorkoutPage() {
   const [hintOpen, setHintOpen] = useState(false);
   const [swapOpen, setSwapOpen] = useState(false);
   const [weightsOpen, setWeightsOpen] = useState(false);
+  const [records, setRecords] = useState<string[] | null>(null);
+  const [restEditOpen, setRestEditOpen] = useState(false);
+  const [restEditValue, setRestEditValue] = useState('90');
   const [toast, setToast] = useState('');
 
   const exStartRef = useRef(Date.now());
@@ -330,12 +333,24 @@ export function WorkoutPage() {
   };
 
   const changeRest = () => {
-    const v = window.prompt('Отдых между подходами', String(restLeft > 0 ? restLeft : 90));
-    if (!v) return;
-    const seconds = Math.max(5, parseInt(v, 10) || 90);
+    setRestEditValue(String(restLeft > 0 ? restLeft : 90));
+    setRestEditOpen(true);
+  };
+
+  const applyRest = () => {
+    const seconds = Math.max(5, parseInt(restEditValue, 10) || 90);
     setRestTotal(seconds);
     setRestEnd(Date.now() + seconds * 1000);
     setRestPaused(false);
+    setRestEditOpen(false);
+  };
+
+  /** «Не предлагать»: CoachStore.setBanned — упражнение уходит из замен и прогрессии. */
+  const banCurrent = () => {
+    if (!curItem) return;
+    if (!coach.banned.includes(curItem.exercise)) coach.toggleBanned(curItem.exercise);
+    setSwapOpen(false);
+    setToast('Ок, больше не предложу это упражнение.');
   };
 
   const goExercise = (dir: -1 | 1) => {
@@ -358,7 +373,39 @@ export function WorkoutPage() {
       setFacts: session.setFacts,
       durationSec,
     });
-    navigate('/coach');
+
+    // Рекорды — buildCongrats() из WorkoutActivity: сравниваем с прошлыми тренировками.
+    const prev1rm: Record<string, number> = {};
+    const prevWeight: Record<string, number> = {};
+    for (const s of coach.sessions) {
+      if (s.id === session.id || s.durationSec == null) continue;
+      for (const it of s.items) {
+        const r = estimateOneRepMax(it.weightKg, it.reps);
+        if (prev1rm[it.exercise] == null || r > prev1rm[it.exercise]) prev1rm[it.exercise] = r;
+        if (prevWeight[it.exercise] == null || it.weightKg > prevWeight[it.exercise]) prevWeight[it.exercise] = it.weightKg;
+      }
+    }
+    const lines: string[] = [];
+    for (const it of session.items) {
+      if (it.sets <= 0 || it.weightKg <= 0) continue;
+      const r = estimateOneRepMax(it.weightKg, it.reps);
+      const best = prev1rm[it.exercise];
+      const new1rm = best == null || r > best + 0.01;
+      const w = prevWeight[it.exercise];
+      if (new1rm) {
+        lines.push(`${it.exercise} — ${fmtKg(it.weightKg)} кг × ${it.reps} (1ПМ ${fmtKg(r)} кг)`);
+      } else if (w == null || it.weightKg > w) {
+        lines.push(`${it.exercise} — взята новая масса ${fmtKg(it.weightKg)} кг`);
+      }
+    }
+
+    setFinishOpen(false);
+    if (lines.length > 0) {
+      setRecords(lines);
+      return;
+    }
+    setToast('Тренировка сохранена в журнале');
+    window.setTimeout(() => navigate('/coach'), 1600);
   };
 
   /** «Не сохранять»: тренировка закрыта, черновик тоже — как service.discard(). */
@@ -426,6 +473,7 @@ export function WorkoutPage() {
 
   const alt = exercises
     .filter(e => e.muscleGroup === curSlot.group && e.name !== curItem.exercise)
+    .filter(e => !coach.banned.includes(e.name))
     .slice(0, 8);
 
   // Как OneRmStore.effective: только сохранённый 1ПМ, без оценки «на глаз».
@@ -656,7 +704,7 @@ export function WorkoutPage() {
                 onClick={() => {
                   setExitOpen(false);
                   setToast('Прогресс сохранён — продолжишь с этого места.');
-                  navigate('/coach');
+                  window.setTimeout(() => navigate('/coach'), 1200);
                 }}
                 className="fg-wk-main flex-1">
                 Завершить позже
@@ -690,7 +738,56 @@ export function WorkoutPage() {
                 </button>
               ))}
             </div>
-            <button onClick={() => setSwapOpen(false)} className="fg-wk-outline w-full mt-3">Отмена</button>
+            <div className="flex gap-2 mt-3">
+              <button onClick={banCurrent} className="fg-wk-outline flex-1" style={{ fontSize: 13 }}>
+                Не предлагать
+              </button>
+              <button onClick={() => setSwapOpen(false)} className="fg-wk-outline flex-1">Отмена</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- Новые рекорды (buildCongrats) ---------- */}
+      {records && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-6">
+          <div className="w-full max-w-md rounded-2xl p-5 max-h-[80vh] overflow-y-auto" style={{ background: 'var(--p-labels)' }}>
+            <h3 className="text-[18px] font-bold mb-2" style={{ color: 'var(--color-text-main)' }}>
+              Новые рекорды!
+            </h3>
+            <p className="text-[14px] leading-relaxed whitespace-pre-line" style={{ color: 'var(--color-text-main)' }}>
+              {records.join('\n')}
+            </p>
+            <button
+              onClick={() => { setRecords(null); navigate('/coach'); }}
+              className="fg-wk-main w-full mt-4">
+              Отлично
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- Отдых между подходами ---------- */}
+      {restEditOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-6"
+          onClick={() => setRestEditOpen(false)}>
+          <div className="w-full max-w-md rounded-2xl p-5" style={{ background: 'var(--p-labels)' }}
+            onClick={e => e.stopPropagation()}>
+            <h3 className="text-[18px] font-bold mb-2" style={{ color: 'var(--color-text-main)' }}>
+              Отдых между подходами
+            </h3>
+            <div className="text-[13px] font-bold mb-1" style={{ color: 'var(--color-text-secondary)' }}>Секунды</div>
+            <input
+              value={restEditValue}
+              onChange={e => setRestEditValue(e.target.value.replace(/[^0-9]/g, ''))}
+              inputMode="numeric"
+              className="w-full px-3 py-3 rounded-xl border text-[15px]"
+              style={{ background: 'var(--p-labels)', borderColor: 'var(--p-outline)', color: 'var(--color-text-main)' }}
+            />
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setRestEditOpen(false)} className="fg-wk-outline flex-1">Отмена</button>
+              <button onClick={applyRest} className="fg-wk-main flex-1">Сохранить</button>
+            </div>
           </div>
         </div>
       )}

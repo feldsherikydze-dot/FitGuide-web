@@ -422,6 +422,13 @@ export function MusicPage() {
           right={
             <div className="flex items-center">
               <button
+                onClick={() => navigate('/music/eq')}
+                aria-label="Эквалайзер"
+                className="w-11 h-11 flex items-center justify-center rounded-full active:bg-black/5"
+              >
+                <MaskIcon src={asset('icons/ic_equalizer.svg')} color="var(--p-labels-text)" size={24} />
+              </button>
+              <button
                 onClick={() => stopAll()}
                 aria-label="Остановить"
                 className="w-11 h-11 flex items-center justify-center rounded-full active:bg-black/5"

@@ -582,3 +582,186 @@ export function plural(n: number, one: string, few: string, many: string): strin
   if (b === 1) return one;
   return many;
 }
+
+// ---------------------------------------------------------------- аналитика тренера (CoachStore.java)
+
+/** 1ПМ как FitGuideEngine.estimateOneRepMax: Эпли без ограничения повторов. */
+export function estimateOneRepMax(weightKg: number, reps: number): number {
+  if (weightKg <= 0 || reps <= 0) return 0;
+  if (reps === 1) return weightKg;
+  return weightKg * (1 + reps / 30);
+}
+
+function weekBounds(activeSince: number | null, weekIndex: number): [number, number] | null {
+  if (!activeSince || activeSince <= 0 || weekIndex < 0) return null;
+  const ws = activeSince + weekIndex * 7 * 86400000;
+  return [ws, ws + 7 * 86400000];
+}
+
+/** Тоннаж программы за неделю с индексом weekIndex (0-based). */
+export function tonnageInWeekIndex(
+  sessions: Session[], programId: string | null, activeSince: number | null, weekIndex: number,
+): number {
+  const b = weekBounds(activeSince, weekIndex);
+  if (!programId || !b) return 0;
+  let sum = 0;
+  for (const s of sessions) {
+    if (s.programId === programId && s.ts >= b[0] && s.ts < b[1]) sum += tonnage(s);
+  }
+  return sum;
+}
+
+/** Число тренировок программы за неделю с индексом weekIndex. */
+export function sessionsInWeekIndex(
+  sessions: Session[], programId: string | null, activeSince: number | null, weekIndex: number,
+): number {
+  const b = weekBounds(activeSince, weekIndex);
+  if (!programId || !b) return 0;
+  return sessions.filter(s => s.programId === programId && s.ts >= b[0] && s.ts < b[1]).length;
+}
+
+/** Сколько недель подряд (включая текущую) закрыта норма тренировок. */
+export function weeksOnPlan(
+  sessions: Session[], programId: string | null, activeSince: number | null,
+  plannedPerWeek: number, now: number,
+): number {
+  if (!programId || plannedPerWeek <= 0) return 0;
+  const cur = currentWeekIndex(activeSince, now);
+  let streak = 0;
+  if (sessionsInWeekIndex(sessions, programId, activeSince, cur) >= plannedPerWeek) streak++;
+  for (let w = cur - 1; w >= 0; w--) {
+    if (sessionsInWeekIndex(sessions, programId, activeSince, w) >= plannedPerWeek) streak++;
+    else break;
+  }
+  return streak;
+}
+
+/** Процент выполнения плана за последние 4 недели (без текущей). */
+export function adherePercent(
+  sessions: Session[], programId: string | null, activeSince: number | null,
+  plannedPerWeek: number, now: number,
+): number {
+  if (!programId || plannedPerWeek <= 0) return 0;
+  const cur = currentWeekIndex(activeSince, now);
+  if (cur <= 0) return 0;
+  let done = 0;
+  let target = 0;
+  const from = Math.max(0, cur - 4);
+  for (let w = from; w < cur; w++) {
+    done += Math.min(plannedPerWeek, sessionsInWeekIndex(sessions, programId, activeSince, w));
+    target += plannedPerWeek;
+  }
+  return target <= 0 ? 0 : Math.min(100, Math.round(done * 100 / target));
+}
+
+/** Сколько полных недель программы пропущено совсем. */
+export function missedWeeks(
+  sessions: Session[], programId: string | null, activeSince: number | null, now: number,
+): number {
+  if (!programId || !activeSince || activeSince <= 0) return 0;
+  const cur = currentWeekIndex(activeSince, now);
+  if (cur <= 0) return 0;
+  let missed = 0;
+  for (let w = 0; w < cur; w++) {
+    const b = weekBounds(activeSince, w);
+    if (!b) continue;
+    if (!sessions.some(s => s.programId === programId && s.ts >= b[0] && s.ts < b[1])) missed++;
+  }
+  return missed;
+}
+
+/** Рабочие подходы по группам мышц за текущую неделю. */
+export function weekSetsByGroup(
+  sessions: Session[], programId: string | null, activeSince: number | null,
+  groupOf: (exercise: string) => string | null, now: number,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!programId || !activeSince || activeSince <= 0) return out;
+  const ws = currentWeekStart(activeSince, now);
+  if (ws <= 0) return out;
+  const we = ws + 7 * 86400000;
+  for (const s of sessions) {
+    if (s.programId !== programId || s.ts < ws || s.ts >= we) continue;
+    for (const it of s.items) {
+      const g = groupOf(it.exercise);
+      if (!g) continue;
+      out[g] = (out[g] || 0) + Math.max(0, it.sets);
+    }
+  }
+  return out;
+}
+
+/** Ряд оценок 1ПМ по упражнению от старых тренировок к новым. */
+export function e1rmSeries(sessions: Session[], exercise: string | null, programId: string | null): number[] {
+  if (!exercise) return [];
+  const out: number[] = [];
+  for (let i = sessions.length - 1; i >= 0; i--) {
+    const s = sessions[i];
+    if (programId && s.programId !== programId) continue;
+    for (const it of s.items) {
+      if (it.exercise === exercise) {
+        const v = estimateOneRepMax(it.weightKg, it.reps);
+        if (v > 0) out.push(v);
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+/** Самые частые упражнения программы. */
+export function topExercises(sessions: Session[], programId: string | null, limit: number): string[] {
+  const count: Record<string, number> = {};
+  for (const s of sessions) {
+    if (programId && s.programId !== programId) continue;
+    for (const it of s.items) {
+      if (!it.exercise) continue;
+      count[it.exercise] = (count[it.exercise] || 0) + 1;
+    }
+  }
+  return Object.keys(count).sort((a, b) => count[b] - count[a]).slice(0, limit);
+}
+
+/** Застой: 4 тренировки подряд без рекорда 1ПМ (после хотя бы 5 тренировок). */
+export function progressStalled(sessions: Session[], programId: string | null): boolean {
+  let best = 0;
+  let sinceRecord = 0;
+  let trained = 0;
+  for (let i = sessions.length - 1; i >= 0; i--) {
+    const s = sessions[i];
+    if (programId && s.programId !== programId) continue;
+    if (s.adjusted) continue;
+    trained++;
+    let rec = false;
+    for (const it of s.items) {
+      const v = estimateOneRepMax(it.weightKg, it.reps);
+      if (v > best + 0.01) { best = v; rec = true; }
+    }
+    sinceRecord = rec ? 0 : sinceRecord + 1;
+  }
+  return trained >= 5 && sinceRecord >= 4;
+}
+
+/** Средний сон (1..3) по последним n отметкам (0 — данных нет). */
+export function avgSleep(checkins: Checkin[], n: number): number {
+  if (!checkins.length) return 0;
+  const from = Math.max(0, checkins.length - n);
+  const slice = checkins.slice(from);
+  return slice.reduce((sum, c) => sum + c.sleep, 0) / slice.length;
+}
+
+/** Упражнение под ограничение по здоровью (CoachStore.conflicts). */
+export function conflictsWithLimits(exercise: string | null, limits: string[]): boolean {
+  if (!exercise || !limits.length) return false;
+  const n = exercise.toLowerCase();
+  const kw: Record<string, string[]> = {
+    lowback: ['станов', 'румын', 'гиперэкстенз', 'в наклоне', 'доброе утро', 'наклоны'],
+    knee: ['присед', 'гакк', 'выпад', 'разгибани ног', 'разгибания ног'],
+    shoulder: ['жим стоя', 'жим штанги стоя', 'из-за головы', 'махи', 'отведени', 'протяжка'],
+    wrist: ['сгибани кист', 'разгибани кист', 'жим узким'],
+  };
+  for (const key of limits) {
+    for (const k of kw[key] || []) if (n.includes(k)) return true;
+  }
+  return false;
+}

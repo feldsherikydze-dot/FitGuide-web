@@ -54,7 +54,7 @@ export function MyProgramsPage() {
       {programs.length === 0 ? (
         <div className="px-8 py-16 text-center">
           <p className="text-[14px] leading-relaxed whitespace-pre-line" style={{ color: 'var(--color-text-secondary)' }}>
-            {'Тренировок пока нет.\nНажмите «Добавить тренировку» и выберите, что добавить.'}
+            {'У вас пока нет программ.\nНажмите «Добавить тренировку» и выберите, что добавить: свою сборку, программу чемпионов или сгенерированную.'}
           </p>
           <button onClick={() => setChooser(true)}
             className="mt-4 h-[50px] px-6 rounded-[25px] text-[16px] font-bold uppercase tracking-[0.089em]"

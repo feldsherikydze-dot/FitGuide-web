@@ -102,6 +102,210 @@ let currentResolvedUrl = '';
 let liveRetries = 0;
 const localUrls = new Map<string, string>();
 
+// ---------------------------------------------------------------- эквалайзер (PlayerEqActivity)
+//
+// 5 полос 60/230/910/3.6k/14k Гц + бас и «громкость» (loudness). Web Audio
+// подключается ТОЛЬКО к своей музыке: у потоков часто нет CORS-заголовков, и
+// MediaElementSource сделал бы их тихими. При переходе на поток элемент
+// пересоздаётся без графа — радио и онлайн играют напрямую, как раньше.
+
+export interface EqState {
+  on: boolean;
+  bass: boolean;
+  virt: boolean;
+  loud: boolean;
+  /** дБ по полосам, −15..+15. */
+  bands: number[];
+}
+
+const EQ_KEY = 'player_eq_v1';
+const EQ_FREQS = [60, 230, 910, 3600, 14000];
+
+let eqState: EqState = (() => {
+  const raw = getJSON<EqState | null>(EQ_KEY, null);
+  if (raw && Array.isArray(raw.bands) && raw.bands.length === 5) {
+    return {
+      on: !!raw.on,
+      bass: !!raw.bass,
+      virt: !!raw.virt,
+      // В Android выравнивание громкости включено по умолчанию.
+      loud: raw.loud == null ? true : !!raw.loud,
+      bands: raw.bands.map(v => Math.max(-15, Math.min(15, Number(v) || 0))),
+    };
+  }
+  return { on: false, bass: false, virt: false, loud: true, bands: [0, 0, 0, 0, 0] };
+})();
+
+let eqCtx: AudioContext | null = null;
+let eqFilters: BiquadFilterNode[] = [];
+let eqBass: BiquadFilterNode | null = null;
+let eqLoudDry: GainNode | null = null;
+let eqLoudMakeup: GainNode | null = null;
+let eqVirtGains: GainNode[] = [];
+let eqAttached = false;
+
+export function getEq(): EqState {
+  return eqState;
+}
+
+/** Любой включённый эффект требует графа; все выключены — играем напрямую. */
+function eqNeeded(): boolean {
+  return eqState.on || eqState.bass || eqState.virt || eqState.loud;
+}
+
+function eqApply() {
+  if (!eqCtx) return;
+  const now = eqCtx.currentTime;
+  eqFilters.forEach((f, i) => {
+    f.gain.setTargetAtTime(eqState.on ? eqState.bands[i] : 0, now, 0.02);
+  });
+  eqBass?.gain.setTargetAtTime(eqState.bass ? 6 : 0, now, 0.02);
+  // LoudnessEnhancer: сжатие + компенсирующий подъём; выключен — сухой путь.
+  eqLoudDry?.gain.setTargetAtTime(eqState.loud ? 0 : 1, now, 0.02);
+  eqLoudMakeup?.gain.setTargetAtTime(eqState.loud ? 1.4 : 0, now, 0.02);
+
+  // Виртуализатор — расширение стереобазы (mid/side). Выключен — прямой путь.
+  const [vLL, vRR, vLM, vRM, vLS, vRS, vWide, vInv] = eqVirtGains;
+  if (vLL && vRR && vLM && vRM && vLS && vRS && vWide && vInv) {
+    vLL.gain.setTargetAtTime(eqState.virt ? 0 : 1, now, 0.02);
+    vRR.gain.setTargetAtTime(eqState.virt ? 0 : 1, now, 0.02);
+    vLM.gain.setTargetAtTime(eqState.virt ? 0.5 : 0, now, 0.02);
+    vRM.gain.setTargetAtTime(eqState.virt ? 0.5 : 0, now, 0.02);
+    vLS.gain.setTargetAtTime(eqState.virt ? 0.5 : 0, now, 0.02);
+    vRS.gain.setTargetAtTime(eqState.virt ? -0.5 : 0, now, 0.02);
+    vWide.gain.setTargetAtTime(eqState.virt ? 0.35 : 0, now, 0.02);
+    vInv.gain.value = -1;
+  }
+}
+
+function attachEq(a: HTMLAudioElement) {
+  if (eqAttached) {
+    eqApply();
+    void eqCtx?.resume().catch(() => {});
+    return;
+  }
+  const Ctor = window.AudioContext
+    || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!Ctor) return;
+  try {
+    eqCtx = new Ctor();
+    const ctx = eqCtx;
+    const src = ctx.createMediaElementSource(a);
+
+    eqFilters = EQ_FREQS.map(freq => {
+      const f = ctx.createBiquadFilter();
+      f.type = 'peaking';
+      f.frequency.value = freq;
+      f.Q.value = 1.1;
+      f.gain.value = 0;
+      return f;
+    });
+
+    eqBass = ctx.createBiquadFilter();
+    eqBass.type = 'lowshelf';
+    eqBass.frequency.value = 120;
+    eqBass.gain.value = 0;
+
+    // Громкость: сухой путь + сжатый с компенсацией.
+    const loudIn = ctx.createGain();
+    const loudOut = ctx.createGain();
+    eqLoudDry = ctx.createGain();
+    eqLoudMakeup = ctx.createGain();
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -30;
+    comp.knee.value = 20;
+    comp.ratio.value = 3;
+    comp.attack.value = 0.01;
+    comp.release.value = 0.25;
+
+    // Стереобаза: mid/side с расширением.
+    const split = ctx.createChannelSplitter(2);
+    const merge = ctx.createChannelMerger(2);
+    const vLL = ctx.createGain(); const vRR = ctx.createGain();
+    const vLM = ctx.createGain(); const vRM = ctx.createGain();
+    const vLS = ctx.createGain(); const vRS = ctx.createGain();
+    const mid = ctx.createGain(); const side = ctx.createGain();
+    const vWide = ctx.createGain(); const vInv = ctx.createGain();
+    eqVirtGains = [vLL, vRR, vLM, vRM, vLS, vRS, vWide, vInv];
+
+    // Цепочка: источник → полосы → бас → громкость → стерео → выход.
+    let node: AudioNode = src;
+    for (const f of eqFilters) { node.connect(f); node = f; }
+    node.connect(eqBass);
+    eqBass.connect(loudIn);
+
+    loudIn.connect(eqLoudDry);
+    eqLoudDry.connect(loudOut);
+    loudIn.connect(comp);
+    comp.connect(eqLoudMakeup);
+    eqLoudMakeup.connect(loudOut);
+
+    loudOut.connect(split);
+    split.connect(vLL, 0); vLL.connect(merge, 0, 0);
+    split.connect(vRR, 1); vRR.connect(merge, 0, 1);
+
+    split.connect(vLM, 0); vLM.connect(mid);
+    split.connect(vRM, 1); vRM.connect(mid);
+    split.connect(vLS, 0); vLS.connect(side);
+    split.connect(vRS, 1); vRS.connect(side);
+
+    mid.connect(merge, 0, 0);
+    mid.connect(merge, 0, 1);
+    side.connect(vWide);
+    vWide.connect(merge, 0, 0);
+    vWide.connect(vInv);
+    vInv.connect(merge, 0, 1);
+
+    merge.connect(ctx.destination);
+
+    eqAttached = true;
+    eqApply();
+    void ctx.resume().catch(() => {});
+  } catch {
+    eqCtx = null;
+    eqAttached = false;
+    eqFilters = [];
+    eqBass = null;
+    eqLoudDry = null;
+    eqLoudMakeup = null;
+    eqVirtGains = [];
+  }
+}
+
+/** Убрать Web Audio: элемент пересоздаётся чистым (потоки без CORS играют напрямую). */
+function detachEq() {
+  if (!eqAttached) return;
+  const old = audio;
+  if (old) {
+    try {
+      old.pause();
+      old.removeAttribute('src');
+      old.load();
+    } catch { /* ignore */ }
+  }
+  audio = null;
+  try { void eqCtx?.close(); } catch { /* ignore */ }
+  eqCtx = null;
+  eqFilters = [];
+  eqBass = null;
+  eqLoudDry = null;
+  eqLoudMakeup = null;
+  eqVirtGains = [];
+  eqAttached = false;
+}
+
+/** Изменить настройки эквалайзера и сразу применить. */
+export function setEq(patch: Partial<EqState>) {
+  eqState = { ...eqState, ...patch };
+  setJSON(EQ_KEY, eqState);
+  eqApply();
+  const want = !!state.track?.localKey && eqNeeded();
+  if (state.track?.localKey && want !== eqAttached && state.playing) {
+    const pos = audio?.currentTime ?? 0;
+    void loadCurrent(true).then(() => { if (pos > 0) seek(pos); });
+  }
+}
+
 function persistLast() {
   const strip = (t: PlayerTrack): PlayerTrack => ({
     ...t,
@@ -234,7 +438,13 @@ async function loadCurrent(autoplay: boolean) {
     return;
   }
 
+  // Эквалайзер — только своя музыка (blob). У потоков нет CORS-заголовков:
+  // MediaElementSource сделал бы их беззвучными, поэтому элемент пересоздаётся чистым.
+  const wantEq = !!track.localKey && eqNeeded();
+  if (!wantEq && eqAttached) detachEq();
   const a = ensureAudio();
+  if (wantEq) attachEq(a);
+
   switching = true;
   try {
     a.pause();
