@@ -137,14 +137,14 @@ export function SportPitTab() {
               <div className="text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>
                 {a.name}
               </div>
-              <div className="pt-1 text-[13px]" style={{ color: 'var(--p-labels)' }}>
+              <div className="pt-1 text-[13px]" style={{ color: 'var(--p-preset-primary)' }}>
                 Дозировка: {a.dose}
               </div>
               <div className="pt-1.5 text-[13px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
                 {a.why}
               </div>
               {a.products.length > 0 && (
-                <div className="pt-1.5 text-[13px] font-bold" style={{ color: 'var(--p-labels)' }}>
+                <div className="pt-1.5 text-[13px] font-bold" style={{ color: 'var(--p-preset-primary)' }}>
                   Рекомендуемые варианты →
                 </div>
               )}

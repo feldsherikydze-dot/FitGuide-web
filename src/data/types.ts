@@ -131,6 +131,9 @@ export interface Session {
     /** Время подхода и план, секунд — для вкладки «Анализ». */
     actualSec?: number;
     plannedSec?: number;
+    /** Средний пульс подхода и калории — приходят с часов (JournalEntry.SetFact). */
+    hrAvg?: number;
+    kcal?: number;
   }>;
 }
 

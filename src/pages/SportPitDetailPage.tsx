@@ -52,7 +52,7 @@ export function SportPitDetailPage() {
             {name}
           </div>
           {additive?.dose && (
-            <div className="pt-1.5 text-[13px]" style={{ color: 'var(--p-labels)' }}>
+            <div className="pt-1.5 text-[13px]" style={{ color: 'var(--p-preset-primary)' }}>
               Дозировка: {additive.dose}
             </div>
           )}
@@ -78,7 +78,7 @@ export function SportPitDetailPage() {
               </div>
             )}
             {p.best && (
-              <div className="pt-1.5 text-[12px] font-bold" style={{ color: 'var(--p-labels)' }}>
+              <div className="pt-1.5 text-[12px] font-bold" style={{ color: 'var(--p-preset-primary)' }}>
                 Рекомендуемый выбор
               </div>
             )}

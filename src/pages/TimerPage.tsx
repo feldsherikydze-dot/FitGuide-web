@@ -54,6 +54,31 @@ function capitalize(s: string) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
 
+/** Поле ввода минут/секунд — порт bg_edit.xml: surfaceVariant + stroke, фокус — colorPrimary. */
+function TimeField({
+  value, onChange, placeholder, maxLength,
+}: {
+  value: string; onChange: (v: string) => void; placeholder: string; maxLength: number;
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <input
+      value={value}
+      onChange={e => onChange(e.target.value.replace(/\D/g, '').slice(0, maxLength))}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      placeholder={placeholder}
+      inputMode="numeric"
+      className="w-16 h-[46px] text-center text-[18px] rounded-[14px] outline-none"
+      style={{
+        background: 'var(--color-surface-variant)',
+        border: focused ? '1.5px solid var(--p-preset-primary)' : '1px solid var(--color-stroke)',
+        color: 'var(--color-text-main)',
+      }}
+    />
+  );
+}
+
 export function TimerPage() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>('clock');
@@ -208,7 +233,7 @@ export function TimerPage() {
       </div>
 
       {mode === 'clock' && (
-        <div className="flex flex-col items-center justify-center px-6 py-10">
+        <div className="flex flex-col items-center justify-center px-6 py-10 min-h-[55vh]">
           <div className="text-[72px] font-medium leading-none tabular-nums" style={{ color: 'var(--color-text-main)' }}>
             {clockStr}
           </div>
@@ -254,7 +279,7 @@ export function TimerPage() {
               <div key={l.n} className="flex items-center px-3 py-2.5 rounded-[14px]"
                 style={{ background: 'var(--color-surface-variant)', border: '1px solid var(--color-stroke)' }}>
                 <span className="w-10 text-[14px] font-bold" style={{ color: 'var(--color-text-secondary)' }}>{l.n}</span>
-                <span className="flex-1 text-[15px] font-bold" style={{ color: 'var(--p-labels-text)' }}>+{l.delta}</span>
+                <span className="flex-1 text-[15px] font-bold" style={{ color: 'var(--p-preset-primary)' }}>+{l.delta}</span>
                 <span className="text-[15px]" style={{ color: 'var(--color-text-main)' }}>{l.total}</span>
               </div>
             ))}
@@ -274,23 +299,9 @@ export function TimerPage() {
           </div>
 
           <div className="mt-3 flex items-center">
-            <input
-              value={minutes}
-              onChange={e => setMinutes(e.target.value.replace(/\D/g, '').slice(0, 3))}
-              placeholder="01"
-              inputMode="numeric"
-              className="w-16 h-[46px] text-center text-[18px] rounded-[14px] outline-none"
-              style={{ background: 'var(--p-labels)', border: '1.5px solid var(--p-outline)', color: 'var(--color-text-main)' }}
-            />
+            <TimeField value={minutes} onChange={setMinutes} placeholder="01" maxLength={3} />
             <span className="px-1 text-[24px]" style={{ color: 'var(--color-text-secondary)' }}> : </span>
-            <input
-              value={seconds}
-              onChange={e => setSeconds(e.target.value.replace(/\D/g, '').slice(0, 2))}
-              placeholder="00"
-              inputMode="numeric"
-              className="w-16 h-[46px] text-center text-[18px] rounded-[14px] outline-none"
-              style={{ background: 'var(--p-labels)', border: '1.5px solid var(--p-outline)', color: 'var(--color-text-main)' }}
-            />
+            <TimeField value={seconds} onChange={setSeconds} placeholder="00" maxLength={2} />
             <span className="ml-3 text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
               минуты и секунды
             </span>
@@ -317,8 +328,8 @@ export function TimerPage() {
       )}
 
       {toast && (
-        <div className="fixed left-1/2 -translate-x-1/2 bottom-24 px-4 py-2 rounded-full text-[13px] font-medium text-white z-40"
-          style={{ background: 'var(--p-labels)' }}>
+        <div className="fixed left-1/2 -translate-x-1/2 bottom-24 px-4 py-2 rounded-full text-[13px] font-medium z-40"
+          style={{ background: 'var(--p-labels)', color: 'var(--p-on-labels)' }}>
           {toast}
         </div>
       )}

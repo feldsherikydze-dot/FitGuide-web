@@ -40,7 +40,7 @@ export function PrimaryButton({ children, onClick, disabled, className }: {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={clsx('w-full h-12 rounded-[8px] text-[14px] font-bold uppercase disabled:opacity-50 active:opacity-90', className)}
+      className={clsx('w-full h-12 rounded-[22px] text-[14px] font-bold uppercase disabled:opacity-50 active:opacity-90', className)}
       style={{
         background: 'var(--p-labels)',
         border: '1px solid var(--p-outline)',
