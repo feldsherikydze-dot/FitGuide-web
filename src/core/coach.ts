@@ -231,7 +231,15 @@ export function completedLastSession(sessions: Session[], exercise: string): boo
     if (s.adjusted) continue;
     for (const it of s.items) {
       if (it.exercise === exercise) {
-        return it.targetSets > 0 && it.sets >= it.targetSets;
+        const setsOk = it.targetSets > 0 && it.sets >= it.targetSets;
+        if (!setsOk) return false;
+        // План по повторам тоже должен быть закрыт: 4×10, а по факту
+        // 10/10/9/8 — это не «выполнено», вес повышать рано.
+        if (it.reps > 0 && it.setReps && it.setReps.length > 0) {
+          const vals = it.setReps.filter(r => r > 0);
+          if (vals.length > 0 && Math.min(...vals) < it.reps) return false;
+        }
+        return true;
       }
     }
   }
@@ -244,7 +252,15 @@ export function lastReps(sessions: Session[], exercise: string | null): number {
   for (const s of sessions) {
     if (s.adjusted) continue;
     for (const it of s.items) {
-      if (it.exercise === exercise) return it.reps;
+      if (it.exercise === exercise) {
+        // Двойная прогрессия смотрит на самый слабый подход: если 10/10/9/8,
+        // до верха диапазона не добрались — вес не растёт.
+        if (it.setReps && it.setReps.length > 0) {
+          const vals = it.setReps.filter(r => r > 0);
+          if (vals.length > 0) return Math.min(...vals);
+        }
+        return it.reps;
+      }
     }
   }
   return 0;
@@ -283,6 +299,10 @@ export function lastFeel(sessions: Session[], exercise: string | null): number {
     for (const it of s.items) {
       if (it.exercise === exercise) {
         has = true;
+        // «Отказ» хотя бы в одном подходе важнее последней оценки: если
+        // спортсмен упёрся, вес надо снизить, даже когда следующие подходы
+        // прошли легче.
+        if (it.setFeels && it.setFeels.includes(1)) return 1;
         // Свежий подход важнее общей оценки упражнения.
         if (it.setFeels && it.setFeels.length > 0) {
           for (let k = it.setFeels.length - 1; k >= 0; k--) {

@@ -13,10 +13,11 @@ import { useCoachStore, useProgramsStore, useOneRmStore, useProfileStore } from 
 import { createSession, applyFeelProgression, setDelta, readinessScore, dayKey, estimateOneRepMax } from '../core/coach';
 import { playSignal } from '../core/signal';
 import { useExercises } from '../hooks/useExercises';
+import { ReplaceExercisePicker } from './progress/common';
 import type { Session, SessionItem, Slot, Program } from '../data/types';
 
 const FEELS = [
-  { v: 1 as const, label: 'Тяжело' },
+  { v: 1 as const, label: 'Отказ' },
   { v: 2 as const, label: 'В самый раз' },
   { v: 3 as const, label: 'Легко' },
 ];
@@ -127,6 +128,10 @@ export function WorkoutPage() {
   const [records, setRecords] = useState<string[] | null>(null);
   const [restEditOpen, setRestEditOpen] = useState(false);
   const [restEditValue, setRestEditValue] = useState('90');
+  // Сколько повторов реально получилось в подходе (как promptSetReps в APK).
+  const [repsOpen, setRepsOpen] = useState(false);
+  const [repsValue, setRepsValue] = useState('10');
+  const [pendingReps, setPendingReps] = useState<number | null>(null);
   const [toast, setToast] = useState('');
 
   const exStartRef = useRef(Date.now());
@@ -285,16 +290,18 @@ export function WorkoutPage() {
   /** Оценка выбрана: пишем факт подхода и сразу уходим в отдых. */
   const onFeel = (feel: 1 | 2 | 3) => {
     if (!session || !curItem || !curSlot || !awaitingFeel) return;
+    const repsDone = pendingReps ?? curItem.reps;
     const nextSets = Math.min(targetSets, doneSets + 1);
     const feels = [...(curItem.setFeels || []), feel];
+    const repsList = [...(curItem.setReps || []), repsDone];
     const items = [...session.items];
-    items[idx] = { ...curItem, sets: nextSets, feel, setFeels: feels };
+    items[idx] = { ...curItem, sets: nextSets, feel, setFeels: feels, setReps: repsList };
     const activeSec = Math.max(1, Math.round((Date.now() - setStartRef.current) / 1000));
     const plannedSec = Math.max(0, curSlot.workSec || 40);
     const facts = [...(session.setFacts || []), {
       exercise: curItem.exercise,
       feel,
-      reps: curItem.reps,
+      reps: repsDone,
       weightKg: curItem.weightKg,
       atMs: Date.now(),
       actualSec: plannedSec > 0 && activeSec > plannedSec + 600 ? plannedSec : activeSec,
@@ -315,6 +322,7 @@ export function WorkoutPage() {
     if (updated) savePrograms(programs.map(p => (p.id === updated.id ? updated : p)));
 
     setAwaitingFeel(false);
+    setPendingReps(null);
     setStartRef.current = Date.now();
     const isLast = nextSets >= targetSets;
     const restValue = isLast ? (curSlot.restEx || curSlot.rest) : curSlot.rest;
@@ -345,6 +353,15 @@ export function WorkoutPage() {
     setRestEditOpen(false);
   };
 
+  /** Подтвердили фактические повторы подхода: дальше — оценка «как прошло». */
+  const applyReps = () => {
+    const n = Math.max(1, parseInt(repsValue, 10) || 1);
+    setPendingReps(n);
+    setRepsOpen(false);
+    setAwaitingFeel(true);
+    setStartRef.current = Date.now();
+  };
+
   /** «Не предлагать»: CoachStore.setBanned — упражнение уходит из замен и прогрессии. */
   const banCurrent = () => {
     if (!curItem) return;
@@ -358,6 +375,7 @@ export function WorkoutPage() {
     const next = Math.min(session.items.length - 1, Math.max(0, idx + dir));
     setIdx(next);
     setAwaitingFeel(false);
+    setPendingReps(null);
     setHintOpen(false);
     setRestEnd(null);
     exStartRef.current = Date.now();
@@ -416,7 +434,7 @@ export function WorkoutPage() {
 
   /** Главная кнопка: начать → оценка подхода → к пропущенным / итог. */
   const onPrimary = () => {
-    if (!session) return;
+    if (!session || !curItem || !curSlot) return;
     if (!started) {
       setBegun(true);
       playSignal('setStart');
@@ -424,8 +442,10 @@ export function WorkoutPage() {
       return;
     }
     if (!exerciseDone) {
-      setAwaitingFeel(true);
-      setStartRef.current = Date.now();
+      // Сначала фактическое число повторов, потом оценка подхода — как в APK.
+      const planned = Math.max(1, curItem.reps || parseInt(curSlot.reps || '10', 10) || 10);
+      setRepsValue(String(planned));
+      setRepsOpen(true);
       return;
     }
     if (!allDone) {
@@ -451,7 +471,7 @@ export function WorkoutPage() {
   const swapTo = (name: string) => {
     if (!session || !curItem) return;
     const items = [...session.items];
-    items[idx] = { ...curItem, exercise: name, sets: 0, feel: undefined, setFeels: [] };
+    items[idx] = { ...curItem, exercise: name, sets: 0, feel: undefined, setFeels: [], setReps: [] };
     const next = { ...session, items };
     setSession(next);
     coach.updateSession(next.id, { items });
@@ -470,11 +490,6 @@ export function WorkoutPage() {
       </div>
     );
   }
-
-  const alt = exercises
-    .filter(e => e.muscleGroup === curSlot.group && e.name !== curItem.exercise)
-    .filter(e => !coach.banned.includes(e.name))
-    .slice(0, 8);
 
   // Как OneRmStore.effective: только сохранённый 1ПМ, без оценки «на глаз».
   const oneRmValue = oneRm.get(curItem.exercise) || 0;
@@ -714,35 +729,39 @@ export function WorkoutPage() {
         </div>
       )}
 
-      {/* ---------- Замена упражнения ---------- */}
+      {/* ---------- Замена упражнения: альтернативы + список группы ---------- */}
       {swapOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center"
-          onClick={() => setSwapOpen(false)}>
-          <div className="w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 max-h-[70vh] overflow-y-auto"
-            style={{ background: 'var(--p-labels)' }} onClick={e => e.stopPropagation()}>
-            <h3 className="text-[18px] font-bold mb-2" style={{ color: 'var(--color-text-main)' }}>Заменить на…</h3>
-            {alt.length === 0 && (
-              <p className="text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
-                Альтернатив не нашлось — попробуй после разминки или выбери другое.
-              </p>
-            )}
-            <div className="space-y-2">
-              {alt.map(e => (
-                <button key={e.id} onClick={() => swapTo(e.name)}
-                  className="w-full text-left px-3 py-3 rounded-xl border"
-                  style={{ borderColor: 'var(--p-outline)', color: 'var(--color-text-main)' }}>
-                  <div className="font-medium">{e.name}</div>
-                  <div className="text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
-                    {e.muscleGroup} · {e.equipmentType}
-                  </div>
-                </button>
-              ))}
+        <ReplaceExercisePicker
+          currentName={curItem.exercise}
+          groupId={curSlot.group}
+          onPick={swapTo}
+          onClose={() => setSwapOpen(false)}
+          onBan={banCurrent}
+        />
+      )}
+
+      {/* ---------- Фактические повторы подхода ---------- */}
+      {repsOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-6"
+          onClick={() => setRepsOpen(false)}>
+          <div className="w-full max-w-md rounded-2xl p-5" style={{ background: 'var(--p-labels)' }}
+            onClick={e => e.stopPropagation()}>
+            <h3 className="text-[18px] font-bold mb-2" style={{ color: 'var(--color-text-main)' }}>
+              Сколько повторов получилось?
+            </h3>
+            <div className="text-[13px] mb-1" style={{ color: 'var(--color-text-secondary)' }}>
+              План: {curItem.reps} · подход {doneSets + 1} из {targetSets}
             </div>
-            <div className="flex gap-2 mt-3">
-              <button onClick={banCurrent} className="fg-wk-outline flex-1" style={{ fontSize: 13 }}>
-                Не предлагать
-              </button>
-              <button onClick={() => setSwapOpen(false)} className="fg-wk-outline flex-1">Отмена</button>
+            <input
+              value={repsValue}
+              onChange={e => setRepsValue(e.target.value.replace(/[^0-9]/g, ''))}
+              inputMode="numeric"
+              className="w-full px-3 py-3 rounded-xl border text-[15px]"
+              style={{ background: 'var(--p-labels)', borderColor: 'var(--p-outline)', color: 'var(--color-text-main)' }}
+            />
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setRepsOpen(false)} className="fg-wk-outline flex-1">Отмена</button>
+              <button onClick={applyReps} className="fg-wk-main flex-1">Дальше</button>
             </div>
           </div>
         </div>

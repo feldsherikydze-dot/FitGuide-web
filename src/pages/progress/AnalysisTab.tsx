@@ -98,12 +98,16 @@ export function AnalysisTab() {
   const exerciseDetail = (st: {
     sets: number; avgSecPerSet: number; planPct: number;
     tempoSecPerRep: number; setsPerWeek: number;
+    repsPlan: number; repsDone: number; repsSets: number;
   }): string => {
     const parts = [`подходов ${st.sets}`];
     if (st.avgSecPerSet > 0) parts.push(`среднее ${fmtDur(Math.round(st.avgSecPerSet))}`);
     if (st.planPct > 0) parts.push(`${Math.round(st.planPct)} % от плана`);
     if (st.tempoSecPerRep > 0) parts.push(`${fmtNum(st.tempoSecPerRep)} с на повтор`);
     if (st.setsPerWeek > 0) parts.push(`${fmtNum(st.setsPerWeek)} подх./нед.`);
+    if (st.repsSets > 0 && st.repsPlan > 0) {
+      parts.push(`повторы ${fmtNum(st.repsDone / st.repsSets)} из ${fmtNum(st.repsPlan / st.repsSets)}`);
+    }
     return parts.join(' · ');
   };
 

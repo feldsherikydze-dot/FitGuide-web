@@ -4,6 +4,14 @@ import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { clsx } from 'clsx';
 import { useExercises } from '../../hooks/useExercises';
+import { useCoachStore, useProfileStore } from '../../core/store';
+import {
+  buildExerciseIndex, exercisesOf, byGroupPrimary, secondaryForGroup,
+  isPrimaryForGroup, levelRank, matchesType, filterByStyle,
+} from '../../core/exerciseIndex';
+import { isBasicExercise, isIsolationExercise } from '../../core/exercises';
+import { conflictsWithLimits } from '../../core/coach';
+import type { Exercise } from '../../data/types';
 
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
   return (
@@ -218,6 +226,165 @@ export function ExercisePicker({ title, initialQuery = '', onPick, onClose }: {
         ))}
         {names.length === 0 && <Hint className="px-2 py-4">Ничего не найдено</Hint>}
       </div>
+    </Dialog>
+  );
+}
+
+/**
+ * Замена упражнения — тот же пикер, что «Добавить» в Android: сверху
+ * «Альтернативы» заменяемому (лучшие сначала, до 8), ниже — базовые и
+ * изолирующие упражнения группы. Запрещённые тренером и конфликтующие с
+ * ограничениями по здоровью не показываем.
+ */
+export function ReplaceExercisePicker({ title = 'Заменить упражнение', currentName, groupId, onPick, onClose, onBan }: {
+  title?: string;
+  currentName: string;
+  groupId?: string;
+  onPick: (name: string) => void;
+  onClose: () => void;
+  /** Только в тренировке: «Не предлагать «…»». */
+  onBan?: () => void;
+}) {
+  const { exercises, muscleGroups } = useExercises();
+  const { profile } = useProfileStore();
+  const coach = useCoachStore();
+  const [query, setQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+
+  const index = useMemo(() => buildExerciseIndex(muscleGroups, exercises), [muscleGroups, exercises]);
+  const level = profile?.level || '';
+  const style = profile?.trainStyle || 'any';
+  const restrictions = coach.restrictions || [];
+  const banned = coach.banned || [];
+
+  const current = useMemo(
+    () => exercises.find(e => e.name === currentName) || null,
+    [exercises, currentName],
+  );
+  const gid = groupId || current?.muscleGroup || '';
+
+  // Альтернативы: та же группа, «лучшие сначала» — базовые, затем основная
+  // группа, затем алфавит. Текущее, запрещённое и конфликтующее исключаем.
+  const alternatives = useMemo(() => {
+    if (!gid) return [] as Exercise[];
+    const pool = exercisesOf(index, gid).filter(ex =>
+      ex.id !== current?.id
+      && ex.name !== currentName
+      && !banned.includes(ex.name)
+      && !conflictsWithLimits(ex.name, restrictions)
+      && (!level || levelRank(ex.difficulty) <= levelRank(level)));
+    const ordered = [...filterByStyle(pool, style)];
+    ordered.sort((a, b) => {
+      const ab = isBasicExercise(a) ? 1 : 0;
+      const bb = isBasicExercise(b) ? 1 : 0;
+      if (ab !== bb) return bb - ab;
+      const ap = isPrimaryForGroup(a, gid) ? 1 : 0;
+      const bp = isPrimaryForGroup(b, gid) ? 1 : 0;
+      if (ap !== bp) return bp - ap;
+      return a.name.localeCompare(b.name, 'ru');
+    });
+    return ordered.slice(0, 8);
+  }, [index, gid, current, currentName, style, level, restrictions, banned]);
+
+  // Остальной список группы — как на экране группы: базовые, изолирующие,
+  // затем упражнения по вторичным мышцам.
+  const rest = useMemo(() => {
+    if (!gid) return [] as Exercise[];
+    const primary = byGroupPrimary(index, gid, level, '');
+    const secondary = secondaryForGroup(index, gid, level, '');
+    const ordered: Exercise[] = [];
+    for (const ex of primary) if (isBasicExercise(ex)) ordered.push(ex);
+    for (const ex of primary) if (!isBasicExercise(ex) && isIsolationExercise(ex)) ordered.push(ex);
+    for (const ex of primary) if (!isBasicExercise(ex) && !isIsolationExercise(ex)) ordered.push(ex);
+    ordered.push(...secondary);
+    const altIds = new Set(alternatives.map(e => e.id));
+    const q = query.trim().toLowerCase();
+    return filterByStyle(ordered, style).filter(ex =>
+      ex.id !== current?.id
+      && !altIds.has(ex.id)
+      && !banned.includes(ex.name)
+      && !conflictsWithLimits(ex.name, restrictions)
+      && matchesType(ex, typeFilter)
+      && (!q || ex.name.toLowerCase().includes(q)));
+  }, [index, gid, current, alternatives, style, level, restrictions, banned, query, typeFilter]);
+
+  const groupName = (id: string) => muscleGroups.find(g => g.id === id)?.name || '';
+
+  const row = (ex: Exercise) => (
+    <button
+      key={ex.id}
+      onClick={() => onPick(ex.name)}
+      className="block w-full text-left px-2 py-2.5 rounded-lg active:bg-black/5"
+      style={{ color: 'var(--color-text-main)' }}
+    >
+      <div className="text-[15px] leading-snug">{ex.name}</div>
+      <div className="text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
+        {groupName(ex.muscleGroup)}{ex.equipmentType ? ` · ${ex.equipmentType}` : ''}
+      </div>
+    </button>
+  );
+
+  const section = (text: string) => (
+    <div className="mt-3 mb-0.5 text-[12px] font-bold uppercase tracking-wide"
+      style={{ color: 'var(--color-text-secondary)' }}>
+      {text}
+    </div>
+  );
+
+  const basic = rest.filter(isBasicExercise);
+  const isolation = rest.filter(ex => !isBasicExercise(ex));
+
+  return (
+    <Dialog title={title} onClose={onClose}
+      actions={<DialogAction onClick={onClose}>Отмена</DialogAction>}>
+      <Field value={query} onChange={setQuery} placeholder="Поиск упражнения…" inputMode="text" />
+      <div className="flex flex-wrap gap-1.5 mt-2">
+        {[
+          { v: '', label: 'Все' },
+          { v: 'basic', label: 'Базовые' },
+          { v: 'isolation', label: 'Изолирующие' },
+        ].map(t => (
+          <button
+            key={t.v}
+            onClick={() => setTypeFilter(t.v)}
+            className={clsx('fg-chip', typeFilter === t.v && 'fg-chip-on')}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {alternatives.length > 0 && (
+        <>
+          {section('Альтернативы')}
+          {alternatives.map(row)}
+        </>
+      )}
+      {basic.length > 0 && (
+        <>
+          {section('Базовые упражнения')}
+          {basic.map(row)}
+        </>
+      )}
+      {isolation.length > 0 && (
+        <>
+          {section('Изолирующие упражнения')}
+          {isolation.map(row)}
+        </>
+      )}
+      {alternatives.length === 0 && rest.length === 0 && (
+        <Hint className="px-2 py-4">Ничего не найдено</Hint>
+      )}
+
+      {onBan && (
+        <button
+          onClick={onBan}
+          className="w-full mt-3 px-3 py-2.5 rounded-xl border text-[13px]"
+          style={{ borderColor: 'var(--p-outline)', color: 'var(--color-text-secondary)' }}
+        >
+          Не предлагать «{currentName}»
+        </button>
+      )}
     </Dialog>
   );
 }

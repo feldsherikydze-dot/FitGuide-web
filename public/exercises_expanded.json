@@ -4454,7 +4454,7 @@
     {
       "id": "ex103",
       "name": "Становая тяга в классическом стиле",
-      "muscleGroup": "g4",
+      "muscleGroup": "g11",
       "subgroup": "deadlift",
       "type": "базовое",
       "equipmentType": "штанга, помост/пол",
@@ -4494,7 +4494,7 @@
     {
       "id": "ex104",
       "name": "Становая тяга в стиле «Сумо»",
-      "muscleGroup": "g4",
+      "muscleGroup": "g11",
       "subgroup": "deadlift",
       "type": "базовое",
       "equipmentType": "штанга, помост/пол",
@@ -4534,7 +4534,7 @@
     {
       "id": "ex105",
       "name": "Становая тяга с треп-грифом (Hex-Bar Deadlift)",
-      "muscleGroup": "g4",
+      "muscleGroup": "g11",
       "subgroup": "deadlift",
       "type": "базовое",
       "equipmentType": "треп-гриф (Hex-Bar)",

@@ -24,6 +24,10 @@ export interface ExStat {
   feelOk: number;
   feelEasy: number;
   feelHard: number;
+  /** План и факт по повторам: суммы по подходам, где были оба числа. */
+  repsPlan: number;
+  repsDone: number;
+  repsSets: number;
   setsPerWeek: number;
   tooLongSets: number;
   tooShortSets: number;
@@ -78,7 +82,20 @@ export function sessionDurationSec(s: Session): number {
 }
 
 export function sessionTonnage(s: Session): number {
-  return s.items.reduce((sum, it) => sum + (it.weightKg || 0) * (it.reps || 0) * (it.sets || 0), 0);
+  // Факты по подходам важнее плана: 4×10, а по факту 10/10/9/8 — это другой
+  // объём. Для старых записей без фактов работает план.
+  const withFacts = new Set<string>();
+  let total = 0;
+  for (const f of s.setFacts || []) {
+    if (!f.exercise) continue;
+    total += (f.weightKg || 0) * Math.max(0, f.reps || 0);
+    withFacts.add(f.exercise);
+  }
+  for (const it of s.items) {
+    if (withFacts.has(it.exercise)) continue;
+    total += (it.weightKg || 0) * (it.reps || 0) * (it.sets || 0);
+  }
+  return total;
 }
 
 export function sessionSets(s: Session): number {
@@ -126,6 +143,11 @@ export function buildReport(sessions: Session[], fromMs: number, toMs: number): 
         actualSec: 0, plannedSec: 0,
       })));
 
+    const plannedReps = new Map<string, number>();
+    for (const it of s.items) {
+      if (it.reps > 0) plannedReps.set(it.exercise, it.reps);
+    }
+
     for (const f of facts) {
       if (!f.exercise) continue;
       r.sets++;
@@ -135,6 +157,7 @@ export function buildReport(sessions: Session[], fromMs: number, toMs: number): 
           exercise: f.exercise, sets: 0, workedSec: 0, tonnage: 0, avgSecPerSet: 0,
           planPct: 0, tempoSecPerRep: 0, weightFirst: 0, weightLast: 0, weightDeltaPct: 0,
           feelOk: 0, feelEasy: 0, feelHard: 0, setsPerWeek: 0,
+          repsPlan: 0, repsDone: 0, repsSets: 0,
           tooLongSets: 0, tooShortSets: 0, overPlanSets: 0, days: 0,
         };
         r.byExercise.set(f.exercise, st);
@@ -162,6 +185,14 @@ export function buildReport(sessions: Session[], fromMs: number, toMs: number): 
       if (f.feel === 1) st.feelHard++;
       else if (f.feel === 2) st.feelOk++;
       else if (f.feel === 3) st.feelEasy++;
+      // План повторов на упражнение: 4×10 → 10. Просевшие повторы
+      // (10/10/9/8) — сигнал тренеру снизить вес, а не жать до отказа.
+      const plannedRep = plannedReps.get(f.exercise) || 0;
+      if (plannedRep > 0 && reps > 0) {
+        st.repsPlan += plannedRep;
+        st.repsDone += reps;
+        st.repsSets++;
+      }
       if (planned > 0) {
         const pct = 100 * actual / planned;
         const ps = planSum.get(f.exercise)!;
@@ -291,7 +322,7 @@ function buildTips(r: Report) {
       } else if (st.feelHard * 2 > marks) {
         r.tips.push({
           title: `${st.exercise}: нужно легче`,
-          text: 'Чаще всего «тяжело». Снизь рабочий вес на 5% — так доработаешь нужные подходы, а не будешь бросать.',
+          text: 'Чаще всего «отказ». Снизь рабочий вес на 5% — так доработаешь нужные подходы и оставишь 1–2 повтора в запасе, а не будешь бросать.',
         });
       } else if (st.feelOk * 2 > marks) {
         r.tips.push({
@@ -299,6 +330,15 @@ function buildTips(r: Report) {
           text: 'Отметки «в самый раз» преобладают — это рабочая зона, вес менять пока незачем.',
         });
       }
+    }
+    if (st.repsSets >= 3 && st.repsPlan > 0 && st.repsDone * 100 < st.repsPlan * 95) {
+      const planAvg = st.repsPlan / st.repsSets;
+      const doneAvg = st.repsDone / st.repsSets;
+      r.tips.push({
+        title: `${st.exercise}: повторы просели`,
+        text: `План ${round1(planAvg)} повторов, по факту ${round1(doneAvg)}. Снизь вес на 2,5–5%, `
+          + 'чтобы делать 1–2 повтора в запасе, а не до отказа.',
+      });
     }
     if (st.avgSecPerSet > TUT_CEIL_SEC && st.sets >= 3) {
       r.tips.push({

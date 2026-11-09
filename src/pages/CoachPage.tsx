@@ -541,13 +541,25 @@ export function CoachPage() {
     let done = 0;
     let full = 0;
     const shortEx: string[] = [];
+    const repsNotes: string[] = [];
     for (const it of lastSession.items) {
       planned += Math.max(it.targetSets, 0);
       done += Math.max(it.sets, 0);
       if (it.targetSets > 0 && it.sets >= it.targetSets) full++;
       else if (it.targetSets > 0) shortEx.push(it.exercise);
+      // Фактические повторы по подходам: 10/10/9/8 — видно, где просело.
+      const vals = (it.setReps || []).filter(r => r > 0);
+      if (vals.length > 0) {
+        const min = Math.min(...vals);
+        const fail = (it.setFeels || []).includes(1);
+        if (it.reps > 0 && min < it.reps) {
+          repsNotes.push(`${it.exercise}: ${vals.join('/')} из ${it.reps} — снижу вес.`);
+        } else if (fail) {
+          repsNotes.push(`${it.exercise}: подход до отказа — снижу вес.`);
+        }
+      }
     }
-    return { planned, done, full, total: lastSession.items.length, shortEx };
+    return { planned, done, full, total: lastSession.items.length, shortEx, repsNotes };
   })();
 
   // Итог недели.
@@ -1020,6 +1032,9 @@ export function CoachPage() {
             ) : (
               <Line>Всё закрыто — вес поднимем на следующей тренировке.</Line>
             )}
+            {debrief.repsNotes.slice(0, 3).map((note, i) => (
+              <Line key={i} secondary>{note}</Line>
+            ))}
           </>
         )}
 

@@ -23,7 +23,7 @@ import { currentWeek, phaseForWeek } from '../core/coach';
 import type { Program, Phase, Day, Slot } from '../data/types';
 import {
   Card, Dialog, DialogAction, ExercisePicker, Hint, PrimaryButton,
-  ConfirmDialog, Toast,
+  ConfirmDialog, Toast, ReplaceExercisePicker,
 } from './progress/common';
 
 const TYPE_OPTIONS = [
@@ -896,17 +896,15 @@ export function ProgramDetailPage() {
         </Dialog>
       )}
 
-      {/* Диалог замены упражнения */}
+      {/* Диалог замены упражнения: альтернативы + список группы, как в APK */}
       {replacing && (
-        <Dialog title="Заменить упражнение" onClose={() => setReplacing(null)}
-          actions={
-            <>
-              <DialogAction onClick={() => setReplacing(null)}>Отмена</DialogAction>
-            </>
-          }>
-          <ExercisePicker title="Заменить упражнение" initialQuery={replacing.slot.exercise}
-            onPick={applyReplace} onClose={() => setReplacing(null)} />
-        </Dialog>
+        <ReplaceExercisePicker
+          title="Заменить упражнение"
+          currentName={replacing.slot.exercise}
+          groupId={replacing.slot.group}
+          onPick={applyReplace}
+          onClose={() => setReplacing(null)}
+        />
       )}
 
       {/* Диалог удаления подхода */}

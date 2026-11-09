@@ -100,11 +100,30 @@ export function JournalTab() {
                 </div>
 
                 <div className="mt-1 space-y-0.5">
-                  {s.items.map((it, i) => (
-                    <div key={`${it.exercise}-${i}`} className="text-[13px]" style={{ color: 'var(--p-on-labels-soft)' }}>
-                      {it.exercise}: {it.sets} × {it.reps}, {it.weightKg.toFixed(1)} кг
-                    </div>
-                  ))}
+                  {s.items.map((it, i) => {
+                    // Факты по подходам: реальные повторы и отметки «отказ /
+                    // в самый раз / легко» — тренер видит, где просели повторы.
+                    const facts = (s.setFacts || []).filter(f => f.exercise === it.exercise);
+                    const detail = facts
+                      .filter(f => (f.reps || 0) > 0)
+                      .map(f => {
+                        const feel = f.feel === 1 ? 'отказ' : f.feel === 2 ? 'в самый раз' : f.feel === 3 ? 'легко' : '';
+                        return feel ? `${f.reps} (${feel})` : String(f.reps);
+                      })
+                      .join(' · ');
+                    return (
+                      <div key={`${it.exercise}-${i}`}>
+                        <div className="text-[13px]" style={{ color: 'var(--p-on-labels-soft)' }}>
+                          {it.exercise}: {it.sets} × {it.reps}, {it.weightKg.toFixed(1)} кг
+                        </div>
+                        {detail && (
+                          <div className="text-[12px]" style={{ color: 'var(--p-on-labels-soft)' }}>
+                            Подходы: {detail}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );
