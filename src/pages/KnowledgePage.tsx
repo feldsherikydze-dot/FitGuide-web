@@ -54,7 +54,7 @@ export function KnowledgePage() {
                   className="flex-shrink-0 w-10 h-10 rounded-full font-mono font-bold text-[13px] flex items-center justify-center"
                   style={{
                     background: 'linear-gradient(135deg, var(--p-circle-from), var(--p-circle-to))',
-                    color: '#FFFFFF',
+                    color: 'var(--p-on-circle)',
                   }}>
                   {ch.number || '—'}
                 </span>
