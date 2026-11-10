@@ -107,7 +107,7 @@ export function JournalTab() {
                     const detail = facts
                       .filter(f => (f.reps || 0) > 0)
                       .map(f => {
-                        const feel = f.feel === 1 ? 'отказ' : f.feel === 2 ? 'в самый раз' : f.feel === 3 ? 'легко' : '';
+                        const feel = f.feel === 1 ? 'до отказа' : f.feel === 2 ? 'предотказ' : f.feel === 3 ? 'легко' : '';
                         return feel ? `${f.reps} (${feel})` : String(f.reps);
                       })
                       .join(' · ');

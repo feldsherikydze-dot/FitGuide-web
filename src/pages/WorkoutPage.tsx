@@ -17,8 +17,8 @@ import { ReplaceExercisePicker } from './progress/common';
 import type { Session, SessionItem, Slot, Program } from '../data/types';
 
 const FEELS = [
-  { v: 1 as const, label: 'Отказ' },
-  { v: 2 as const, label: 'В самый раз' },
+  { v: 1 as const, label: 'До отказа' },
+  { v: 2 as const, label: 'Предотказ' },
   { v: 3 as const, label: 'Легко' },
 ];
 
