@@ -5,7 +5,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useProfileStore } from '../../core/store';
 import { getJSON, setJSON, KEYS } from '../../core/storage';
-import { dailyCalories, goalList, goalLabel } from '../../core/goals';
+import { dailyCalories, goalList, goalLabel, proteinPerKg } from '../../core/goals';
 import { week } from '../../core/nutrition';
 import type { Day } from '../../core/nutrition';
 import { Field, PrimaryButton, Toast } from '../progress/common';
@@ -35,6 +35,13 @@ export function KitchenTab() {
     return Math.max(1200, Math.min(5000, v));
   }, [state.kcal]);
 
+  // Норма белка от веса и цели: меню должно не только попадать в калории,
+  // но и не проваливать белок (2.0 г/кг на массе — это ~30% калорий).
+  const proteinTarget = useMemo(() => {
+    const w = profile?.weightKg || 0;
+    return w > 0 ? Math.round(w * proteinPerKg(profile?.goal || 'mass')) : 0;
+  }, [profile?.weightKg, profile?.goal]);
+
   const goals = useMemo(() => {
     const g = profile?.goal ? goalList(profile.goal) : [];
     return g.map(goalLabel).join(' + ') || 'Поддержание';
@@ -52,11 +59,11 @@ export function KitchenTab() {
   const generate = useCallback(() => {
     const favs = state.favs.split(',').map(x => x.trim()).filter(Boolean);
     const dis = state.dislikes.split(',').map(x => x.trim()).filter(Boolean);
-    const days = week(targetKcal, profile?.goal || 'mass', favs, dis);
+    const days = week(targetKcal, proteinTarget, profile?.goal || 'mass', favs, dis);
     saveMenu(days);
     setState(s => ({ ...s, menu: days }));
     showToast('Меню готово');
-  }, [state.favs, state.dislikes, targetKcal, profile?.goal, saveMenu, showToast]);
+  }, [state.favs, state.dislikes, targetKcal, proteinTarget, profile?.goal, saveMenu, showToast]);
 
   const clear = useCallback(() => {
     saveMenu([]);
