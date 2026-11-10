@@ -213,6 +213,32 @@ export function contrastOn(hex: string): string {
   return lum > 0.6 ? '#111111' : '#FFFFFF';
 }
 
+/** Яркость по WCAG (как ThemeManager.relativeLuminance). */
+function wcagLum(hex: string): number {
+  const h = hex.replace('#', '');
+  const p = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) / 255)
+    .map(v => (v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
+  return 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2];
+}
+
+/**
+ * Читаемый текст поверх градиентного баннера (bg_banner). textMain и
+ * preset-primary рассчитаны на фон приложения: на бирюзовой карточке
+ * «Дозировка» и «Рекомендуемые варианты» сливались с фоном. Берём середину
+ * градиента и порог 0.179 — точку равного контраста чёрного и белого (WCAG).
+ */
+export function onGradient(): string {
+  const g = presetGradient();
+  const pa = parseInt(g.from.slice(1), 16);
+  const pb = parseInt(g.to.slice(1), 16);
+  const mid = '#' + [
+    Math.round((((pa >> 16) & 255) + ((pb >> 16) & 255)) / 2),
+    Math.round((((pa >> 8) & 255) + ((pb >> 8) & 255)) / 2),
+    Math.round(((pa & 255) + (pb & 255)) / 2),
+  ].map(v => v.toString(16).padStart(2, '0')).join('');
+  return wcagLum(mid) > 0.179 ? '#111111' : '#FFFFFF';
+}
+
 /** Тот же цвет с прозрачностью (withAlpha в Android). */
 export function withAlpha(hex: string, alpha: number): string {
   const h = hex.replace('#', '');

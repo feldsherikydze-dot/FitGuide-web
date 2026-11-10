@@ -134,17 +134,17 @@ export function SportPitTab() {
               onClick={() => openDetail(a)}
               className="fg-banner-grad block w-full text-left mt-2.5 px-4 py-[14px]"
             >
-              <div className="text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>
+              <div className="text-[15px] font-bold" style={{ color: 'var(--p-on-grad)' }}>
                 {a.name}
               </div>
-              <div className="pt-1 text-[13px]" style={{ color: 'var(--p-preset-primary)' }}>
+              <div className="pt-1 text-[13px]" style={{ color: 'var(--p-on-grad)' }}>
                 Дозировка: {a.dose}
               </div>
-              <div className="pt-1.5 text-[13px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
+              <div className="pt-1.5 text-[13px] leading-relaxed" style={{ color: 'var(--p-on-grad-soft)' }}>
                 {a.why}
               </div>
               {a.products.length > 0 && (
-                <div className="pt-1.5 text-[13px] font-bold" style={{ color: 'var(--p-preset-primary)' }}>
+                <div className="pt-1.5 text-[13px] font-bold" style={{ color: 'var(--p-on-grad)' }}>
                   Рекомендуемые варианты →
                 </div>
               )}

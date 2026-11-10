@@ -48,16 +48,16 @@ export function SportPitDetailPage() {
 
       <div className="px-4 pt-1 pb-8">
         <div className="fg-banner-grad px-4 py-[18px]">
-          <div className="text-[20px] font-bold" style={{ color: 'var(--color-text-main)' }}>
+          <div className="text-[20px] font-bold" style={{ color: 'var(--p-on-grad)' }}>
             {name}
           </div>
           {additive?.dose && (
-            <div className="pt-1.5 text-[13px]" style={{ color: 'var(--p-preset-primary)' }}>
+            <div className="pt-1.5 text-[13px]" style={{ color: 'var(--p-on-grad)' }}>
               Дозировка: {additive.dose}
             </div>
           )}
           {additive?.why && (
-            <p className="pt-3 text-[14px] leading-relaxed" style={{ color: 'var(--color-text-main)' }}>
+            <p className="pt-3 text-[14px] leading-relaxed" style={{ color: 'var(--p-on-grad-soft)' }}>
               {additive.why}
             </p>
           )}
@@ -69,16 +69,16 @@ export function SportPitDetailPage() {
 
         {(additive?.products || []).map((p, i) => (
           <div key={`${p.name}-${i}`} className="fg-banner-grad mt-2.5 px-3.5 py-3">
-            <div className="text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>
+            <div className="text-[15px] font-bold" style={{ color: 'var(--p-on-grad)' }}>
               {p.best ? `★ ${p.name}` : `•  ${p.name}`}
             </div>
             {(p.format || p.price) && (
-              <div className="pt-1 text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
+              <div className="pt-1 text-[13px]" style={{ color: 'var(--p-on-grad-soft)' }}>
                 {[p.format, p.price].filter(Boolean).join('  ·  ')}
               </div>
             )}
             {p.best && (
-              <div className="pt-1.5 text-[12px] font-bold" style={{ color: 'var(--p-preset-primary)' }}>
+              <div className="pt-1.5 text-[12px] font-bold" style={{ color: 'var(--p-on-grad)' }}>
                 Рекомендуемый выбор
               </div>
             )}

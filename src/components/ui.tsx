@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import {
-  slotColor, circleGradient, topBarGradient, presetGradient, contrastOn, withAlpha,
+  slotColor, circleGradient, topBarGradient, presetGradient, contrastOn, withAlpha, onGradient,
   subscribePalette, getPalette, PRIMARY_COLORS, PRESET_PRIMARY_DARK, PRESET_TINTS, PRESET_TINTS_DARK,
   type SlotName,
 } from '../core/palette';
@@ -46,6 +46,10 @@ export function usePaletteVars() {
   root.style.setProperty('--p-grad-to', grad.to);
   root.style.setProperty('--p-preset-grad-from', presetGrad.from);
   root.style.setProperty('--p-preset-grad-to', presetGrad.to);
+  // Текст поверх градиентного баннера (bg_banner): на бирюзе textMain и
+  // preset-primary сливались с фоном — цвет считаем от самого градиента.
+  root.style.setProperty('--p-on-grad', onGradient());
+  root.style.setProperty('--p-on-grad-soft', withAlpha(onGradient(), 0.8));
   // Primary/tint пресета: в CSS выбирается светлый или тёмный вариант по data-theme.
   const pi = getPalette().primary;
   root.style.setProperty('--p-preset-primary-light', PRIMARY_COLORS[pi] ?? PRIMARY_COLORS[0]);
