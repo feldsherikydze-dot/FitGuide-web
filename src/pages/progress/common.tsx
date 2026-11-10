@@ -198,34 +198,97 @@ export function parseInt10(s: string): number {
   return Number.isFinite(v) ? v : 0;
 }
 
-/** Выбор упражнения: поиск + список, как AlertDialog со списком в Android. */
-export function ExercisePicker({ title, initialQuery = '', onPick, onClose }: {
-  title: string; initialQuery?: string; onPick: (name: string) => void; onClose: () => void;
+/**
+ * Выбор упражнения: поиск + список — то же окно, что «Добавить упражнение».
+ *
+ * Режим замены отличается только содержимым: сверху секция «Альтернативы»
+ * заменяемому, ниже — базовые и изолирующие упражнения его группы.
+ */
+export function ExercisePicker({ title, initialQuery = '', onPick, onClose, alternatives = [], pool, banName, onBan }: {
+  title: string;
+  initialQuery?: string;
+  onPick: (name: string) => void;
+  onClose: () => void;
+  /** Имена лучших замен — верхняя секция экрана замены. */
+  alternatives?: string[];
+  /** Список упражнений группы; без него показываем всю базу (режим «Добавить»). */
+  pool?: Exercise[];
+  /** Экран замены из тренировки: «Не предлагать «…»». */
+  banName?: string;
+  onBan?: () => void;
 }) {
   const { exercises } = useExercises();
   const [query, setQuery] = useState(initialQuery);
-  const names = useMemo(() => {
-    const all = Array.from(new Set(exercises.map(e => e.name))).sort((a, b) => a.localeCompare(b, 'ru'));
+
+  const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (q ? all.filter(n => n.toLowerCase().includes(q)) : all).slice(0, 300);
-  }, [exercises, query]);
+    return (name: string) => !q || name.toLowerCase().includes(q);
+  }, [query]);
+
+  const altNames = useMemo(
+    () => alternatives.filter(matches).slice(0, 8),
+    [alternatives, matches],
+  );
+
+  const rest = useMemo(() => {
+    if (!pool) {
+      const all = Array.from(new Set(exercises.map(e => e.name))).sort((a, b) => a.localeCompare(b, 'ru'));
+      return all.filter(matches).slice(0, 300).map(name => ({ name, basic: false }));
+    }
+    const altSet = new Set(alternatives);
+    return pool
+      .filter(ex => matches(ex.name) && !altSet.has(ex.name))
+      .map(ex => ({ name: ex.name, basic: isBasicExercise(ex) }));
+  }, [pool, exercises, matches, alternatives]);
+
+  const basic = rest.filter(r => r.basic);
+  const isolation = rest.filter(r => !r.basic);
+
+  const row = (name: string, key?: string) => (
+    <button
+      key={key || name}
+      onClick={() => onPick(name)}
+      className="block w-full text-left px-2 py-3 text-[15px] active:bg-black/5 rounded-lg"
+      style={{ color: 'var(--color-text-main)' }}
+    >
+      {name}
+    </button>
+  );
+
+  const header = (text: string) => (
+    <div className="mt-3 mb-0.5 px-2 text-[12px] font-bold uppercase tracking-wide"
+      style={{ color: 'var(--color-text-secondary)' }}>
+      {text}
+    </div>
+  );
 
   return (
     <Dialog title={title} onClose={onClose} actions={<DialogAction onClick={onClose}>Отмена</DialogAction>}>
       <Field value={query} onChange={setQuery} placeholder="Поиск упражнения…" inputMode="text" />
       <div className="mt-1 -mx-2">
-        {names.map(n => (
-          <button
-            key={n}
-            onClick={() => onPick(n)}
-            className="block w-full text-left px-2 py-3 text-[15px] active:bg-black/5 rounded-lg"
-            style={{ color: 'var(--color-text-main)' }}
-          >
-            {n}
-          </button>
-        ))}
-        {names.length === 0 && <Hint className="px-2 py-4">Ничего не найдено</Hint>}
+        {altNames.length > 0 && (
+          <>
+            {header('Альтернативы')}
+            {altNames.map(n => row(n, 'alt:' + n))}
+          </>
+        )}
+        {pool && basic.length > 0 && header('Базовые упражнения')}
+        {basic.map(r => row(r.name))}
+        {pool && isolation.length > 0 && header('Изолирующие упражнения')}
+        {isolation.map(r => row(r.name))}
+        {altNames.length === 0 && rest.length === 0 && (
+          <Hint className="px-2 py-4">Ничего не найдено</Hint>
+        )}
       </div>
+      {banName && onBan && (
+        <button
+          onClick={onBan}
+          className="w-full mt-3 px-3 py-2.5 rounded-xl border text-[13px]"
+          style={{ borderColor: 'var(--p-outline)', color: 'var(--color-text-secondary)' }}
+        >
+          Не предлагать «{banName}»
+        </button>
+      )}
     </Dialog>
   );
 }
@@ -248,8 +311,6 @@ export function ReplaceExercisePicker({ title = 'Заменить упражне
   const { exercises, muscleGroups } = useExercises();
   const { profile } = useProfileStore();
   const coach = useCoachStore();
-  const [query, setQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
 
   const index = useMemo(() => buildExerciseIndex(muscleGroups, exercises), [muscleGroups, exercises]);
   const level = profile?.level || '';
@@ -286,9 +347,9 @@ export function ReplaceExercisePicker({ title = 'Заменить упражне
     return ordered.slice(0, 8);
   }, [index, gid, current, currentName, style, level, restrictions, banned]);
 
-  // Остальной список группы — как на экране группы: базовые, изолирующие,
-  // затем упражнения по вторичным мышцам.
-  const rest = useMemo(() => {
+  // Ниже — упражнения той же группы: базовые, изолирующие, затем пришедшие
+  // по вторичным мышцам. Ровно как список группы в Android.
+  const pool = useMemo(() => {
     if (!gid) return [] as Exercise[];
     const primary = byGroupPrimary(index, gid, level, '');
     const secondary = secondaryForGroup(index, gid, level, '');
@@ -297,95 +358,22 @@ export function ReplaceExercisePicker({ title = 'Заменить упражне
     for (const ex of primary) if (!isBasicExercise(ex) && isIsolationExercise(ex)) ordered.push(ex);
     for (const ex of primary) if (!isBasicExercise(ex) && !isIsolationExercise(ex)) ordered.push(ex);
     ordered.push(...secondary);
-    const altIds = new Set(alternatives.map(e => e.id));
-    const q = query.trim().toLowerCase();
     return filterByStyle(ordered, style).filter(ex =>
       ex.id !== current?.id
-      && !altIds.has(ex.id)
       && !banned.includes(ex.name)
-      && !conflictsWithLimits(ex.name, restrictions)
-      && matchesType(ex, typeFilter)
-      && (!q || ex.name.toLowerCase().includes(q)));
-  }, [index, gid, current, alternatives, style, level, restrictions, banned, query, typeFilter]);
-
-  const groupName = (id: string) => muscleGroups.find(g => g.id === id)?.name || '';
-
-  const row = (ex: Exercise) => (
-    <button
-      key={ex.id}
-      onClick={() => onPick(ex.name)}
-      className="block w-full text-left px-2 py-2.5 rounded-lg active:bg-black/5"
-      style={{ color: 'var(--color-text-main)' }}
-    >
-      <div className="text-[15px] leading-snug">{ex.name}</div>
-      <div className="text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
-        {groupName(ex.muscleGroup)}{ex.equipmentType ? ` · ${ex.equipmentType}` : ''}
-      </div>
-    </button>
-  );
-
-  const section = (text: string) => (
-    <div className="mt-3 mb-0.5 text-[12px] font-bold uppercase tracking-wide"
-      style={{ color: 'var(--color-text-secondary)' }}>
-      {text}
-    </div>
-  );
-
-  const basic = rest.filter(isBasicExercise);
-  const isolation = rest.filter(ex => !isBasicExercise(ex));
+      && !conflictsWithLimits(ex.name, restrictions));
+  }, [index, gid, current, style, level, restrictions, banned]);
 
   return (
-    <Dialog title={title} onClose={onClose}
-      actions={<DialogAction onClick={onClose}>Отмена</DialogAction>}>
-      <Field value={query} onChange={setQuery} placeholder="Поиск упражнения…" inputMode="text" />
-      <div className="flex flex-wrap gap-1.5 mt-2">
-        {[
-          { v: '', label: 'Все' },
-          { v: 'basic', label: 'Базовые' },
-          { v: 'isolation', label: 'Изолирующие' },
-        ].map(t => (
-          <button
-            key={t.v}
-            onClick={() => setTypeFilter(t.v)}
-            className={clsx('fg-chip', typeFilter === t.v && 'fg-chip-on')}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {alternatives.length > 0 && (
-        <>
-          {section('Альтернативы')}
-          {alternatives.map(row)}
-        </>
-      )}
-      {basic.length > 0 && (
-        <>
-          {section('Базовые упражнения')}
-          {basic.map(row)}
-        </>
-      )}
-      {isolation.length > 0 && (
-        <>
-          {section('Изолирующие упражнения')}
-          {isolation.map(row)}
-        </>
-      )}
-      {alternatives.length === 0 && rest.length === 0 && (
-        <Hint className="px-2 py-4">Ничего не найдено</Hint>
-      )}
-
-      {onBan && (
-        <button
-          onClick={onBan}
-          className="w-full mt-3 px-3 py-2.5 rounded-xl border text-[13px]"
-          style={{ borderColor: 'var(--p-outline)', color: 'var(--color-text-secondary)' }}
-        >
-          Не предлагать «{currentName}»
-        </button>
-      )}
-    </Dialog>
+    <ExercisePicker
+      title={title}
+      alternatives={alternatives.map(e => e.name)}
+      pool={pool}
+      banName={onBan ? currentName : undefined}
+      onBan={onBan}
+      onPick={onPick}
+      onClose={onClose}
+    />
   );
 }
 
