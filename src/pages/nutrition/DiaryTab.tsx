@@ -7,6 +7,8 @@ import { getJSON, setJSON, KEYS } from '../../core/storage';
 import { dailyCalories, proteinPerKg } from '../../core/goals';
 import { Dialog, DialogAction, Field, Toast, parseInt10, parseNum } from '../progress/common';
 import type { Day } from '../../core/nutrition';
+import { searchFoods, foodPortion } from '../../data/foods';
+import type { Food } from '../../data/foods';
 
 interface DiaryEntry {
   id: string;
@@ -72,6 +74,10 @@ export function DiaryTab() {
   const [picking, setPicking] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [custom, setCustom] = useState({ name: '', kcal: '', protein: '' });
+  const [foodOpen, setFoodOpen] = useState(false);
+  const [foodQuery, setFoodQuery] = useState('');
+  const [foodPick, setFoodPick] = useState<Food | null>(null);
+  const [grams, setGrams] = useState('100');
   const [confirmEntry, setConfirmEntry] = useState<DiaryEntry | null>(null);
 
   const showToast = (text: string) => {
@@ -144,11 +150,34 @@ export function DiaryTab() {
     return out;
   }, [date, picking]);
 
-  const openAdd = () => {
-    if (menuDishes.length === 0) {
-      setCustomOpen(true);
+  // База продуктов: фильтр по названию, первые 80 — чтобы список не тормозил.
+  const foodList = useMemo<Food[]>(() => searchFoods(foodQuery).slice(0, 80), [foodQuery]);
+
+  const closeFood = () => {
+    setFoodOpen(false);
+    setFoodPick(null);
+    setFoodQuery('');
+    setGrams('100');
+  };
+
+  const addFood = () => {
+    if (!foodPick) return;
+    const g = parseNum(grams);
+    if (!(g > 0)) {
+      showToast('Укажи граммы');
       return;
     }
+    const m = foodPortion(foodPick, g);
+    const ts = Date.now();
+    addEntry({
+      ts, day: dayKeyStr, meal: mealByTime(ts),
+      name: `${foodPick.name}, ${Math.round(g)} г`,
+      kcal: m.kcal, protein: m.p, fat: m.f, carbs: m.c,
+    });
+    closeFood();
+  };
+
+  const openAdd = () => {
     setPicking(true);
   };
 
@@ -302,6 +331,13 @@ export function DiaryTab() {
               </button>
             ))}
             <button
+              onClick={() => { setPicking(false); setFoodOpen(true); }}
+              className="block w-full text-left px-2 py-3 text-[15px] active:bg-black/5 rounded-lg"
+              style={{ color: 'var(--p-on-labels)' }}
+            >
+              Из базы продуктов…
+            </button>
+            <button
               onClick={() => { setPicking(false); setCustomOpen(true); }}
               className="block w-full text-left px-2 py-3 text-[15px] active:bg-black/5 rounded-lg"
               style={{ color: 'var(--p-on-labels)' }}
@@ -329,6 +365,67 @@ export function DiaryTab() {
             <Field value={custom.kcal} onChange={(v: string) => setCustom({ ...custom, kcal: v })} placeholder="Ккал" inputMode="numeric" />
             <Field value={custom.protein} onChange={(v: string) => setCustom({ ...custom, protein: v })} placeholder="Белок, г" inputMode="decimal" />
           </div>
+        </Dialog>
+      )}
+
+      {/* База продуктов: поиск и граммы */}
+      {foodOpen && (
+        <Dialog
+          title={foodPick ? foodPick.name : 'База продуктов'}
+          onClose={closeFood}
+          actions={foodPick ? (
+            <>
+              <DialogAction onClick={() => setFoodPick(null)}>Назад</DialogAction>
+              <DialogAction strong onClick={addFood}>Записать</DialogAction>
+            </>
+          ) : (
+            <DialogAction onClick={closeFood}>Отмена</DialogAction>
+          )}
+        >
+          {!foodPick ? (
+            <>
+              <Field
+                value={foodQuery}
+                onChange={(v: string) => setFoodQuery(v)}
+                placeholder="Поиск: курица, рис, творог…"
+                inputMode="text"
+              />
+              <div className="mt-2 -mx-2 max-h-[45vh] overflow-y-auto">
+                {foodList.map((f, i) => (
+                  <button
+                    key={`${f.name}:${i}`}
+                    onClick={() => { setFoodPick(f); setGrams('100'); }}
+                    className="block w-full text-left px-2 py-2.5 active:bg-black/5 rounded-lg"
+                  >
+                    <span className="block text-[14px]" style={{ color: 'var(--p-on-labels)' }}>{f.name}</span>
+                    <span className="block text-[12px]" style={{ color: 'var(--p-on-labels-soft)' }}>
+                      {f.kcal} ккал · Б {format1(f.p)} · Ж {format1(f.f)} · У {format1(f.c)} на 100 г
+                    </span>
+                  </button>
+                ))}
+                {foodList.length === 0 && (
+                  <div className="px-2 py-3 text-[13px]" style={{ color: 'var(--p-on-labels-soft)' }}>
+                    Ничего не найдено
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="pt-1">
+              <div className="text-[13px]" style={{ color: 'var(--p-on-labels-soft)' }}>
+                На 100 г: {foodPick.kcal} ккал · Б {format1(foodPick.p)} · Ж {format1(foodPick.f)} · У {format1(foodPick.c)}
+              </div>
+              <div className="mt-2">
+                <Field value={grams} onChange={(v: string) => setGrams(v)} placeholder="Граммы" inputMode="numeric" />
+              </div>
+              <div className="mt-3 text-[15px]" style={{ color: 'var(--p-on-labels)' }}>
+                {(() => {
+                  const m = foodPortion(foodPick, parseNum(grams));
+                  return `${m.kcal} ккал · Б ${format1(m.p)} · Ж ${format1(m.f)} · У ${format1(m.c)}`;
+                })()}
+              </div>
+            </div>
+          )}
         </Dialog>
       )}
 

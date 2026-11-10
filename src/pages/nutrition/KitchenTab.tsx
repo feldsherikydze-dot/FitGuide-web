@@ -107,7 +107,7 @@ export function KitchenTab() {
                 </div>
                 {meal.dishes.map((d, dk) => (
                   <div key={`${mi}-${dk}`} className="pl-2 mb-0.5 text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
-                    • {d.name} — {d.kcal} ккал (Б{d.p}/Ж{d.f}/У{d.c})
+                    • {d.name}{d.portion && Math.abs(d.portion - 1) > 0.01 ? ` ×${d.portion}` : ''} — {d.kcal} ккал (Б{d.p}/Ж{d.f}/У{d.c})
                   </div>
                 ))}
               </div>
