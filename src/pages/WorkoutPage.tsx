@@ -22,6 +22,14 @@ const FEELS = [
   { v: 3 as const, label: 'Легко' },
 ];
 
+/** Оценка тренировки целиком: тут «до отказа» не подходит — спрашиваем про
+ *  то, как далась вся работа, а не про отдельный подход. */
+const SESSION_FEELS = [
+  { v: 1 as const, label: 'Тяжело' },
+  { v: 2 as const, label: 'В самый раз' },
+  { v: 3 as const, label: 'Легко' },
+];
+
 function fmt(sec: number): string {
   const s = Math.max(0, Math.floor(sec));
   const h = Math.floor(s / 3600);
@@ -691,7 +699,7 @@ export function WorkoutPage() {
               Как прошла тренировка?
             </p>
             <div className="flex gap-2 mb-4">
-              {FEELS.map(f => (
+              {SESSION_FEELS.map(f => (
                 <button key={f.v} onClick={() => setSessionFeel(f.v)}
                   className={clsx('fg-wk-chip flex-1', sessionFeel === f.v && 'fg-wk-chip-on')}>
                   {f.label}
