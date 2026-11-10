@@ -10,7 +10,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { ChevronLeft } from 'lucide-react';
 import { useCoachStore, useProgramsStore, useOneRmStore, useProfileStore } from '../core/store';
-import { createSession, applyFeelProgression, setDelta, readinessScore, dayKey, estimateOneRepMax } from '../core/coach';
+import { createSession, applyFeelProgression, loadFeel, setDelta, readinessScore, dayKey, estimateOneRepMax } from '../core/coach';
 import { playSignal } from '../core/signal';
 import { useExercises } from '../hooks/useExercises';
 import { ReplaceExercisePicker } from './progress/common';
@@ -324,11 +324,6 @@ export function WorkoutPage() {
     workSecRef.current += activeSec;
     exSecRef.current += activeSec;
 
-    // Автопрогрессия веса программы — как progressByFeel в Android.
-    const updated = applyFeelProgression(
-      program!, week, dayTitle, curItem.exercise, curItem.weightKg, curItem.reps, feel);
-    if (updated) savePrograms(programs.map(p => (p.id === updated.id ? updated : p)));
-
     setAwaitingFeel(false);
     setPendingReps(null);
     setStartRef.current = Date.now();
@@ -399,6 +394,22 @@ export function WorkoutPage() {
       setFacts: session.setFacts,
       durationSec,
     });
+
+    // Автопрогрессия — один раз за тренировку, как progressByFeel в Android:
+    // решение по нагрузочному сигналу (отказ первого/большинства подходов),
+    // а не по последнему подходу.
+    if (program) {
+      let changed = false;
+      for (const it of session.items) {
+        if (it.sets <= 0) continue;
+        const f = loadFeel(it.setFeels) || it.feel;
+        if (!f || f < 1 || f > 3) continue;
+        const updated = applyFeelProgression(
+          program, week, dayTitle, it.exercise, it.weightKg, it.reps, f as 1 | 2 | 3);
+        if (updated) changed = true;
+      }
+      if (changed) savePrograms(programs.map(p => (p.id === program.id ? program : p)));
+    }
 
     // Рекорды — buildCongrats() из WorkoutActivity: сравниваем с прошлыми тренировками.
     const prev1rm: Record<string, number> = {};

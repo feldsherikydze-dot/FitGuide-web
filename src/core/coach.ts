@@ -291,6 +291,21 @@ export function missedStreak(sessions: Session[], exercise: string | null): numb
   return streak;
 }
 
+/** Отметка для решения о весе. «До отказа» — сигнал перегруза только тогда,
+ *  когда упёрся первый подход или большинство подходов: отказ в последнем
+ *  подходе — обычная усталость, из-за неё вес снижать нельзя.
+ *  0 — отметок нет, 1 — снижать, 2 — держать, 3 — добавлять. */
+export function loadFeel(setFeels?: number[] | null): number {
+  if (!setFeels || setFeels.length === 0) return 0;
+  const vals = setFeels.filter(v => v && v > 0);
+  if (vals.length === 0) return 0;
+  const fail = vals.filter(v => v === 1).length;
+  const easy = vals.filter(v => v === 3).length;
+  if (vals[0] === 1 || fail * 2 > vals.length) return 1;
+  if (easy === vals.length) return 3;
+  return 2;
+}
+
 /** Оценка «как прошло» для упражнения: сначала оценка упражнения, иначе — сессии. 0 — не оценено. */
 export function lastFeel(sessions: Session[], exercise: string | null): number {
   if (!exercise) return 0;
@@ -299,17 +314,10 @@ export function lastFeel(sessions: Session[], exercise: string | null): number {
     for (const it of s.items) {
       if (it.exercise === exercise) {
         has = true;
-        // «Отказ» хотя бы в одном подходе важнее последней оценки: если
-        // спортсмен упёрся, вес надо снизить, даже когда следующие подходы
-        // прошли легче.
-        if (it.setFeels && it.setFeels.includes(1)) return 1;
-        // Свежий подход важнее общей оценки упражнения.
-        if (it.setFeels && it.setFeels.length > 0) {
-          for (let k = it.setFeels.length - 1; k >= 0; k--) {
-            const v = it.setFeels[k];
-            if (v && v > 0) return v;
-          }
-        }
+        // Отметка для веса: отказ первого/большинства подходов — перегруз,
+        // отказ только в последнем — усталость, вес не трогаем.
+        const load = loadFeel(it.setFeels);
+        if (load > 0) return load;
         if (it.feel && it.feel > 0) return it.feel;
       }
     }
@@ -374,7 +382,7 @@ export function suggestWeight(params: {
     return last;
   }
 
-  if (feel === 1) return last; // было тяжело — вес не поднимаем
+  if (feel === 1) return roundHalf(last * 0.95); // до отказа — −5%, как в программе
 
   const n = exercise.toLowerCase();
   const big = n.includes('присед') || n.includes('станов') || n.includes('жим ногами');
