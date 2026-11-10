@@ -82,8 +82,8 @@ export function hexToRgba(hex: string, alpha: number): string {
  * Иконка через CSS mask: цвет задаётся снаружи, поэтому иконка перекрашивается
  * вместе с палитрой (в Android вектор заливается цветом темы).
  */
-export function MaskIcon({ src, color, size = 24, className }: {
-  src: string; color: string; size?: number; className?: string;
+export function MaskIcon({ src, color, gradient, size = 24, className }: {
+  src: string; color?: string; gradient?: string; size?: number; className?: string;
 }) {
   return (
     <span
@@ -93,7 +93,8 @@ export function MaskIcon({ src, color, size = 24, className }: {
         WebkitMaskImage: `url(${src})`, maskImage: `url(${src})`,
         WebkitMaskSize: 'contain', maskSize: 'contain',
         WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
-        backgroundColor: color,
+        WebkitMaskPosition: 'center', maskPosition: 'center',
+        ...(gradient ? { backgroundImage: gradient } : { backgroundColor: color }),
       }}
     />
   );

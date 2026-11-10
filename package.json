@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "icons": "node scripts/generate-icons.mjs",
+    "muscle-icons": "node scripts/gen-muscle-icons.mjs",
     "selftest": "node scripts/selftest.mjs",
     "deploy": "git add -A && git commit -m \"Обновление FitGuide Web\" || echo \"Нет изменений\" && git push"
   },
@@ -28,6 +29,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.6.1",
+    "body-muscles": "^1.0.0",
     "oxlint": "^1.88.0",
     "postcss": "^8.5.31",
     "tailwindcss": "^4.3.3",

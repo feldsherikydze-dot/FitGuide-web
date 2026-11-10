@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader, MaskIcon, asset } from '../components/ui';
+import { MuscleIcon } from '../components/MuscleIcon';
 import { useExercises } from '../hooks/useExercises';
 import { useProfileStore } from '../core/store';
 import {
@@ -106,12 +107,18 @@ export function ExercisesPage() {
                 className="relative rounded-[20px] p-[18px] flex flex-col items-center justify-center text-center active:brightness-95"
                 style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
               >
-                <span className="relative w-[64px] h-[64px] flex items-center justify-center">
-                  <MaskIcon
-                    src={asset(`icons/muscle_${g.icon || 'legs'}.svg`)}
-                    color="var(--p-circle)"
-                    size={52}
+                <span className="relative w-[150px] h-[164px] flex items-center justify-center">
+                  {/* Анатомия: тело приглушённое, целевая мышца — акцент с
+                      подсветкой. Раньше всё красилось одним цветом, и группа
+                      мышц не читалась. */}
+                  <span
+                    className="absolute inset-0 rounded-full"
+                    style={{
+                      background: 'radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--p-circle) 16%, transparent) 0%, transparent 72%)',
+                      border: '1px solid color-mix(in srgb, var(--p-circle) 20%, transparent)',
+                    }}
                   />
+                  <MuscleIcon name={g.icon || 'legs'} height={150} />
                   {selectMode && (
                     <span className="absolute -bottom-0.5 -right-0.5">
                       <MaskIcon
