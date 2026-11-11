@@ -767,7 +767,7 @@ export function ProgramDetailPage() {
                   <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--color-text-main)' }}>
                     {day.title}
                   </div>
-                  <div style={{ color: editMode ? labelsText : labels, fontSize: '13px', fontWeight: 600 }}>
+                  <div style={{ color: labelsText, fontSize: '13px', fontWeight: 600 }}>
                     {editMode ? 'Переименовать' : 'Начать тренировку'}
                   </div>
                 </div>
