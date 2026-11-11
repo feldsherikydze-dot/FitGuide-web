@@ -189,6 +189,14 @@ check('групп мышц 16', db.muscleGroups.length === 16);
 const picker = JSON.parse(readFileSync(join(root, 'public', 'picker.json'), 'utf8'));
 check('picker: 6 регионов', picker.regions.length === 6);
 check('picker: карта упражнений не пуста', Object.keys(picker.map).length > 300);
+const staticByName = /^(планка|боковая планка|вакуум|абдоминальный вакуум|статическ|удержание)/i;
+const dynamicMark = /движен|динамик|твист|скручиван|отжиман/i;
+const staticReps = /сек|время|удерж/i;
+const badStatic = db.exercises.filter(e => staticByName.test(e.name) && !dynamicMark.test(e.name)
+  && !staticReps.test(e.reps || ''));
+check('статика записана временем, а не повторами', badStatic.length === 0,
+  badStatic.map(e => `${e.name} → ${e.reps}`).join('; '));
+
 const md = readFileSync(join(root, 'public', 'knowledge.md'), 'utf8');
 const chapters = md.split('\n').filter(l => l.startsWith('## ')).length;
 check('глав в knowledge.md > 80', chapters > 80, `(${chapters})`);

@@ -7,7 +7,7 @@ import { useMemo, useState } from 'react';
 import { useCoachStore } from '../../core/store';
 import { useExercises } from '../../hooks/useExercises';
 import {
-  buildReport, fmtDur, fmtNum, fmtTonnage, type ExKind,
+  buildReport, fmtDur, fmtNum, fmtTonnage, kindByName, type ExKind,
 } from '../../core/workAnalysis';
 import {
   Card, Hint, PrimaryButton, Toast,
@@ -80,11 +80,11 @@ export function AnalysisTab() {
     const exReps = new Map(exercises.map(e => [e.name, e.reps || '']));
     return (name: string): ExKind | null => {
       const reps = exReps.get(name);
-      if (reps == null) return null;
       // «3×30–60 сек», «3×макс. время», «удержание» — статика без повторов.
-      if (/сек|время|удерж/i.test(reps)) return 'static';
-      if (/шаг/i.test(reps)) return 'steps';
-      return 'dynamic';
+      if (reps != null && /сек|время|удерж/i.test(reps)) return 'static';
+      if (reps != null && /шаг/i.test(reps)) return 'steps';
+      // Страховка: в каталоге бывают статические упражнения с reps «8-12».
+      return kindByName(name) || (reps == null ? null : 'dynamic');
     };
   }, [exercises]);
 
