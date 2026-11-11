@@ -165,10 +165,13 @@ export function PaletteSettings() {
       <div className="space-y-4">
         {SLOTS.map(slot => {
           const custom = palette.custom[slot.id];
-          // Android: заливка — свой цвет или colorSurface; обводка — статический textMain 3dp;
-          // глиф — контраст к заливке, а без своего цвета — textMain.
-          const bg = custom || 'var(--color-surface)';
-          const fg = custom ? contrastOn(custom) : 'var(--color-text-main)';
+          // Android (buildPaletteGroup): заливка — свой цвет или colorSurface; обводка —
+          // статический textMain 3dp; глиф — контраст к заливке, а без цвета — textMain.
+          // Исключение — «Надписи»: в Android для (D) цвет передаётся всегда (незаданный
+          // повторяет контур), поэтому свотч залит им и глиф контрастен к нему.
+          const fill = custom || (slot.id === 'labelsText' ? slotColor('labelsText') : null);
+          const bg = fill || 'var(--color-surface)';
+          const fg = fill ? contrastOn(fill) : 'var(--color-text-main)';
           return (
             <div key={slot.id}>
               <div className="text-[15px] font-bold mb-2.5" style={{ color: 'var(--color-text-main)' }}>

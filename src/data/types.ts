@@ -116,7 +116,9 @@ export interface Session {
   programId: string;
   week: number;
   dayTitle: string;
-  ts: number;                    // время начала
+  ts: number;                    // время создания сессии
+  /** Момент первого «Начать»: до него таймер тренировки стоит на нуле. */
+  startedAt?: number;
   feel?: 1 | 2 | 3;              // оценка всей сессии
   /** Веса скорректированы (разгрузка / низкая готовность) — показатель силы не считается. */
   adjusted?: boolean;

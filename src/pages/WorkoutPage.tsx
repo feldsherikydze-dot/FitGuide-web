@@ -222,11 +222,13 @@ export function WorkoutPage() {
 
   const exercise = exercises.find(e => e.name === curItem?.exercise);
 
-  const elapsed = session ? Math.max(0, Math.floor((Date.now() - session.ts) / 1000)) : 0;
+  const elapsed = session && session.startedAt
+    ? Math.max(0, Math.floor((Date.now() - session.startedAt) / 1000))
+    : 0;
 
   // Тренировка «начата» — как shot.started в WorkoutService: до первого нажатия
   // кнопка называется «Начать», а не «Подход выполнен».
-  const started = begun || completedSets > 0;
+  const started = begun || completedSets > 0 || !!session?.startedAt;
   const allDone = session
     ? session.items.every((it, i) => it.sets >= (it.targetSets || day?.slots[i]?.sets || 3))
     : false;
@@ -388,7 +390,7 @@ export function WorkoutPage() {
 
   const finish = () => {
     if (!session) return;
-    const durationSec = Math.max(0, Math.round((Date.now() - session.ts) / 1000));
+    const durationSec = Math.max(0, Math.round((Date.now() - (session.startedAt || session.ts)) / 1000));
     coach.updateSession(session.id, {
       feel: sessionFeel || undefined,
       setFacts: session.setFacts,
@@ -456,6 +458,12 @@ export function WorkoutPage() {
     if (!session || !curItem || !curSlot) return;
     if (!started) {
       setBegun(true);
+      // Таймер тренировки стартует здесь, а не при открытии экрана.
+      if (session && !session.startedAt) {
+        const at = Date.now();
+        setSession({ ...session, startedAt: at });
+        coach.updateSession(session.id, { startedAt: at });
+      }
       playSignal('setStart');
       setStartRef.current = Date.now();
       return;
