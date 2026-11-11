@@ -12,9 +12,10 @@ import { useProfileStore, useProgramsStore } from '../core/store';
 import { GOALS, normalizeGoal } from '../core/goals';
 import type { Program } from '../data/types';
 import {
-  Dialog, DialogAction, ExercisePicker, ConfirmDialog, Toast,
+  Dialog, DialogAction, ConfirmDialog, Toast,
   parseInt10, parseNum, trimNum,
 } from './progress/common';
+import { ExercisePickerScreen } from '../components/ExercisePickerScreen';
 import { PageHeader } from '../components/ui';
 
 const REPS_OPTIONS = ['3–5', '5–8', '8–10', '10–12', '12–15', '15–20', '20–25'];
@@ -553,8 +554,9 @@ export function CustomProgramPage() {
       {confirmDialog()}
 
       {pickFor && (
-        <ExercisePicker title="Выберите упражнения"
-          onPick={ex => addSlots(pickFor.bi, pickFor.di, [ex])}
+        <ExercisePickerScreen title="Выберите упражнения"
+          subtitle="Отметьте упражнения и нажмите «Добавить»"
+          onPick={names => addSlots(pickFor.bi, pickFor.di, names)}
           onClose={() => setPickFor(null)} />
       )}
 

@@ -7,8 +7,8 @@ import { useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { clsx } from 'clsx';
 import {
-  Plus, Trash2, Copy, Play, Dumbbell, Zap, ChevronRight, AlertTriangle,
-  CheckCircle, Lightbulb, Layers, Settings2, X, Pencil,
+  Plus, Trash2, Copy, Dumbbell, Zap, ChevronRight, AlertTriangle,
+  CheckCircle, Lightbulb, Layers, Settings2, X,
 } from 'lucide-react';
 import {
   slotColor, contrastOn, withAlpha,
@@ -22,9 +22,10 @@ import { GOALS, GOALS_ALL, GOAL_LABELS, GOAL_DESCRIPTIONS, normalizeGoal, recomm
 import { currentWeek, phaseForWeek } from '../core/coach';
 import type { Program, Phase, Day, Slot } from '../data/types';
 import {
-  Card, Dialog, DialogAction, ExercisePicker, Hint, PrimaryButton,
+  Card, Dialog, DialogAction, Hint, PrimaryButton,
   ConfirmDialog, Toast, ReplaceExercisePicker,
 } from './progress/common';
+import { ExercisePickerScreen } from '../components/ExercisePickerScreen';
 
 const TYPE_OPTIONS = [
   { value: TYPE_AUTO, label: 'Авто', desc: 'Система сама выберет сплит' },
@@ -291,6 +292,36 @@ export function ProgramsPage() {
 
 const inputCls = 'w-full px-3 py-2 border border-[var(--p-outline)] rounded-lg bg-[var(--p-labels)] text-[var(--p-labels-text)]';
 
+/** Уровень по-русски — как level_beginner / level_intermediate / level_advanced. */
+function levelLabel(level: string): string {
+  if (level === 'beginner') return 'Новичок';
+  if (level === 'advanced') return 'Продвинутый';
+  return 'Средний';
+}
+
+/** «1 подход / 2 подхода / 5 подходов» — как plurals slot_sets. */function pluralSets(n: number): string {
+  const m10 = n % 10;
+  const m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return `${n} подход`;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return `${n} подхода`;
+  return `${n} подходов`;
+}
+
+/** Подпись под упражнением — ровно как buildSlotRow в ProgramDetailActivity. */
+function slotExtra(slot: Slot): string {
+  const setsLabel = slot.sets > 0 ? pluralSets(slot.sets) + ' × ' : '';
+  let extra = `${setsLabel}повторений — ${slot.reps} · Отдых: ${slot.rest}`;
+  if ((slot.startWeight ?? 0) > 0) {
+    const w = Math.abs(slot.startWeight! - Math.round(slot.startWeight!)) < 0.05
+      ? String(Math.round(slot.startWeight!))
+      : slot.startWeight!.toFixed(1);
+    extra += ` · старт ${w} кг`;
+  }
+  if ((slot.workSec ?? 0) > 0) extra += ` · ${slot.workSec} с`;
+  if (slot.group && slot.group !== slot.exercise) extra = `${slot.group} · ${extra}`;
+  return extra;
+}
+
 // ---------------------------------------------------------------- деталь программы
 
 export function ProgramDetailPage() {
@@ -486,6 +517,8 @@ export function ProgramDetailPage() {
   const applyReplace = (exercise: string) => {
     if (!replacing) return;
     const { day, slot } = replacing;
+    const ex = byName().get(exercise);
+    const group = ex ? (groupNameById()[ex.muscleGroup] || slot.group) : slot.group;
     saveProgram({
       ...program,
       phases: program.phases.map(ph => {
@@ -493,7 +526,7 @@ export function ProgramDetailPage() {
         return {
           ...ph,
           days: ph.days.map(d => d === day
-            ? { ...d, slots: d.slots.map(s => s === slot ? { ...s, exercise } : s) }
+            ? { ...d, slots: d.slots.map(s => s === slot ? { ...s, exercise, group } : s) }
             : d),
         };
       }),
@@ -544,17 +577,22 @@ export function ProgramDetailPage() {
   const openAdd = (day: Day) => {
     setAddingTo(day);
   };
-  const applyAdd = (exercise: string) => {
-    if (!addingTo) return;
+  const applyAdd = (names: string[]) => {
+    if (!addingTo || names.length === 0) return;
     const sets = phase ? parseInt(String((phase.scheme.match(/^(\d+)/) || [0, 3])[1]), 10) || 3 : 3;
-    const next: Slot = {
-      exercise,
-      group: '',
-      reps: '10–12',
-      rest: '60–90 сек',
-      sets,
-      role: 'secondary',
-    };
+    const names2 = byName();
+    const groupNames = groupNameById();
+    const added: Slot[] = names.map(name => {
+      const ex = names2.get(name);
+      return {
+        exercise: name,
+        group: ex ? (groupNames[ex.muscleGroup] || '') : '',
+        reps: '10–12',
+        rest: '60–90 сек',
+        sets,
+        role: 'secondary',
+      };
+    });
     saveProgram({
       ...program,
       phases: program.phases.map(ph => {
@@ -562,7 +600,7 @@ export function ProgramDetailPage() {
         return {
           ...ph,
           days: ph.days.map(d => d === addingTo
-            ? { ...d, slots: [...d.slots, next] }
+            ? { ...d, slots: [...d.slots, ...added] }
             : d),
         };
       }),
@@ -572,39 +610,43 @@ export function ProgramDetailPage() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-bg)' }}>
-      <PageHeader
-        title={program.name}
-        onBack={() => navigate('/programs')}
-        right={
-          <>
-            <button
-              onClick={setActive}
-              className="fg-btn-primary px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 flex-shrink-0"
-            >
-              <Play className="w-4 h-4" /> Тренер
-            </button>
-            <button
-              onClick={toggleEdit}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium flex-shrink-0"
-              style={{ border: `1px solid ${outline}`, color: labelsText }}
-            >
-              <Pencil className="w-4 h-4" /> {editMode ? 'Готово' : 'Редактировать'}
-            </button>
-          </>
-        }
-      />
+      {/* Шапка как в APK: заголовок «Программы тренировок», без кнопок справа */}
+      <PageHeader title="Программы тренировок" onBack={() => navigate('/programs')} />
 
       <div className="max-w-4xl mx-auto space-y-4 px-4 pb-30 w-full max-w-full">
-        <div className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          {GOAL_LABELS[normalizeGoal(program.goal)] || program.goal} · {program.level}
-          · {program.daysPerWeek} дн/нед · {program.weeks} нед
+        {/* Название программы — отдельной строкой, 22sp, переносится */}
+        <div className="text-[22px] font-bold leading-tight pt-2" style={{ color: 'var(--color-text-main)' }}>
+          {program.name}
+        </div>
+        <div className="text-[13px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
+          {GOAL_LABELS[normalizeGoal(program.goal)] || program.goal} · {levelLabel(program.level)}
+          <br />
+          {program.daysPerWeek} тренировок в неделю · {program.weeks} нед.
         </div>
         <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
           Дата создания: {formatDate(program.createdAt)}
         </div>
 
+        {/* Две кнопки на всю ширину — как btnCoach и btnEdit в APK */}
+        <div className="flex flex-col gap-2 pt-1">
+          <button
+            onClick={setActive}
+            className="w-full min-h-[48px] rounded-[22px] px-4 text-[14px] font-medium active:opacity-80"
+            style={{ border: `1px solid ${outline}`, color: labelsText }}
+          >
+            Карманный тренер
+          </button>
+          <button
+            onClick={toggleEdit}
+            className="w-full min-h-[48px] rounded-[22px] px-4 text-[14px] font-medium active:opacity-80"
+            style={{ border: `1px solid ${outline}`, color: labelsText }}
+          >
+            {editMode ? 'Готово' : 'Редактировать'}
+          </button>
+        </div>
+
         {/* Тренировочный план */}
-        <div style={{ color: labelsText, fontWeight: 700, fontSize: '15px', marginBottom: '8px' }}>
+        <div style={{ color: labelsText, fontWeight: 700, fontSize: '15px', marginBottom: '8px', marginTop: '10px' }}>
           Тренировочный план
         </div>
 
@@ -623,13 +665,15 @@ export function ProgramDetailPage() {
                   className="w-full text-left p-3 rounded-[14px] transition-colors focus:outline-none"
                   style={{
                     background: sel ? withAlpha(circle, 0.33) : 'transparent',
-                    border: `1px solid ${sel ? circle : withAlpha(outline, 0.99)}`,
-                    color: '#1B1E20',
+                    border: `${sel ? 2 : 1}px solid ${sel ? circle : withAlpha(outline, 0.6)}`,
+                    color: 'var(--color-text-main)',
                   }}
                 >
-                  <div className="font-semibold">{ph.label}</div>
+                  <div className="font-semibold text-[15px]">
+                    Недели {ph.weekStart}–{ph.weekEnd} · {ph.label}
+                  </div>
                   <div className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
-                    Недели {ph.weekStart}–{ph.weekEnd} · {ph.scheme}
+                    {ph.scheme}
                   </div>
                 </button>
               );
@@ -641,7 +685,7 @@ export function ProgramDetailPage() {
         {phase && (
           <div style={{ background: 'var(--p-labels)', border: `1px solid ${outline}`, borderRadius: '18px', padding: '16px', marginTop: '8px' }}>
             <div style={{ color: labelsText, fontWeight: 700, fontSize: '16px', marginBottom: '4px' }}>
-              {phase.label}
+              Недели {phase.weekStart}–{phase.weekEnd} · {phase.label}
             </div>
             <div className="text-sm" style={{ color: 'var(--color-text-secondary)', marginBottom: '10px' }}>
               {phase.scheme}
@@ -649,9 +693,6 @@ export function ProgramDetailPage() {
 
             {report && !report.empty && (
               <div className="mt-4">
-                <div style={{ color: labelsText, fontWeight: 700, fontSize: '13px', marginBottom: '6px' }}>
-                  {report.ok ? 'План сбалансирован — можно тренироваться.' : 'Как улучшить план'}
-                </div>
                 {report.regionVolume.length > 0 && (
                   <div className="mt-4">
                     <div style={{ color: labelsText, fontWeight: 700, fontSize: '13px', marginBottom: '6px' }}>
@@ -687,7 +728,7 @@ export function ProgramDetailPage() {
                         <span key={name} className="px-2 py-1 rounded text-[11px] font-medium border flex-shrink-0" style={{
                           background: withAlpha(circle, 0.22),
                           borderColor: withAlpha(outline, 0.66),
-                          color: '#1B1E20',
+                          color: 'var(--color-text-main)',
                         }}>
                           {name}: {v}
                         </span>
@@ -700,11 +741,14 @@ export function ProgramDetailPage() {
                     Как улучшить план
                   </div>
                   <div style={{ color: 'var(--color-text-secondary)', fontSize: '13px', lineHeight: 1.5 }}>
-                    {report.ok
-                      ? 'План сбалансирован — можно тренироваться.'
-                      : report.tips.map((t, i) => (
-                          <div key={i} style={{ marginBottom: '2px' }}>• {t}</div>
-                        ))}
+                    <div style={{ marginBottom: '2px' }}>
+                      {report.ok
+                        ? 'План сбалансирован — можно тренироваться. Ниже — на что обратить внимание.'
+                        : 'Есть что подтянуть:'}
+                    </div>
+                    {report.tips.map((t, i) => (
+                      <div key={i} style={{ marginBottom: '2px' }}>• {t}</div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -720,7 +764,7 @@ export function ProgramDetailPage() {
                   role="button"
                   tabIndex={0}
                 >
-                  <div style={{ fontWeight: 700, fontSize: '15px', color: '#1B1E20' }}>
+                  <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--color-text-main)' }}>
                     {day.title}
                   </div>
                   <div style={{ color: editMode ? labelsText : labels, fontSize: '13px', fontWeight: 600 }}>
@@ -729,22 +773,15 @@ export function ProgramDetailPage() {
                 </div>
                 <div className="mt-2 space-y-2">
                   {day.slots.map((slot, si) => (
-                    <div key={si} className="pt-3 pb-2">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex items-center gap-2">
-                          {roleBadge(slot.role)}
-                          <span className="text-sm truncate block" style={{ color: '#1B1E20' }}>
-                            {slot.exercise}
-                          </span>
-                        </div>
-                        <span className="text-[12px] font-mono flex-shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
-                          {slot.sets} × повторений — {slot.reps} · отдых: {slot.rest}
+                    <div key={si} className="py-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        {roleBadge(slot.role)}
+                        <span className="text-[14px] leading-snug" style={{ color: 'var(--color-text-main)' }}>
+                          {slot.exercise}
                         </span>
                       </div>
-                      <div className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-                        {(slot.group && slot.group !== slot.exercise ? slot.group + ' · ' : '')}
-                        {(slot.startWeight ?? 0) > 0 ? `вес ${slot.startWeight} кг · ` : ''}
-                        {(slot.workSec ?? 0) > 0 ? `${slot.workSec} сек подхода · ` : ''}
+                      <div className="text-[12px] mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
+                        {slotExtra(slot)}
                       </div>
                       {editMode && (
                         <div className="flex items-center gap-2 mt-2 pt-2">
@@ -883,7 +920,7 @@ export function ProgramDetailPage() {
                 className="w-4 h-4 rounded"
                 style={{ accentColor: labelsText }}
               />
-              <span className="text-[13px] font-medium" style={{ color: '#1B1E20' }}>Считать время подхода</span>
+              <span className="text-[13px] font-medium" style={{ color: 'var(--color-text-main)' }}>Считать время подхода</span>
             </div>
             {editingSlot.workOn && (
               <div>
@@ -916,9 +953,12 @@ export function ProgramDetailPage() {
         />
       )}
 
-      {/* Пикер добавления упражнения */}
+      {/* Экран добавления упражнения: дерево мышц, несколько сразу — как в APK */}
       {addingTo && (
-        <ExercisePicker title="+ Добавить упражнение" onPick={applyAdd}
+        <ExercisePickerScreen
+          title="Выберите упражнения"
+          subtitle="Отметьте упражнения и нажмите «Добавить»"
+          onPick={applyAdd}
           onClose={() => setAddingTo(null)} />
       )}
 

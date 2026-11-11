@@ -4,13 +4,8 @@ import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { clsx } from 'clsx';
 import { useExercises } from '../../hooks/useExercises';
-import { useCoachStore, useProfileStore } from '../../core/store';
-import {
-  buildExerciseIndex, exercisesOf, byGroupPrimary, secondaryForGroup,
-  isPrimaryForGroup, levelRank, matchesType, filterByStyle,
-} from '../../core/exerciseIndex';
-import { isBasicExercise, isIsolationExercise } from '../../core/exercises';
-import { conflictsWithLimits } from '../../core/coach';
+import { isBasicExercise } from '../../core/exercises';
+import { ExercisePickerScreen } from '../../components/ExercisePickerScreen';
 import type { Exercise } from '../../data/types';
 
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
@@ -294,10 +289,9 @@ export function ExercisePicker({ title, initialQuery = '', onPick, onClose, alte
 }
 
 /**
- * Замена упражнения — тот же пикер, что «Добавить» в Android: сверху
- * «Альтернативы» заменяемому (лучшие сначала, до 8), ниже — базовые и
- * изолирующие упражнения группы. Запрещённые тренером и конфликтующие с
- * ограничениями по здоровью не показываем.
+ * Замена упражнения — экран выбора как в Android: сверху «Альтернативы»
+ * заменяемому (лучшие сначала, до 8), ниже — вся база с деревом мышц.
+ * Запрещённые тренером и конфликтующие с ограничениями не показываем.
  */
 export function ReplaceExercisePicker({ title = 'Заменить упражнение', currentName, groupId, onPick, onClose, onBan }: {
   title?: string;
@@ -308,70 +302,16 @@ export function ReplaceExercisePicker({ title = 'Заменить упражне
   /** Только в тренировке: «Не предлагать «…»». */
   onBan?: () => void;
 }) {
-  const { exercises, muscleGroups } = useExercises();
-  const { profile } = useProfileStore();
-  const coach = useCoachStore();
-
-  const index = useMemo(() => buildExerciseIndex(muscleGroups, exercises), [muscleGroups, exercises]);
-  const level = profile?.level || '';
-  const style = profile?.trainStyle || 'any';
-  const restrictions = coach.restrictions || [];
-  const banned = coach.banned || [];
-
-  const current = useMemo(
-    () => exercises.find(e => e.name === currentName) || null,
-    [exercises, currentName],
-  );
-  const gid = groupId || current?.muscleGroup || '';
-
-  // Альтернативы: та же группа, «лучшие сначала» — базовые, затем основная
-  // группа, затем алфавит. Текущее, запрещённое и конфликтующее исключаем.
-  const alternatives = useMemo(() => {
-    if (!gid) return [] as Exercise[];
-    const pool = exercisesOf(index, gid).filter(ex =>
-      ex.id !== current?.id
-      && ex.name !== currentName
-      && !banned.includes(ex.name)
-      && !conflictsWithLimits(ex.name, restrictions)
-      && (!level || levelRank(ex.difficulty) <= levelRank(level)));
-    const ordered = [...filterByStyle(pool, style)];
-    ordered.sort((a, b) => {
-      const ab = isBasicExercise(a) ? 1 : 0;
-      const bb = isBasicExercise(b) ? 1 : 0;
-      if (ab !== bb) return bb - ab;
-      const ap = isPrimaryForGroup(a, gid) ? 1 : 0;
-      const bp = isPrimaryForGroup(b, gid) ? 1 : 0;
-      if (ap !== bp) return bp - ap;
-      return a.name.localeCompare(b.name, 'ru');
-    });
-    return ordered.slice(0, 8);
-  }, [index, gid, current, currentName, style, level, restrictions, banned]);
-
-  // Ниже — упражнения той же группы: базовые, изолирующие, затем пришедшие
-  // по вторичным мышцам. Ровно как список группы в Android.
-  const pool = useMemo(() => {
-    if (!gid) return [] as Exercise[];
-    const primary = byGroupPrimary(index, gid, level, '');
-    const secondary = secondaryForGroup(index, gid, level, '');
-    const ordered: Exercise[] = [];
-    for (const ex of primary) if (isBasicExercise(ex)) ordered.push(ex);
-    for (const ex of primary) if (!isBasicExercise(ex) && isIsolationExercise(ex)) ordered.push(ex);
-    for (const ex of primary) if (!isBasicExercise(ex) && !isIsolationExercise(ex)) ordered.push(ex);
-    ordered.push(...secondary);
-    return filterByStyle(ordered, style).filter(ex =>
-      ex.id !== current?.id
-      && !banned.includes(ex.name)
-      && !conflictsWithLimits(ex.name, restrictions));
-  }, [index, gid, current, style, level, restrictions, banned]);
-
   return (
-    <ExercisePicker
+    <ExercisePickerScreen
       title={title}
-      alternatives={alternatives.map(e => e.name)}
-      pool={pool}
+      subtitle="Сверху — альтернативы заменяемому, ниже — вся база. Выбери замену и нажми «Заменить»."
+      multiple={false}
+      currentName={currentName}
+      groupId={groupId}
       banName={onBan ? currentName : undefined}
       onBan={onBan}
-      onPick={onPick}
+      onPick={names => { if (names[0]) onPick(names[0]); }}
       onClose={onClose}
     />
   );

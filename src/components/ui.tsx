@@ -139,7 +139,7 @@ export function PageHeader({ title, subtitle, right, onBack }: {
           {title}
         </div>
         {subtitle && (
-          <div className="text-[12px] truncate" style={{ color: 'var(--color-text-secondary)' }}>
+          <div className="text-[12px] leading-snug line-clamp-2" style={{ color: 'var(--color-text-secondary)' }}>
             {subtitle}
           </div>
         )}
