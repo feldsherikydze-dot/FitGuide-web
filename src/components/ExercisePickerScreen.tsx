@@ -4,7 +4,7 @@
 //
 // Один экран на все случаи: «+ Упражнение» в своей сборке (несколько сразу),
 // «+ Добавить упражнение» в правке готовой программы и «Заменить»
-// (одиночный выбор, тап сразу возвращает замену).
+// (одиночный выбор: тап ставит галочку, кнопка «Заменить» подтверждает).
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useExercises, usePicker } from '../hooks/useExercises';
@@ -174,11 +174,11 @@ export function ExercisePickerScreen({
   }, [region, muscle, headId, listCount]);
 
   const toggle = (ex: Exercise) => {
-    if (!multiple) {
-      onPick([ex.name]);
-      return;
-    }
     setSelected(prev => {
+      // Замена: выбор одиночный — тап по другой карточке переносит галочку.
+      if (!multiple) {
+        return prev.has(ex.id) ? new Set<string>() : new Set<string>([ex.id]);
+      }
       const next = new Set(prev);
       if (next.has(ex.id)) next.delete(ex.id);
       else next.add(ex.id);
@@ -191,6 +191,11 @@ export function ExercisePickerScreen({
     const names = exercises.filter(ex => selected.has(ex.id)).map(ex => ex.name);
     onPick(names);
   };
+
+  // Замена: имя выбранного — в строку под поиском (кнопка остаётся короткой).
+  const selectedName = selected.size === 1
+    ? exercises.find(ex => selected.has(ex.id))?.name || ''
+    : '';
 
   const badgeFor = (ex: Exercise): string => {
     if (isPrimaryInPicker(pickerIdx, ex, regionId, effMuscleId)) return '';
@@ -331,7 +336,9 @@ export function ExercisePickerScreen({
       </div>
 
       <div className="px-4 pt-1.5 text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
-        Выбрано: {selected.size} упражнений
+        {multiple
+          ? `Выбрано: ${selected.size} упражнений`
+          : (selectedName ? `Выбрано: ${selectedName}` : 'Выберите упражнение для замены')}
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 pt-2 pb-24">
@@ -360,8 +367,8 @@ export function ExercisePickerScreen({
       <div className="px-4 pb-4 pt-1">
         <button
           type="button"
-          onClick={multiple ? confirm : undefined}
-          disabled={multiple ? selected.size === 0 : true}
+          onClick={confirm}
+          disabled={selected.size === 0}
           className="w-full h-[52px] rounded-[26px] text-[16px] font-bold uppercase tracking-[0.089em] active:opacity-80 disabled:opacity-50"
           style={{
             background: 'var(--p-labels)',
