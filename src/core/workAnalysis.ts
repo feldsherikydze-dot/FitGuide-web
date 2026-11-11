@@ -390,14 +390,27 @@ function buildTips(r: Report) {
         });
       }
     }
-    if (st.repsSets >= 3 && st.repsPlan > 0 && st.repsDone * 100 < st.repsPlan * 95) {
+    // Повторы просели — только если это заметно (ниже 90% плана). 9,4 из 10
+    // и 7,3 из 8 — обычная усталость к последнему подходу, а не повод снижать
+    // вес. И если вес за период вырос, снижать его тем более нельзя: сначала
+    // закрепляем новый вес, пока повторы не вернутся к плану.
+    if (st.repsSets >= 3 && st.repsPlan > 0 && st.repsDone * 100 < st.repsPlan * 90) {
       const planAvg = st.repsPlan / st.repsSets;
       const doneAvg = st.repsDone / st.repsSets;
-      r.tips.push({
-        title: `${st.exercise}: повторы просели`,
-        text: `План ${round1(planAvg)} повторов, по факту ${round1(doneAvg)}. Снизь вес на 2,5–5%, `
-          + 'чтобы делать 1–2 повтора в запасе, а не до отказа.',
-      });
+      if (st.weightDeltaPct >= 5) {
+        r.tips.push({
+          title: `${st.exercise}: повторы просели на фоне роста веса`,
+          text: `План ${round1(planAvg)} повторов, по факту ${round1(doneAvg)}. Вес за период вырос `
+            + `на ${Math.round(st.weightDeltaPct)}% — это ожидаемо. Закрепи вес на 1–2 недели, `
+            + 'пока повторы не вернутся к плану.',
+        });
+      } else {
+        r.tips.push({
+          title: `${st.exercise}: повторы просели`,
+          text: `План ${round1(planAvg)} повторов, по факту ${round1(doneAvg)}. Снизь вес на 2,5–5%, `
+            + 'чтобы делать 1–2 повтора в запасе, а не до отказа.',
+        });
+      }
     }
     if (st.avgSecPerSet > TUT_CEIL_SEC && st.sets >= 3) {
       r.tips.push({
