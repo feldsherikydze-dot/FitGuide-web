@@ -28,7 +28,10 @@ export interface ExStat {
   repsPlan: number;
   repsDone: number;
   repsSets: number;
+  /** Подходов в неделю — по неделям, где упражнение реально тренировалось. */
   setsPerWeek: number;
+  /** Подходов за тренировку: понятнее, чем «0.9 подх./нед.» для разового упражнения. */
+  setsPerSession: number;
   tooLongSets: number;
   tooShortSets: number;
   overPlanSets: number;
@@ -42,6 +45,14 @@ export interface Week {
   sets: number;
   planPct: number;
   tonnage: number;
+}
+
+/** Объём одной мышечной группы за период. */
+export interface MuscleStat {
+  group: string;
+  sets: number;
+  /** Подходов в неделю — по неделям, где группа реально тренировалась. */
+  setsPerWeek: number;
 }
 
 export interface Flag {
@@ -64,6 +75,8 @@ export interface Report {
   planPct: number;
   tonnage: number;
   byExercise: Map<string, ExStat>;
+  /** Объём по мышечным группам: именно он сравнивается с 10–20 подходами. */
+  byMuscle: Map<string, MuscleStat>;
   weeks: Week[];
   flags: Flag[];
   tips: Tip[];
@@ -102,11 +115,16 @@ export function sessionSets(s: Session): number {
   return s.items.reduce((sum, it) => sum + (it.sets || 0), 0);
 }
 
-export function buildReport(sessions: Session[], fromMs: number, toMs: number): Report {
+export function buildReport(
+  sessions: Session[],
+  fromMs: number,
+  toMs: number,
+  groupOf?: (exercise: string) => string | null,
+): Report {
   const r: Report = {
     workouts: 0, totalDurationSec: 0, workedSec: 0, workSharePct: 0,
     sets: 0, planPct: 0, tonnage: 0,
-    byExercise: new Map(), weeks: [], flags: [], tips: [],
+    byExercise: new Map(), byMuscle: new Map(), weeks: [], flags: [], tips: [],
     isEmpty: () => r.workouts === 0,
   };
 
@@ -115,12 +133,15 @@ export function buildReport(sessions: Session[], fromMs: number, toMs: number): 
     .sort((a, b) => a.ts - b.ts);
   if (!inRange.length) return r;
 
-  const spanMs = Math.max(1, toMs - fromMs);
-  const weeksInPeriod = spanMs / WEEK_MS;
   const tonnage = new Map<string, number>();
   const planSum = new Map<string, { sum: number; n: number }>();
   const tempo = new Map<string, { sum: number; n: number }>();
   const days = new Map<string, number[]>();
+  // Недели, в которые упражнение/группа реально тренировались: делим объём
+  // на них, а не на длину периода — иначе отпуск или болезнь «размывают»
+  // недельный объём и анализ ругается на недобор.
+  const exWeeks = new Map<string, Set<number>>();
+  const muscleWeeks = new Map<string, Set<number>>();
   let planAll = 0;
   let planAllSets = 0;
 
@@ -135,6 +156,7 @@ export function buildReport(sessions: Session[], fromMs: number, toMs: number): 
       w.tonnage += sTonnage;
     }
     const dayKey = Math.max(0, Math.floor((s.ts - fromMs) / DAY_MS));
+    const weekIdx = Math.floor((s.ts - fromMs) / WEEK_MS);
 
     const facts = s.setFacts && s.setFacts.length
       ? s.setFacts
@@ -156,7 +178,7 @@ export function buildReport(sessions: Session[], fromMs: number, toMs: number): 
         st = {
           exercise: f.exercise, sets: 0, workedSec: 0, tonnage: 0, avgSecPerSet: 0,
           planPct: 0, tempoSecPerRep: 0, weightFirst: 0, weightLast: 0, weightDeltaPct: 0,
-          feelOk: 0, feelEasy: 0, feelHard: 0, setsPerWeek: 0,
+          feelOk: 0, feelEasy: 0, feelHard: 0, setsPerWeek: 0, setsPerSession: 0,
           repsPlan: 0, repsDone: 0, repsSets: 0,
           tooLongSets: 0, tooShortSets: 0, overPlanSets: 0, days: 0,
         };
@@ -165,12 +187,25 @@ export function buildReport(sessions: Session[], fromMs: number, toMs: number): 
         planSum.set(f.exercise, { sum: 0, n: 0 });
         tempo.set(f.exercise, { sum: 0, n: 0 });
         days.set(f.exercise, []);
+        exWeeks.set(f.exercise, new Set());
       }
       const actual = Math.max(0, f.actualSec || 0);
       const planned = Math.max(0, f.plannedSec || 0);
       const reps = Math.max(0, f.reps || 0);
       const weight = Math.max(0, f.weightKg || 0);
       st.sets++;
+      exWeeks.get(f.exercise)?.add(weekIdx);
+      const group = groupOf ? groupOf(f.exercise) : null;
+      if (group) {
+        let ms = r.byMuscle.get(group);
+        if (!ms) {
+          ms = { group, sets: 0, setsPerWeek: 0 };
+          r.byMuscle.set(group, ms);
+          muscleWeeks.set(group, new Set());
+        }
+        ms.sets++;
+        muscleWeeks.get(group)?.add(weekIdx);
+      }
       st.workedSec += actual;
       r.workedSec += actual;
       st.tonnage += weight * reps;
@@ -225,10 +260,17 @@ export function buildReport(sessions: Session[], fromMs: number, toMs: number): 
     const tm = tempo.get(name)!;
     st.tempoSecPerRep = tm.n > 0 ? tm.sum / tm.n : 0;
     st.days = (days.get(name) || []).length;
-    st.setsPerWeek = weeksInPeriod > 0 ? st.sets / weeksInPeriod : st.sets;
+    const ew = exWeeks.get(name)?.size || 0;
+    st.setsPerWeek = ew > 0 ? st.sets / ew : st.sets;
+    st.setsPerSession = st.days > 0 ? st.sets / st.days : st.sets;
     if (st.weightFirst > 0 && st.weightLast > 0) {
       st.weightDeltaPct = 100 * (st.weightLast - st.weightFirst) / st.weightFirst;
     }
+  }
+
+  for (const m of r.byMuscle.values()) {
+    const mw = muscleWeeks.get(m.group)?.size || 0;
+    m.setsPerWeek = mw > 0 ? m.sets / mw : m.sets;
   }
 
   for (const w of r.weeks) w.planPct = w.sets > 0 ? w.planPct / w.sets : 0;
@@ -280,11 +322,16 @@ function buildFlags(r: Report) {
           + 'Либо закладывай больше времени, либо тяжелее работай под нагрузкой.',
       });
     }
-    if (st.setsPerWeek > 0 && st.setsPerWeek < 6 && st.sets >= 3) {
+  }
+  // Объём — по мышечной группе, а не по упражнению: 4 упражнения на грудь
+  // по 4 подхода дают 16 подходов в неделю, и это норма, даже если у каждого
+  // упражнения «всего» 4. Считаем только группы, где набралось хотя бы 3 подхода.
+  for (const m of r.byMuscle.values()) {
+    if (m.sets >= 3 && m.setsPerWeek < 10) {
       r.flags.push({
-        exercise: st.exercise, code: 'under',
-        text: `${st.exercise}: ${round1(st.setsPerWeek)} подходов в неделю — для роста массы обычно нужно `
-          + '10–20 на мышцу, то есть чаще или в несколько подходов подряд.',
+        exercise: m.group, code: 'under',
+        text: `${m.group}: ${round1(m.setsPerWeek)} подходов в неделю — для роста массы обычно нужно `
+          + '10–20 на мышцу. Добавь упражнение или подход.',
       });
     }
   }

@@ -5,6 +5,7 @@
 
 import { useMemo, useState } from 'react';
 import { useCoachStore } from '../../core/store';
+import { useExercises } from '../../hooks/useExercises';
 import {
   buildReport, fmtDur, fmtNum, fmtTonnage,
 } from '../../core/workAnalysis';
@@ -53,6 +54,7 @@ function heartFacts(
 
 export function AnalysisTab() {
   const { sessions } = useCoachStore();
+  const { exercises, muscleGroups } = useExercises();
   const [periodDays, setPeriodDays] = useState(30);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -60,7 +62,21 @@ export function AnalysisTab() {
   const fromMs = now - periodDays * 24 * 3600 * 1000;
   const toMs = now;
 
-  const report = useMemo(() => buildReport(sessions || [], fromMs, toMs), [sessions, fromMs, toMs]);
+  // Имя упражнения → мышечная группа: объём считается по группе, а не по
+  // отдельному упражнению (4 упражнения на грудь по 4 подхода — это 16, норма).
+  const groupOf = useMemo(() => {
+    const groupName = new Map(muscleGroups.map(g => [g.id, g.name]));
+    const exGroup = new Map(exercises.map(e => [e.name, e.muscleGroup]));
+    return (name: string): string | null => {
+      const gid = exGroup.get(name);
+      return gid ? (groupName.get(gid) || null) : null;
+    };
+  }, [exercises, muscleGroups]);
+
+  const report = useMemo(
+    () => buildReport(sessions || [], fromMs, toMs, groupOf),
+    [sessions, fromMs, toMs, groupOf],
+  );
   const empty = report.isEmpty();
 
   const heart = useMemo(() => heartFacts(sessions || [], fromMs, toMs), [sessions, fromMs, toMs]);
@@ -97,14 +113,14 @@ export function AnalysisTab() {
 
   const exerciseDetail = (st: {
     sets: number; avgSecPerSet: number; planPct: number;
-    tempoSecPerRep: number; setsPerWeek: number;
+    tempoSecPerRep: number; setsPerSession: number;
     repsPlan: number; repsDone: number; repsSets: number;
   }): string => {
     const parts = [`подходов ${st.sets}`];
     if (st.avgSecPerSet > 0) parts.push(`среднее ${fmtDur(Math.round(st.avgSecPerSet))}`);
     if (st.planPct > 0) parts.push(`${Math.round(st.planPct)} % от плана`);
     if (st.tempoSecPerRep > 0) parts.push(`${fmtNum(st.tempoSecPerRep)} с на повтор`);
-    if (st.setsPerWeek > 0) parts.push(`${fmtNum(st.setsPerWeek)} подх./нед.`);
+    if (st.setsPerSession > 0) parts.push(`${fmtNum(st.setsPerSession)} за тренировку`);
     if (st.repsSets > 0 && st.repsPlan > 0) {
       parts.push(`повторы ${fmtNum(st.repsDone / st.repsSets)} из ${fmtNum(st.repsPlan / st.repsSets)}`);
     }
@@ -141,6 +157,14 @@ export function AnalysisTab() {
           lines.push(`${st.exercise} — ${exerciseDetail(st)}`);
           const weight = exerciseWeight(st);
           if (weight) lines.push(weight);
+        }
+      }
+
+      if (report.byMuscle.size > 0) {
+        lines.push('');
+        lines.push('== Объём по мышцам ==');
+        for (const m of [...report.byMuscle.values()].sort((a, b) => b.setsPerWeek - a.setsPerWeek)) {
+          lines.push(`${m.group} — ${fmtNum(m.setsPerWeek)} подх./нед.`);
         }
       }
 
@@ -286,6 +310,26 @@ export function AnalysisTab() {
               ))}
             </div>
           </Card>
+
+          {report.byMuscle.size > 0 && (
+            <Card>
+              <div className="text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>
+                Объём по мышцам
+              </div>
+              <div className="mt-2 space-y-1">
+                {[...report.byMuscle.values()]
+                  .sort((a, b) => b.setsPerWeek - a.setsPerWeek)
+                  .map(m => (
+                    <div key={m.group} className="flex justify-between text-[14px]">
+                      <span style={{ color: 'var(--color-text-secondary)' }}>{m.group}</span>
+                      <span style={{ color: 'var(--color-text-main)', fontWeight: 700 }}>
+                        {fmtNum(m.setsPerWeek)} подх./нед.
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </Card>
+          )}
 
           {report.tips.length > 0 && (
             <Card>
