@@ -150,6 +150,14 @@ export function AnalysisTab() {
       if (report.totalDurationSec > 0) lines.push(`${sharePct} % от времени тренировок`);
       for (const [label, value] of summaryRows()) lines.push(`${label}: ${value}`);
 
+      if (report.byMuscle.size > 0) {
+        lines.push('');
+        lines.push('== Объём по мышцам ==');
+        for (const m of [...report.byMuscle.values()].sort((a, b) => b.setsPerWeek - a.setsPerWeek)) {
+          lines.push(`${m.group} — ${fmtNum(m.setsPerWeek)} подх./нед.`);
+        }
+      }
+
       if (report.byExercise.size > 0) {
         lines.push('');
         lines.push('== По упражнениям ==');
@@ -157,14 +165,6 @@ export function AnalysisTab() {
           lines.push(`${st.exercise} — ${exerciseDetail(st)}`);
           const weight = exerciseWeight(st);
           if (weight) lines.push(weight);
-        }
-      }
-
-      if (report.byMuscle.size > 0) {
-        lines.push('');
-        lines.push('== Объём по мышцам ==');
-        for (const m of [...report.byMuscle.values()].sort((a, b) => b.setsPerWeek - a.setsPerWeek)) {
-          lines.push(`${m.group} — ${fmtNum(m.setsPerWeek)} подх./нед.`);
         }
       }
 
@@ -259,6 +259,26 @@ export function AnalysisTab() {
             </div>
           </Card>
 
+          {report.byMuscle.size > 0 && (
+            <Card>
+              <div className="text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>
+                Объём по мышцам
+              </div>
+              <div className="mt-2 space-y-1">
+                {[...report.byMuscle.values()]
+                  .sort((a, b) => b.setsPerWeek - a.setsPerWeek)
+                  .map(m => (
+                    <div key={m.group} className="flex justify-between text-[14px]">
+                      <span style={{ color: 'var(--color-text-secondary)' }}>{m.group}</span>
+                      <span style={{ color: 'var(--color-text-main)', fontWeight: 700 }}>
+                        {fmtNum(m.setsPerWeek)} подх./нед.
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </Card>
+          )}
+
           {report.weeks.some(w => w.workouts > 0 || w.sets > 0) && (
             <Card>
               <div className="text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>
@@ -310,26 +330,6 @@ export function AnalysisTab() {
               ))}
             </div>
           </Card>
-
-          {report.byMuscle.size > 0 && (
-            <Card>
-              <div className="text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>
-                Объём по мышцам
-              </div>
-              <div className="mt-2 space-y-1">
-                {[...report.byMuscle.values()]
-                  .sort((a, b) => b.setsPerWeek - a.setsPerWeek)
-                  .map(m => (
-                    <div key={m.group} className="flex justify-between text-[14px]">
-                      <span style={{ color: 'var(--color-text-secondary)' }}>{m.group}</span>
-                      <span style={{ color: 'var(--color-text-main)', fontWeight: 700 }}>
-                        {fmtNum(m.setsPerWeek)} подх./нед.
-                      </span>
-                    </div>
-                  ))}
-              </div>
-            </Card>
-          )}
 
           {report.tips.length > 0 && (
             <Card>
