@@ -10,6 +10,13 @@ export const TUT_CEIL_SEC = 60;
 export const TUT_TOO_LONG_SEC = 90;
 export const TEMPO_FAST_SEC = 1.5;
 
+/**
+ * Вид упражнения — от него зависит, что вообще имеет смысл считать.
+ * Динамика: повторы, темп, вес. Статика (планка, вакуум, удержания):
+ * только время подхода. Шаги: повторы-шаги, но не «темп на повтор».
+ */
+export type ExKind = 'dynamic' | 'static' | 'steps';
+
 export interface ExStat {
   exercise: string;
   sets: number;
@@ -32,6 +39,8 @@ export interface ExStat {
   setsPerWeek: number;
   /** Подходов за тренировку: понятнее, чем «0.9 подх./нед.» для разового упражнения. */
   setsPerSession: number;
+  /** Вид упражнения: динамика / статика / шаги. */
+  kind: ExKind;
   tooLongSets: number;
   tooShortSets: number;
   overPlanSets: number;
@@ -120,6 +129,7 @@ export function buildReport(
   fromMs: number,
   toMs: number,
   groupOf?: (exercise: string) => string | null,
+  kindOf?: (exercise: string) => ExKind | null,
 ): Report {
   const r: Report = {
     workouts: 0, totalDurationSec: 0, workedSec: 0, workSharePct: 0,
@@ -180,6 +190,7 @@ export function buildReport(
           planPct: 0, tempoSecPerRep: 0, weightFirst: 0, weightLast: 0, weightDeltaPct: 0,
           feelOk: 0, feelEasy: 0, feelHard: 0, setsPerWeek: 0, setsPerSession: 0,
           repsPlan: 0, repsDone: 0, repsSets: 0,
+          kind: (kindOf ? kindOf(f.exercise) : null) || 'dynamic',
           tooLongSets: 0, tooShortSets: 0, overPlanSets: 0, days: 0,
         };
         r.byExercise.set(f.exercise, st);
@@ -212,7 +223,7 @@ export function buildReport(
       tonnage.set(f.exercise, (tonnage.get(f.exercise) || 0) + weight * reps);
       if (weight > 0 && st.weightFirst <= 0) st.weightFirst = weight;
       if (weight > 0) st.weightLast = weight;
-      if (reps > 0 && actual > 0) {
+      if (reps > 0 && actual > 0 && st.kind === 'dynamic') {
         const t = tempo.get(f.exercise)!;
         t.sum += actual / reps;
         t.n++;
@@ -223,7 +234,7 @@ export function buildReport(
       // План повторов на упражнение: 4×10 → 10. Просевшие повторы
       // (10/10/9/8) — сигнал тренеру снизить вес, а не жать до отказа.
       const plannedRep = plannedReps.get(f.exercise) || 0;
-      if (plannedRep > 0 && reps > 0) {
+      if (st.kind === 'dynamic' && plannedRep > 0 && reps > 0) {
         st.repsPlan += plannedRep;
         st.repsDone += reps;
         st.repsSets++;
@@ -296,30 +307,46 @@ function weekFor(weeks: Week[], fromMs: number, dateMs: number): Week | null {
 function buildFlags(r: Report) {
   for (const st of r.byExercise.values()) {
     if (st.tooLongSets > 0 && st.tooLongSets * 2 >= st.sets) {
+      const advice = st.kind === 'static'
+        ? 'для статики это уже выносливость, а не стимул: сократи удержание или разбей на части.'
+        : st.kind === 'steps'
+          ? 'сократи подход или разбей на части.'
+          : 'дальше времени — это уже усталость, а не стимул: снизь вес или сократи подход.';
       r.flags.push({
         exercise: st.exercise, code: 'long',
         text: `${st.exercise}: подход длиннее ${TUT_TOO_LONG_SEC} с (${st.tooLongSets} из ${st.sets}). `
-          + 'Дальше времени — это уже усталость, а не стимул: снизь вес или сократи подход.',
+          + advice,
       });
     }
     if (st.tooShortSets > 0 && st.tooShortSets * 2 >= st.sets && st.sets > 1) {
+      const advice = st.kind === 'static'
+        ? 'под нагрузкой мало, добавь время удержания.'
+        : st.kind === 'steps'
+          ? 'под нагрузкой мало, добавь шаги.'
+          : 'под нагрузкой мало, добавь повторы или время.';
       r.flags.push({
         exercise: st.exercise, code: 'short',
         text: `${st.exercise}: подход короче ${TUT_FLOOR_SEC} с (${st.tooShortSets} из ${st.sets}) — `
-          + 'под нагрузкой мало, добавь повторы или время.',
+          + advice,
       });
     }
-    if (st.tempoSecPerRep > 0 && st.tempoSecPerRep < TEMPO_FAST_SEC && st.weightLast > 0) {
+    if (st.kind === 'dynamic' && st.tempoSecPerRep > 0 && st.tempoSecPerRep < TEMPO_FAST_SEC) {
+      const advice = st.weightLast > 0
+        ? 'слишком быстро, вес почти не чувствуется.'
+        : 'слишком быстро — работает инерция, а не мышца.';
       r.flags.push({
         exercise: st.exercise, code: 'fast',
-        text: `${st.exercise}: ${round1(st.tempoSecPerRep)} с на повтор — слишком быстро, вес почти не чувствуется.`,
+        text: `${st.exercise}: ${round1(st.tempoSecPerRep)} с на повтор — ${advice}`,
       });
     }
     if (st.overPlanSets > 0 && st.overPlanSets * 2 >= st.sets) {
+      const advice = st.kind === 'static'
+        ? 'закладывай больше времени на удержание.'
+        : 'либо закладывай больше времени, либо тяжелее работай под нагрузкой.';
       r.flags.push({
         exercise: st.exercise, code: 'over',
         text: `${st.exercise}: чаще всего отрабатывает время больше плана (${st.overPlanSets} из ${st.sets}). `
-          + 'Либо закладывай больше времени, либо тяжелее работай под нагрузкой.',
+          + advice,
       });
     }
   }
@@ -359,7 +386,7 @@ function buildTips(r: Report) {
     });
   } else if (r.planPct > 0 && r.planPct <= 80) {
     r.tips.push({
-      title: 'План по времени занижен',
+      title: 'План по времени завышен',
       text: `В среднем выходит только ${Math.round(r.planPct)}% от плана — это про недобор, а не про `
         + 'усталость. Либо подъём тяжелее, либо времени в плане больше, чем нужно.',
     });
@@ -373,15 +400,54 @@ function buildTips(r: Report) {
   for (const st of r.byExercise.values()) {
     const marks = st.feelOk + st.feelEasy + st.feelHard;
     if (marks >= 3) {
-      if (st.feelEasy * 2 > marks) {
+      const hasWeight = st.weightLast > 0;
+      if (st.kind === 'static') {
+        if (st.feelEasy * 2 > marks) {
+          r.tips.push({
+            title: `${st.exercise}: удерживай дольше`,
+            text: 'Чаще всего «легко». Добавь 10–15 секунд к удержанию — статика растёт от времени под нагрузкой.',
+          });
+        } else if (st.feelHard * 2 > marks) {
+          r.tips.push({
+            title: `${st.exercise}: удержание длинное`,
+            text: 'Чаще всего «до отказа». Сократи удержание на 10–15 секунд или разбей подход на части — так техника не развалится.',
+          });
+        } else if (st.feelOk * 2 > marks) {
+          r.tips.push({
+            title: `${st.exercise}: удержание подобрано`,
+            text: 'Чаще всего «предотказ» — рабочая зона, время менять пока незачем.',
+          });
+        }
+      } else if (st.kind === 'steps') {
+        if (st.feelEasy * 2 > marks) {
+          r.tips.push({
+            title: `${st.exercise}: добавь шагов`,
+            text: 'Чаще всего «легко». Добавь 5–10 шагов на сторону или усложни резинку.',
+          });
+        } else if (st.feelHard * 2 > marks) {
+          r.tips.push({
+            title: `${st.exercise}: шагов многовато`,
+            text: 'Чаще всего «до отказа». Уменьши шаги на подход или возьми резинку легче.',
+          });
+        } else if (st.feelOk * 2 > marks) {
+          r.tips.push({
+            title: `${st.exercise}: нагрузка подобрана`,
+            text: 'Чаще всего «предотказ» — рабочая зона, менять пока незачем.',
+          });
+        }
+      } else if (st.feelEasy * 2 > marks) {
         r.tips.push({
-          title: `${st.exercise}: можно тяжелее`,
-          text: 'Чаще всего «легко». Следующий раз добавь 2,5 кг или на подход; сейчас рабочего веса не хватает.',
+          title: hasWeight ? `${st.exercise}: можно тяжелее` : `${st.exercise}: можно сложнее`,
+          text: hasWeight
+            ? 'Чаще всего «легко». Следующий раз добавь 2,5 кг или на подход; сейчас рабочего веса не хватает.'
+            : 'Чаще всего «легко». Добавь повторы или усложни вариант — своего веса уже не хватает.',
         });
       } else if (st.feelHard * 2 > marks) {
         r.tips.push({
-          title: `${st.exercise}: нужно легче`,
-          text: 'Чаще всего «до отказа». Снизь рабочий вес на 5% — так доработаешь нужные подходы и оставишь 1–2 повтора в запасе, а не будешь бросать.',
+          title: hasWeight ? `${st.exercise}: нужно легче` : `${st.exercise}: нужно проще`,
+          text: hasWeight
+            ? 'Чаще всего «до отказа». Снизь рабочий вес на 5% — так доработаешь нужные подходы и оставишь 1–2 повтора в запасе, а не будешь бросать.'
+            : 'Чаще всего «до отказа». Уменьши повторы или возьми более простой вариант — 1–2 повтора в запасе должны оставаться.',
         });
       } else if (st.feelOk * 2 > marks) {
         r.tips.push({
@@ -394,7 +460,8 @@ function buildTips(r: Report) {
     // и 7,3 из 8 — обычная усталость к последнему подходу, а не повод снижать
     // вес. И если вес за период вырос, снижать его тем более нельзя: сначала
     // закрепляем новый вес, пока повторы не вернутся к плану.
-    if (st.repsSets >= 3 && st.repsPlan > 0 && st.repsDone * 100 < st.repsPlan * 90) {
+    if (st.kind === 'dynamic' && st.repsSets >= 3 && st.repsPlan > 0
+      && st.repsDone * 100 < st.repsPlan * 90) {
       const planAvg = st.repsPlan / st.repsSets;
       const doneAvg = st.repsDone / st.repsSets;
       if (st.weightDeltaPct >= 5) {
@@ -412,26 +479,26 @@ function buildTips(r: Report) {
         });
       }
     }
-    if (st.avgSecPerSet > TUT_CEIL_SEC && st.sets >= 3) {
+    if (st.kind === 'dynamic' && st.avgSecPerSet > TUT_CEIL_SEC && st.sets >= 3) {
       r.tips.push({
         title: `${st.exercise}: подходы длинные`,
         text: `В среднем ${Math.round(st.avgSecPerSet)} с на подход. Добавь подход и убавь время — так будет `
           + 'и качественнее, и ближе к отказу.',
       });
     }
-    if (st.tempoSecPerRep > 6 && st.sets >= 3) {
+    if (st.kind === 'dynamic' && st.tempoSecPerRep > 6 && st.sets >= 3) {
       r.tips.push({
         title: `${st.exercise}: слишком медленный темп`,
-        text: `${round1(st.tempoSecPerRep)} с на повтор. Тяни быстрее, время на подход добьётся паузами внизу, `
-          + 'а не замедлением вверху.',
+        text: `${round1(st.tempoSecPerRep)} с на повтор. Сократи паузы между повторами и не замедляй `
+          + 'движение специально: время подхода должно давать напряжение, а не растянутый темп.',
       });
     }
-    if (st.weightDeltaPct >= 5) {
+    if (st.weightLast > 0 && st.weightDeltaPct >= 5) {
       r.tips.push({
         title: `${st.exercise}: рабочий вес вырос`,
         text: `За период ${fmtWeight(st.weightFirst)} → ${fmtWeight(st.weightLast)} (${Math.round(st.weightDeltaPct)}%).`,
       });
-    } else if (st.weightDeltaPct <= -5) {
+    } else if (st.weightLast > 0 && st.weightDeltaPct <= -5) {
       r.tips.push({
         title: `${st.exercise}: рабочий вес снизился`,
         text: `За период ${fmtWeight(st.weightFirst)} → ${fmtWeight(st.weightLast)} (${Math.round(st.weightDeltaPct)}%). `

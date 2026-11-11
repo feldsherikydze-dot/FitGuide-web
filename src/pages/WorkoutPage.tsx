@@ -10,7 +10,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { ChevronLeft } from 'lucide-react';
 import { useCoachStore, useProgramsStore, useOneRmStore, useProfileStore } from '../core/store';
-import { createSession, applyFeelProgression, loadFeel, setDelta, readinessScore, dayKey, estimateOneRepMax } from '../core/coach';
+import { createSession, applyFeelProgression, loadFeel, setDelta, readinessScore, dayKey, estimateOneRepMax, planReps } from '../core/coach';
 import { playSignal } from '../core/signal';
 import { useExercises } from '../hooks/useExercises';
 import { ReplaceExercisePicker } from './progress/common';
@@ -68,7 +68,9 @@ function lineOf(it: SessionItem, slot?: Slot): string {
   const sets = slot?.sets || it.targetSets || it.sets;
   if (sets > 0) {
     s += ` · ${sets}`;
-    const reps = slot?.reps || (it.reps > 0 ? String(it.reps) : '');
+    const reps = slot?.reps
+      ? String(slot.reps).replace(/^\s*\d+\s*[xх×]\s*/, '')
+      : (it.reps > 0 ? String(it.reps) : '');
     if (reps) s += `×${reps}`;
   }
   if (it.weightKg > 0) s += ` · ${fmtKg(it.weightKg)} кг`;
@@ -307,7 +309,10 @@ export function WorkoutPage() {
     const items = [...session.items];
     items[idx] = { ...curItem, sets: nextSets, feel, setFeels: feels, setReps: repsList };
     const activeSec = Math.max(1, Math.round((Date.now() - setStartRef.current) / 1000));
-    const plannedSec = Math.max(0, curSlot.workSec || 40);
+    // План по времени — только если он реально задан в программе (workSec).
+    // Раньше здесь подставлялось 40 с, и анализ показывал «план 100%» там,
+    // где плана нет вовсе.
+    const plannedSec = Math.max(0, curSlot.workSec || 0);
     const facts = [...(session.setFacts || []), {
       exercise: curItem.exercise,
       feel,
@@ -470,7 +475,7 @@ export function WorkoutPage() {
     }
     if (!exerciseDone) {
       // Сначала фактическое число повторов, потом оценка подхода — как в APK.
-      const planned = Math.max(1, curItem.reps || parseInt(curSlot.reps || '10', 10) || 10);
+      const planned = Math.max(1, curItem.reps || planReps(curSlot.reps) || 10);
       setRepsValue(String(planned));
       setRepsOpen(true);
       return;

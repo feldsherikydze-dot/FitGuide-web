@@ -7,7 +7,7 @@ import { useMemo, useState } from 'react';
 import { useCoachStore } from '../../core/store';
 import { useExercises } from '../../hooks/useExercises';
 import {
-  buildReport, fmtDur, fmtNum, fmtTonnage,
+  buildReport, fmtDur, fmtNum, fmtTonnage, type ExKind,
 } from '../../core/workAnalysis';
 import {
   Card, Hint, PrimaryButton, Toast,
@@ -73,9 +73,23 @@ export function AnalysisTab() {
     };
   }, [exercises, muscleGroups]);
 
+  // Вид упражнения: статика (планка, вакуум) не знает повторов и темпа,
+  // шаги — не «повторы» в обычном смысле. Без этого анализ советует планке
+  // «добавь вес» и считает «1 с на повтор».
+  const kindOf = useMemo(() => {
+    const exReps = new Map(exercises.map(e => [e.name, e.reps || '']));
+    return (name: string): ExKind | null => {
+      const reps = exReps.get(name);
+      if (reps == null) return null;
+      if (/сек/i.test(reps)) return 'static';
+      if (/шаг/i.test(reps)) return 'steps';
+      return 'dynamic';
+    };
+  }, [exercises]);
+
   const report = useMemo(
-    () => buildReport(sessions || [], fromMs, toMs, groupOf),
-    [sessions, fromMs, toMs, groupOf],
+    () => buildReport(sessions || [], fromMs, toMs, groupOf, kindOf),
+    [sessions, fromMs, toMs, groupOf, kindOf],
   );
   const empty = report.isEmpty();
 
@@ -115,13 +129,21 @@ export function AnalysisTab() {
     sets: number; avgSecPerSet: number; planPct: number;
     tempoSecPerRep: number; setsPerSession: number;
     repsPlan: number; repsDone: number; repsSets: number;
+    kind: ExKind;
   }): string => {
     const parts = [`подходов ${st.sets}`];
-    if (st.avgSecPerSet > 0) parts.push(`среднее ${fmtDur(Math.round(st.avgSecPerSet))}`);
+    if (st.kind === 'static') {
+      // Статика измеряется удержанием, а не «секундами на повтор».
+      if (st.avgSecPerSet > 0) parts.push(`среднее удержание ${fmtDur(Math.round(st.avgSecPerSet))}`);
+    } else {
+      if (st.avgSecPerSet > 0) parts.push(`среднее ${fmtDur(Math.round(st.avgSecPerSet))}`);
+      if (st.tempoSecPerRep > 0) {
+        parts.push(`${fmtNum(st.tempoSecPerRep)} с ${st.kind === 'steps' ? 'на шаг' : 'на повтор'}`);
+      }
+    }
     if (st.planPct > 0) parts.push(`${Math.round(st.planPct)} % от плана`);
-    if (st.tempoSecPerRep > 0) parts.push(`${fmtNum(st.tempoSecPerRep)} с на повтор`);
     if (st.setsPerSession > 0) parts.push(`${fmtNum(st.setsPerSession)} за тренировку`);
-    if (st.repsSets > 0 && st.repsPlan > 0) {
+    if (st.kind === 'dynamic' && st.repsSets > 0 && st.repsPlan > 0) {
       parts.push(`повторы ${fmtNum(st.repsDone / st.repsSets)} из ${fmtNum(st.repsPlan / st.repsSets)}`);
     }
     return parts.join(' · ');

@@ -37,6 +37,20 @@ export function maxReps(repRange: string | null | undefined): number {
   return isNaN(n) ? 0 : n;
 }
 
+/**
+ * План повторов из строки каталога: «4×8–12» → 8, «8–12» → 8, «10» → 10.
+ * Раньше parseInt брал первое число и превращал «4×8–12» в 4 повтора —
+ * то есть количество подходов становилось планом повторов. Для статики
+ * («3×30–60 сек») повторов нет вовсе.
+ */
+export function planReps(repRange: string | null | undefined): number {
+  if (!repRange) return 0;
+  if (/сек/i.test(repRange)) return 0;
+  const body = repRange.trim().replace(/^\s*\d+\s*[xх×]\s*/, '');
+  const m = body.match(/\d+/);
+  return m ? parseInt(m[0], 10) : 0;
+}
+
 export function isMassGoal(goal: string | null | undefined): boolean {
   return !!goal && goal.includes(GOALS.MASS);
 }
@@ -405,7 +419,7 @@ export function createSession(
   const items: SessionItem[] = slots.map(s => ({
     exercise: s.exercise,
     weightKg: s.startWeight || 0,
-    reps: parseInt(s.reps) || 8,
+    reps: planReps(s.reps) || 8,
     sets: 0,
     targetSets: s.sets || 3,
   }));
