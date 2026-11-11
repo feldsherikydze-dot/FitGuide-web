@@ -330,11 +330,23 @@ function buildFlags(r: Report) {
     if (m.sets >= 3 && m.setsPerWeek < 10) {
       r.flags.push({
         exercise: m.group, code: 'under',
-        text: `${m.group}: ${round1(m.setsPerWeek)} подходов в неделю — для роста массы обычно нужно `
-          + '10–20 на мышцу. Добавь упражнение или подход.',
+        text: `${m.group}: ${round1(m.setsPerWeek)} ${setsWord(m.setsPerWeek)} в неделю — `
+          + 'для роста массы обычно нужно 10–20 на мышцу. Добавь упражнение или подход.',
       });
     }
   }
+}
+
+/** «1 подход / 3 подхода / 5 подходов» — иначе «3 подходов» режет глаз. */
+function setsWord(v: number): string {
+  const n = Math.round(v * 10) / 10;
+  if (Math.abs(n - Math.round(n)) > 0.001) return 'подхода';
+  const abs = Math.abs(Math.round(n)) % 100;
+  const last = abs % 10;
+  if (abs > 10 && abs < 20) return 'подходов';
+  if (last === 1) return 'подход';
+  if (last >= 2 && last <= 4) return 'подхода';
+  return 'подходов';
 }
 
 function buildTips(r: Report) {
