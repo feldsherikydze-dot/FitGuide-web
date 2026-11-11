@@ -46,7 +46,7 @@ export function maxReps(repRange: string | null | undefined): number {
 export function planReps(repRange: string | null | undefined): number {
   if (!repRange) return 0;
   if (/сек/i.test(repRange)) return 0;
-  const body = repRange.trim().replace(/^\s*\d+\s*[xх×]\s*/, '');
+  const body = repRange.trim().replace(/^\s*\d+(?:\s*[-–]\s*\d+)?\s*[xх×]\s*/, '');
   const m = body.match(/\d+/);
   return m ? parseInt(m[0], 10) : 0;
 }

@@ -81,7 +81,8 @@ export function AnalysisTab() {
     return (name: string): ExKind | null => {
       const reps = exReps.get(name);
       if (reps == null) return null;
-      if (/сек/i.test(reps)) return 'static';
+      // «3×30–60 сек», «3×макс. время», «удержание» — статика без повторов.
+      if (/сек|время|удерж/i.test(reps)) return 'static';
       if (/шаг/i.test(reps)) return 'steps';
       return 'dynamic';
     };

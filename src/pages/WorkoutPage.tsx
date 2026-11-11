@@ -69,7 +69,7 @@ function lineOf(it: SessionItem, slot?: Slot): string {
   if (sets > 0) {
     s += ` · ${sets}`;
     const reps = slot?.reps
-      ? String(slot.reps).replace(/^\s*\d+\s*[xх×]\s*/, '')
+      ? String(slot.reps).replace(/^\s*\d+(?:\s*[-–]\s*\d+)?\s*[xх×]\s*/, '')
       : (it.reps > 0 ? String(it.reps) : '');
     if (reps) s += `×${reps}`;
   }
