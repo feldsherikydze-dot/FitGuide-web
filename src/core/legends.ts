@@ -160,7 +160,7 @@ export const LEGEND_CATALOG: LegendProgram[] = [
       'движения. Развивает выносливость, сердце и общий тонус.',
     audience: 'any', goal: GOALS.ENDURANCE, level: 'beginner', days: 3, weeks: 8,
   },
-  // --- Fitnessbatya: готовые планы с реальными днями (src/data/legendPlans.json) ---
+  // --- FitGuide: готовые планы с реальными днями (src/data/legendPlans.json) ---
   {
     id: 'fb_beginner_3d', name: 'Первый шаг: 3 силовые в неделю', author: 'FitGuide',
     description: 'Стартовый цикл из трёх силовых в неделю: по пять движений на тренировку, база и кор, ' +
