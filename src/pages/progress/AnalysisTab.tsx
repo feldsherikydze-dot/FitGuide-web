@@ -139,13 +139,13 @@ export function AnalysisTab() {
     } else {
       if (st.avgSecPerSet > 0) parts.push(`среднее ${fmtDur(Math.round(st.avgSecPerSet))}`);
       if (st.tempoSecPerRep > 0) {
-        parts.push(`${fmtNum(st.tempoSecPerRep)} с ${st.kind === 'steps' ? 'на шаг' : 'на повтор'}`);
+        parts.push(`${Math.round(st.tempoSecPerRep)} с ${st.kind === 'steps' ? 'на шаг' : 'на повтор'}`);
       }
     }
     if (st.planPct > 0) parts.push(`${Math.round(st.planPct)} % от плана`);
-    if (st.setsPerSession > 0) parts.push(`${fmtNum(st.setsPerSession)} за тренировку`);
+    if (st.setsPerSession > 0) parts.push(`${Math.round(st.setsPerSession)} за тренировку`);
     if (st.kind === 'dynamic' && st.repsSets > 0 && st.repsPlan > 0) {
-      parts.push(`повторы ${fmtNum(st.repsDone / st.repsSets)} из ${fmtNum(st.repsPlan / st.repsSets)}`);
+      parts.push(`повторы ${Math.round(st.repsDone / st.repsSets)} из ${Math.round(st.repsPlan / st.repsSets)}`);
     }
     return parts.join(' · ');
   };
@@ -177,7 +177,8 @@ export function AnalysisTab() {
         lines.push('');
         lines.push('== Объём по мышцам ==');
         for (const m of [...report.byMuscle.values()].sort((a, b) => b.setsPerWeek - a.setsPerWeek)) {
-          lines.push(`${m.group} — ${fmtNum(m.setsPerWeek)} подх./нед.`);
+          const deload = m.deloadWeeks > 0 ? ` (разгрузка ${Math.round(m.setsPerWeekDeload)})` : '';
+          lines.push(`${m.group} — ${Math.round(m.setsPerWeek)} подх./нед.${deload}`);
         }
       }
 
@@ -287,14 +288,26 @@ export function AnalysisTab() {
               <div className="text-[15px] font-bold" style={{ color: 'var(--color-text-main)' }}>
                 Объём по мышцам
               </div>
-              <div className="mt-2 space-y-1">
+              <div className="mt-2 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
+                подходов в неделю
+              </div>
+              <div className="mt-1 grid grid-cols-[1fr_auto_auto] gap-x-4 text-[12px]"
+                style={{ color: 'var(--color-text-secondary)' }}>
+                <span />
+                <span className="text-right">осн. недели</span>
+                <span className="text-right">разгрузка</span>
+              </div>
+              <div className="mt-1 space-y-1">
                 {[...report.byMuscle.values()]
                   .sort((a, b) => b.setsPerWeek - a.setsPerWeek)
                   .map(m => (
-                    <div key={m.group} className="flex justify-between text-[14px]">
+                    <div key={m.group} className="grid grid-cols-[1fr_auto_auto] gap-x-4 text-[14px]">
                       <span style={{ color: 'var(--color-text-secondary)' }}>{m.group}</span>
-                      <span style={{ color: 'var(--color-text-main)', fontWeight: 700 }}>
-                        {fmtNum(m.setsPerWeek)} подх./нед.
+                      <span className="text-right" style={{ color: 'var(--color-text-main)', fontWeight: 700 }}>
+                        {Math.round(m.setsPerWeek)}
+                      </span>
+                      <span className="text-right" style={{ color: 'var(--color-text-main)', fontWeight: 700 }}>
+                        {m.deloadWeeks > 0 ? Math.round(m.setsPerWeekDeload) : '—'}
                       </span>
                     </div>
                   ))}

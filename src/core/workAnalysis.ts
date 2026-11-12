@@ -49,10 +49,14 @@ export interface ExStat {
   repsPlan: number;
   repsDone: number;
   repsSets: number;
-  /** Подходов в неделю — по неделям, где упражнение реально тренировалось. */
+  /** Подходов в неделю — по обычным неделям, где упражнение реально тренировалось. */
   setsPerWeek: number;
+  /** Подходов в неделю в разгрузочные недели (0, если разгрузки не было). */
+  setsPerWeekDeload: number;
   /** Подходов за тренировку: понятнее, чем «0.9 подх./нед.» для разового упражнения. */
   setsPerSession: number;
+  /** Все подходы и подходы в обычных неделях — база для средних. */
+  setsNormal: number;
   /** Вид упражнения: динамика / статика / шаги. */
   kind: ExKind;
   tooLongSets: number;
@@ -74,8 +78,14 @@ export interface Week {
 export interface MuscleStat {
   group: string;
   sets: number;
-  /** Подходов в неделю — по неделям, где группа реально тренировалась. */
+  /** Подходов в неделю — по обычным неделям, где группа реально тренировалась. */
   setsPerWeek: number;
+  /** Подходов в неделю в разгрузочные недели (0, если разгрузки не было). */
+  setsPerWeekDeload: number;
+  /** Сколько было разгрузочных недель с этой группой. */
+  deloadWeeks: number;
+  /** Подходы в разгрузочные недели — чтобы отделить их от обычных. */
+  setsDeload: number;
 }
 
 export interface Flag {
@@ -166,6 +176,10 @@ export function buildReport(
   // недельный объём и анализ ругается на недобор.
   const exWeeks = new Map<string, Set<number>>();
   const muscleWeeks = new Map<string, Set<number>>();
+  // Разгрузочные недели (s.adjusted) считаем отдельно: в них объём намеренно
+  // ниже, и подмешивать их в «подходы в неделю» — значит занижать норму.
+  const exDeloadWeeks = new Map<string, Set<number>>();
+  const muscleDeloadWeeks = new Map<string, Set<number>>();
   let planAll = 0;
   let planAllSets = 0;
 
@@ -181,6 +195,7 @@ export function buildReport(
     }
     const dayKey = Math.max(0, Math.floor((s.ts - fromMs) / DAY_MS));
     const weekIdx = Math.floor((s.ts - fromMs) / WEEK_MS);
+    const deload = !!s.adjusted;
 
     const facts = s.setFacts && s.setFacts.length
       ? s.setFacts
@@ -202,7 +217,8 @@ export function buildReport(
         st = {
           exercise: f.exercise, sets: 0, workedSec: 0, tonnage: 0, avgSecPerSet: 0,
           planPct: 0, tempoSecPerRep: 0, weightFirst: 0, weightLast: 0, weightDeltaPct: 0,
-          feelOk: 0, feelEasy: 0, feelHard: 0, setsPerWeek: 0, setsPerSession: 0,
+          feelOk: 0, feelEasy: 0, feelHard: 0, setsPerWeek: 0, setsPerWeekDeload: 0,
+          setsPerSession: 0, setsNormal: 0,
           repsPlan: 0, repsDone: 0, repsSets: 0,
           kind: (kindOf ? kindOf(f.exercise) : null) || 'dynamic',
           tooLongSets: 0, tooShortSets: 0, overPlanSets: 0, days: 0,
@@ -213,23 +229,30 @@ export function buildReport(
         tempo.set(f.exercise, { sum: 0, n: 0 });
         days.set(f.exercise, []);
         exWeeks.set(f.exercise, new Set());
+        exDeloadWeeks.set(f.exercise, new Set());
       }
       const actual = Math.max(0, f.actualSec || 0);
       const planned = Math.max(0, f.plannedSec || 0);
       const reps = Math.max(0, f.reps || 0);
       const weight = Math.max(0, f.weightKg || 0);
       st.sets++;
-      exWeeks.get(f.exercise)?.add(weekIdx);
+      if (!deload) st.setsNormal++;
+      (deload ? exDeloadWeeks : exWeeks).get(f.exercise)?.add(weekIdx);
       const group = groupOf ? groupOf(f.exercise) : null;
       if (group) {
         let ms = r.byMuscle.get(group);
         if (!ms) {
-          ms = { group, sets: 0, setsPerWeek: 0 };
+          ms = {
+            group, sets: 0, setsPerWeek: 0, setsPerWeekDeload: 0,
+            deloadWeeks: 0, setsDeload: 0,
+          };
           r.byMuscle.set(group, ms);
           muscleWeeks.set(group, new Set());
+          muscleDeloadWeeks.set(group, new Set());
         }
         ms.sets++;
-        muscleWeeks.get(group)?.add(weekIdx);
+        if (deload) ms.setsDeload++;
+        (deload ? muscleDeloadWeeks : muscleWeeks).get(group)?.add(weekIdx);
       }
       st.workedSec += actual;
       r.workedSec += actual;
@@ -264,8 +287,10 @@ export function buildReport(
       }
       if (actual > TUT_TOO_LONG_SEC) st.tooLongSets++;
       else if (actual > 0 && actual < TUT_FLOOR_SEC) st.tooShortSets++;
-      const dl = days.get(f.exercise)!;
-      if (dl[dl.length - 1] !== dayKey) dl.push(dayKey);
+      if (!deload) {
+        const dl = days.get(f.exercise)!;
+        if (dl[dl.length - 1] !== dayKey) dl.push(dayKey);
+      }
       if (w) {
         w.sets++;
         w.workedSec += actual;
@@ -286,8 +311,10 @@ export function buildReport(
     st.tempoSecPerRep = tm.n > 0 ? tm.sum / tm.n : 0;
     st.days = (days.get(name) || []).length;
     const ew = exWeeks.get(name)?.size || 0;
-    st.setsPerWeek = ew > 0 ? st.sets / ew : st.sets;
-    st.setsPerSession = st.days > 0 ? st.sets / st.days : st.sets;
+    st.setsPerWeek = ew > 0 ? st.setsNormal / ew : st.setsNormal;
+    const edw = exDeloadWeeks.get(name)?.size || 0;
+    st.setsPerWeekDeload = edw > 0 ? (st.sets - st.setsNormal) / edw : 0;
+    st.setsPerSession = st.days > 0 ? st.setsNormal / st.days : st.setsNormal;
     if (st.weightFirst > 0 && st.weightLast > 0) {
       st.weightDeltaPct = 100 * (st.weightLast - st.weightFirst) / st.weightFirst;
     }
@@ -295,7 +322,11 @@ export function buildReport(
 
   for (const m of r.byMuscle.values()) {
     const mw = muscleWeeks.get(m.group)?.size || 0;
-    m.setsPerWeek = mw > 0 ? m.sets / mw : m.sets;
+    const normal = m.sets - m.setsDeload;
+    m.setsPerWeek = mw > 0 ? normal / mw : normal;
+    const mdw = muscleDeloadWeeks.get(m.group)?.size || 0;
+    m.deloadWeeks = mdw;
+    m.setsPerWeekDeload = mdw > 0 ? m.setsDeload / mdw : 0;
   }
 
   for (const w of r.weeks) w.planPct = w.sets > 0 ? w.planPct / w.sets : 0;
@@ -350,7 +381,7 @@ function buildFlags(r: Report) {
         : 'слишком быстро — работает инерция, а не мышца.';
       r.flags.push({
         exercise: st.exercise, code: 'fast',
-        text: `${st.exercise}: ${round1(st.tempoSecPerRep)} с на повтор — ${advice}`,
+        text: `${st.exercise}: ${Math.round(st.tempoSecPerRep)} с на повтор — ${advice}`,
       });
     }
     if (st.overPlanSets > 0 && st.overPlanSets * 2 >= st.sets) {
@@ -368,10 +399,15 @@ function buildFlags(r: Report) {
   // по 4 подхода дают 16 подходов в неделю, и это норма, даже если у каждого
   // упражнения «всего» 4. Считаем только группы, где набралось хотя бы 3 подхода.
   for (const m of r.byMuscle.values()) {
-    if (m.sets >= 3 && m.setsPerWeek < 10) {
+    // Разгрузочные недели сюда не идут: там объём снижен намеренно.
+    const normalSets = m.sets - m.setsDeload;
+    const perWeek = Math.round(m.setsPerWeek);
+    // Сравниваем то же число, что показываем: 9,8 — это «10 подходов»,
+    // и совет «нужно 10–20» при своих же 10 выглядел бы ошибкой.
+    if (normalSets >= 3 && perWeek < 10) {
       r.flags.push({
         exercise: m.group, code: 'under',
-        text: `${m.group}: ${round1(m.setsPerWeek)} ${setsWord(m.setsPerWeek)} в неделю — `
+        text: `${m.group}: ${perWeek} ${setsWord(perWeek)} в неделю — `
           + 'для роста массы обычно нужно 10–20 на мышцу. Добавь упражнение или подход.',
       });
     }
@@ -486,14 +522,14 @@ function buildTips(r: Report) {
       if (st.weightDeltaPct >= 5) {
         r.tips.push({
           title: `${st.exercise}: повторы просели на фоне роста веса`,
-          text: `План ${round1(planAvg)} повторов, по факту ${round1(doneAvg)}. Вес за период вырос `
+          text: `План ${Math.round(planAvg)} повторов, по факту ${Math.round(doneAvg)}. Вес за период вырос `
             + `на ${Math.round(st.weightDeltaPct)}% — это ожидаемо. Закрепи вес на 1–2 недели, `
             + 'пока повторы не вернутся к плану.',
         });
       } else {
         r.tips.push({
           title: `${st.exercise}: повторы просели`,
-          text: `План ${round1(planAvg)} повторов, по факту ${round1(doneAvg)}. Снизь вес на 2,5–5%, `
+          text: `План ${Math.round(planAvg)} повторов, по факту ${Math.round(doneAvg)}. Снизь вес на 2,5–5%, `
             + 'чтобы делать 1–2 повтора в запасе, а не до отказа.',
         });
       }
@@ -508,7 +544,7 @@ function buildTips(r: Report) {
     if (st.kind === 'dynamic' && st.tempoSecPerRep > 6 && st.sets >= 3) {
       r.tips.push({
         title: `${st.exercise}: слишком медленный темп`,
-        text: `${round1(st.tempoSecPerRep)} с на повтор. Сократи паузы между повторами и не замедляй `
+        text: `${Math.round(st.tempoSecPerRep)} с на повтор. Сократи паузы между повторами и не замедляй `
           + 'движение специально: время подхода должно давать напряжение, а не растянутый темп.',
       });
     }
@@ -532,10 +568,6 @@ function buildTips(r: Report) {
         + 'попробуй сократить его до 60–90 секунд.',
     });
   }
-}
-
-function round1(v: number): string {
-  return String(Math.round(v * 10) / 10);
 }
 
 function fmtWeight(kg: number): string {
