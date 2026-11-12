@@ -190,8 +190,9 @@ export function buildReport(
   // недельный объём и анализ ругается на недобор.
   const exWeeks = new Map<string, Set<number>>();
   const muscleWeeks = new Map<string, Set<number>>();
-  // Разгрузочные недели (s.adjusted) считаем отдельно: в них объём намеренно
+  // Разгрузочные недели (s.deload) считаем отдельно: в них объём намеренно
   // ниже, и подмешивать их в «подходы в неделю» — значит занижать норму.
+  // Снижение веса из-за самочувствия (s.adjusted) — обычная тренировка.
   const exDeloadWeeks = new Map<string, Set<number>>();
   const muscleDeloadWeeks = new Map<string, Set<number>>();
   let planAll = 0;
@@ -209,7 +210,7 @@ export function buildReport(
     }
     const dayKey = Math.max(0, Math.floor((s.ts - fromMs) / DAY_MS));
     const weekIdx = Math.floor((s.ts - fromMs) / WEEK_MS);
-    const deload = !!s.adjusted;
+    const deload = !!s.deload;
 
     const facts = s.setFacts && s.setFacts.length
       ? s.setFacts

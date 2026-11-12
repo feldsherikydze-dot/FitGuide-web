@@ -320,7 +320,9 @@ export function HubPage() {
   }, [now]);
 
   const timeStr = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-  const dateStr = now.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
+  // Как в Android: «Пятница, 13 ноября» — день недели с заглавной.
+  const rawDate = now.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
+  const dateStr = rawDate.charAt(0).toUpperCase() + rawDate.slice(1);
 
   // В Android поиск уходит по actionSearch (Enter), а не на каждую букву.
   const handleSearch = (v: string) => {

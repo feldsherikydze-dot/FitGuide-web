@@ -122,6 +122,8 @@ export interface Session {
   feel?: 1 | 2 | 3;              // оценка всей сессии
   /** Веса скорректированы (разгрузка / низкая готовность) — показатель силы не считается. */
   adjusted?: boolean;
+  /** Плановая разгрузочная неделя программы (как JournalEntry.deload в Android). */
+  deload?: boolean;
   items: SessionItem[];
   /** Длительность тренировки, секунд (как JournalEntry.durationSec в Android). */
   durationSec?: number;

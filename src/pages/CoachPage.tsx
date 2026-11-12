@@ -14,6 +14,7 @@ import {
   adherePercent, avgSleep, conflictsWithLimits, currentWeekIndex, currentWeekStart,
   cycleNumber, dailyPlan, dayKey, dropWeight, e1rmSeries, estimateOneRepMax, lastReps, lastWeight,
   maxReps, missedStreak, missedWeeks, nextDay, nextDayIndex, progressStalled, readinessScore,
+  plural,
   sessionCount, sessionsThisWeek, suggestWeight, tonnage, tonnageInWeekIndex, topExercises,
   weekSetsByGroup, weeksOnPlan, weeksSinceStart, type DailyPlan,
 } from '../core/coach';
@@ -236,7 +237,7 @@ export function CoachPage() {
   const profileFacts: string[] = [];
   if (profile) {
     if (profile.gender) profileFacts.push(profile.gender === 'male' ? 'Мужской' : 'Женский');
-    if (profile.age > 0) profileFacts.push(`${profile.age} лет`);
+    if (profile.age > 0) profileFacts.push(`${profile.age} ${plural(profile.age, 'год', 'года', 'лет')}`);
     if (profile.heightCm > 0) profileFacts.push(`${profile.heightCm} см`);
     if (curWeight > 0) profileFacts.push(`${fw(curWeight)} кг`);
   }
@@ -247,7 +248,7 @@ export function CoachPage() {
       const act: Record<string, string> = { sedentary: 'Сидячий', light: 'Низкий', moderate: 'Умеренный', high: 'Высокий', athlete: 'Очень высокий' };
       profileFacts2.push(`Активность: ${act[profile.activityLevel] || profile.activityLevel}`);
     }
-    if (profile.workoutsPerWeek > 0) profileFacts2.push(`${profile.workoutsPerWeek} тренировок/нед`);
+    if (profile.workoutsPerWeek > 0) profileFacts2.push(`${profile.workoutsPerWeek} ${plural(profile.workoutsPerWeek, 'тренировка/нед', 'тренировки/нед', 'тренировок/нед')}`);
     if (profile.bodyFatPercent > 0) profileFacts2.push(`Жир: ${f1(profile.bodyFatPercent)}%`);
   }
   const bmi = profile && profile.heightCm > 0 && curWeight > 0

@@ -173,7 +173,7 @@ export function WorkoutPage() {
         return;
       }
     }
-    const created = createSession(programId, week, dayTitle, program, day.slots);
+    const created = createSession(programId, week, dayTitle, program, day.slots, score, current);
     useCoachStore.getState().addSession(created);
     setSession(created);
     // eslint-disable-next-line react-hooks/exhaustive-deps

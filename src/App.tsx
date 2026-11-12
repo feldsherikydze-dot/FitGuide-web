@@ -99,6 +99,10 @@ function Shell() {
     const hasRequired = profile?.gender && profile?.age > 0 && profile?.heightCm > 0 && profile?.weightKg > 0;
     const fresh = !onboardingDone && !hasRequired;
     if (fresh) return '/onboarding';
+    // Ссылку на конкретный экран не теряем: обновление страницы или прямой
+    // адрес (/#/progress) должны вернуть туда же, а не на главный.
+    const current = window.location.hash.replace(/^#/, '') || '/';
+    if (current !== '/' && current !== '') return current;
     if (!splashEnabled) return '/settings';
     return '/';
   };

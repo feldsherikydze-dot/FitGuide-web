@@ -76,9 +76,10 @@ export function readinessScore(c: Checkin | null | undefined): number {
   return c.sleep + c.sore + c.energy;
 }
 
-/** Множитель рабочего веса по готовности: низкая — 0.9, иначе 1.0. */
+/** Множитель рабочего веса по готовности: низкая — 0.9, иначе 1.0.
+ *  score = 0 — отметки самочувствия нет, это НЕ низкая готовность. */
 export function readinessFactor(score: number): number {
-  return score <= 4 ? 0.9 : 1;
+  return score > 0 && score <= 4 ? 0.9 : 1;
 }
 
 /** Есть ли сегодня сильная забитость мышц. */
@@ -115,10 +116,11 @@ export function isDeload(program: Program | null, week: number): boolean {
   return ph.weekEnd > ph.weekStart && week >= ph.weekEnd;
 }
 
-/** Поправка числа подходов: низкая готовность или разгрузка → −1 подход. */
+/** Поправка числа подходов: низкая готовность или разгрузка → −1 подход.
+ *  score = 0 — отметки нет, подходы не трогаем. */
 export function setDelta(program: Program | null, week: number, score: number): number {
   const deload = isDeload(program, week);
-  const low = score <= 4;
+  const low = score > 0 && score <= 4;
   return (deload || low) ? -1 : 0;
 }
 
@@ -126,7 +128,7 @@ export function setDelta(program: Program | null, week: number, score: number): 
 export function loadFactor(program: Program | null, week: number, score: number): number {
   let f = 1;
   if (isDeload(program, week)) f = Math.min(f, 0.8);
-  if (score <= 4) f = Math.min(f, 0.9);
+  if (score > 0 && score <= 4) f = Math.min(f, 0.9);
   return f;
 }
 
@@ -419,15 +421,29 @@ export function finishedSessions(sessions: Session[]): Session[] {
 
 /** Создаёт сессию по дню программы: веса стартуют с записанных в программе. */
 export function createSession(
-  programId: string, week: number, dayTitle: string, program: Program, slots: Slot[]
+  programId: string, week: number, dayTitle: string, program: Program, slots: Slot[],
+  score = 0, history: Session[] = []
 ): Session {
-  const items: SessionItem[] = slots.map(s => ({
-    exercise: s.exercise,
-    weightKg: s.startWeight || 0,
-    reps: planReps(s.reps) || 8,
-    sets: 0,
-    targetSets: s.sets || 3,
-  }));
+  // Как WorkoutSession.build в Android: подходы и вес с поправкой на разгрузку
+  // и самочувствие; факт снижения помечаем adjusted, плановую разгрузку — deload.
+  const delta = setDelta(program, week, score);
+  const factor = loadFactor(program, week, score);
+  const items: SessionItem[] = slots.map(s => {
+    const baseSets = s.sets || 3;
+    const targetSets = delta < 0 ? Math.max(2, baseSets + delta) : baseSets;
+    const suggested = suggestWeight({
+      sessions: history, exercise: s.exercise, goal: program.goal, repRange: s.reps,
+    });
+    let weight = s.startWeight && s.startWeight > 0 ? s.startWeight : suggested;
+    if (weight > 0 && factor > 0 && factor < 1) weight = roundHalf(weight * factor);
+    return {
+      exercise: s.exercise,
+      weightKg: weight,
+      reps: planReps(s.reps) || 8,
+      sets: 0,
+      targetSets,
+    };
+  });
   return {
     id: crypto.randomUUID(),
     programId,
@@ -435,6 +451,8 @@ export function createSession(
     dayTitle,
     ts: Date.now(),
     items,
+    adjusted: factor < 1 && items.some(it => it.weightKg > 0),
+    deload: isDeload(program, week),
   };
 }
 
