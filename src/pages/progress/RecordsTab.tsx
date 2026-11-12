@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { useCoachStore, usePrStore } from '../../core/store';
+import { finishedSessions } from '../../core/coach';
 import { epley1RM } from '../../core/generator';
 import type { PrEntry } from '../../data/types';
 import {
@@ -72,7 +73,8 @@ function buildRecords(
 }
 
 export function RecordsTab() {
-  const { sessions } = useCoachStore();
+  const { sessions: allSessions } = useCoachStore();
+  const sessions = finishedSessions(allSessions);
   const { prs, add, remove, best } = usePrStore();
   const [toast, setToast] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useCoachStore, useOneRmStore, usePrStore } from '../../core/store';
+import { finishedSessions } from '../../core/coach';
 import { epley1RM } from '../../core/generator';
 import { getString, setString } from '../../core/storage';
 import {
@@ -21,7 +22,8 @@ function workWeights(oneRm: number): string {
 }
 
 export function OneRmTab() {
-  const { sessions } = useCoachStore();
+  const { sessions: allSessions } = useCoachStore();
+  const sessions = finishedSessions(allSessions);
   const { oneRms, put, remove } = useOneRmStore();
   const { prs } = usePrStore();
   const [exercise, setExercise] = useState(() => getString('one_rm_exercise', ''));

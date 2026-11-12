@@ -5,6 +5,7 @@
 
 import { useMemo, useState } from 'react';
 import { useCoachStore } from '../../core/store';
+import { finishedSessions } from '../../core/coach';
 import { useExercises } from '../../hooks/useExercises';
 import {
   buildReport, fmtDur, fmtNum, fmtTonnage, kindByName, type ExKind,
@@ -53,7 +54,8 @@ function heartFacts(
 }
 
 export function AnalysisTab() {
-  const { sessions } = useCoachStore();
+  const { sessions: allSessions } = useCoachStore();
+  const sessions = finishedSessions(allSessions);
   const { exercises, muscleGroups } = useExercises();
   const [periodDays, setPeriodDays] = useState(30);
   const [toast, setToast] = useState<string | null>(null);

@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { Calendar, Plus, Trash2, NotebookPen, Ruler, TrendingUp, X, Check, ChevronLeft } from 'lucide-react';
 import { useCoachStore, useJournalStore, useBodyLogStore, useProfileStore } from '../core/store';
-import { tonnage } from '../core/coach';
+import { finishedSessions, tonnage } from '../core/coach';
 import type { JournalEntry, BodyLogEntry } from '../data/types';
 
 const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
@@ -52,7 +52,8 @@ export function DiaryPage() {
 // ---------------------------------------------------------------- календарь
 
 function CalendarView() {
-  const { sessions } = useCoachStore();
+  const { sessions: allSessions } = useCoachStore();
+  const sessions = finishedSessions(allSessions);
   const now = new Date();
   const [cursor, setCursor] = useState({ y: now.getFullYear(), m: now.getMonth() });
 

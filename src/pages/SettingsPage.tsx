@@ -26,7 +26,7 @@ import {
 } from '../core/signal';
 import { Dialog, DialogAction, Field, Toast } from './progress/common';
 
-const APP_VERSION = '1.13.0';
+const APP_VERSION = '1.14.0';
 
 const THEME_VALUES: ('system' | 'light' | 'dark')[] = ['system', 'light', 'dark'];
 const THEME_LABELS = { system: 'Как в системе', light: 'Светлая', dark: 'Тёмная' };
@@ -135,8 +135,13 @@ export function SettingsPage() {
     showToast('Настройки сброшены к начальным');
     window.setTimeout(() => {
       try {
-        localStorage.clear();
-        sessionStorage.clear();
+        // Только данные FitGuide: на общем домене (github.io/<user>/) clear()
+        // стирал бы localStorage чужих приложений. Все ключи приложения — с
+        // префиксом fitguide_web_.
+        for (const k of Object.keys(localStorage)) {
+          if (k.startsWith('fitguide_web_')) localStorage.removeItem(k);
+        }
+        sessionStorage.removeItem('nutrition_tab');
       } catch {
         /* хранилище недоступно — всё равно перезапускаем */
       }

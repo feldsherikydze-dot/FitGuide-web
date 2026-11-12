@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useCoachStore, usePrStore } from '../../core/store';
+import { finishedSessions } from '../../core/coach';
 import { epley1RM } from '../../core/generator';
 import { fmtNum, sessionDurationSec, sessionSets, sessionTonnage } from '../../core/workAnalysis';
 import { Card, Hint, Toast, formatDate } from './common';
@@ -18,7 +19,10 @@ export function JournalTab() {
   const { prs } = usePrStore();
   const [toast, setToast] = useState<string | null>(null);
 
-  const list = useMemo(() => [...sessions].sort((a, b) => b.ts - a.ts), [sessions]);
+  const list = useMemo(
+    () => finishedSessions(sessions).sort((a, b) => b.ts - a.ts),
+    [sessions],
+  );
 
   const stats = useMemo(() => {
     let tonnage = 0;
@@ -42,7 +46,7 @@ export function JournalTab() {
 
   const remove = (id: string) => {
     removeSession(id);
-    setToast('Программа удалена');
+    setToast('Тренировка удалена');
     window.setTimeout(() => setToast(null), 2000);
   };
 

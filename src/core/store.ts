@@ -11,6 +11,83 @@ import type {
 } from '../data/types';
 import { KEYS, getJSON, setJSON } from './storage';
 
+// ------------------------------------------------------------------ Хранилище
+//
+// Раньше zustand persist писал под «сырым» именем (user_profile,
+// saved_programs, coach_state, ...), а ручные getJSON/setJSON — под
+// fitguide_web_*. Одни и те же данные лежали в двух копиях: они расходились
+// при сбое записи, занимали место дважды, а на общем домене (github.io/user/)
+// сырые имена ещё и пересекались с чужими приложениями. Теперь единственный
+// источник правды — ключ с префиксом, как у остальных данных приложения.
+
+const PREFIX = 'fitguide_web_';
+
+const prefixedStateStorage = {
+  getItem: (name: string) => localStorage.getItem(PREFIX + name),
+  setItem: (name: string, value: string) => localStorage.setItem(PREFIX + name, value),
+  removeItem: (name: string) => localStorage.removeItem(PREFIX + name),
+};
+const prefixedJSON = createJSONStorage(() => prefixedStateStorage);
+
+/** Разбор конверта zustand persist: { state, version }. */
+function readPersisted<T>(name: string, field: string): T | null {
+  try {
+    const raw = localStorage.getItem(PREFIX + name);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const state = parsed && typeof parsed === 'object' && 'state' in parsed ? parsed.state : parsed;
+    return state && field in state ? (state[field] as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Одноразовая миграция старых ключей в единый префиксный конверт.
+ * Понимает оба старых формата: конверт persist ({state,version}) и сырое
+ * значение, которое писали ручные setJSON.
+ */
+function migrateLegacy(storeKey: string, field: string): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    const pref = PREFIX + storeKey;
+    const prefRaw = localStorage.getItem(pref);
+    const legacyRaw = localStorage.getItem(storeKey);
+    const isEnvelope = (v: unknown): v is { state: unknown; version?: number } =>
+      !!v && typeof v === 'object' && 'state' in (v as Record<string, unknown>);
+    const parse = (raw: string | null): unknown => {
+      try { return raw == null ? undefined : JSON.parse(raw); } catch { return undefined; }
+    };
+    const prefVal = parse(prefRaw);
+    // Всё уже в новом формате и старых копий нет — делать нечего.
+    if (isEnvelope(prefVal) && legacyRaw == null) return;
+    const legacyVal = parse(legacyRaw);
+    let state: unknown;
+    if (isEnvelope(prefVal)) state = prefVal.state;
+    else if (isEnvelope(legacyVal)) state = legacyVal.state;
+    else if (prefVal !== undefined) state = field ? { [field]: prefVal } : prefVal;
+    else if (legacyVal !== undefined) state = field ? { [field]: legacyVal } : legacyVal;
+    else {
+      if (legacyRaw != null) localStorage.removeItem(storeKey);
+      return;
+    }
+    const version = isEnvelope(prefVal) && typeof prefVal.version === 'number' ? prefVal.version : 0;
+    localStorage.setItem(pref, JSON.stringify({ state, version }));
+    if (legacyRaw != null) localStorage.removeItem(storeKey);
+  } catch {
+    // Хранилище недоступно — стартуем с пустого состояния, как раньше.
+  }
+}
+
+migrateLegacy('user_profile', 'profile');
+migrateLegacy('saved_programs', 'programs');
+migrateLegacy('coach_state', '');
+migrateLegacy('one_rm_manual', 'oneRms');
+migrateLegacy('journal_entries', 'entries');
+migrateLegacy('pr_manual', 'prs');
+migrateLegacy('body_log', 'logs');
+migrateLegacy('settings', '');
+
 // ------------------------------------------------------------------ Профиль
 
 interface ProfileSlice {
@@ -23,10 +100,10 @@ export const useProfileStore = create<ProfileSlice>()(
   persist(
     (set) => ({
       profile: null,
-      setProfile: (p) => { setJSON(KEYS.PROFILE, p); set({ profile: p }); },
-      clearProfile: () => { setJSON(KEYS.PROFILE, null); set({ profile: null }); },
+      setProfile: (p) => set({ profile: p }),
+      clearProfile: () => set({ profile: null }),
     }),
-    { name: KEYS.PROFILE, storage: createJSONStorage(() => localStorage) }
+    { name: KEYS.PROFILE, storage: prefixedJSON }
   )
 );
 
@@ -46,8 +123,11 @@ export const useProgramsStore = create<ProgramsSlice>()(
   persist(
     (set, get) => ({
       programs: [],
-      load: () => set({ programs: getJSON<Program[]>(KEYS.PROGRAMS, []) }),
-      save: (programs) => { setJSON(KEYS.PROGRAMS, programs); set({ programs }); },
+      load: () => {
+        const saved = readPersisted<Program[]>(KEYS.PROGRAMS, 'programs');
+        if (saved) set({ programs: saved });
+      },
+      save: (programs) => set({ programs }),
       add: (p) => get().save([...get().programs, p]),
       update: (p) => get().save(get().programs.map(x => (x.id === p.id ? p : x))),
       remove: (id) => get().save(get().programs.filter(x => x.id !== id)),
@@ -55,12 +135,11 @@ export const useProgramsStore = create<ProgramsSlice>()(
     }),
     {
       name: KEYS.PROGRAMS,
-      storage: createJSONStorage(() => localStorage),
+      storage: prefixedJSON,
       partialize: (s) => ({ programs: s.programs }),
     }
   )
 );
-useProgramsStore.getState().load();
 
 // ------------------------------------------------------------------ Тренер
 
@@ -151,7 +230,7 @@ export const useCoachStore = create<CoachSlice>()(
     }),
     {
       name: KEYS.COACH,
-      storage: createJSONStorage(() => localStorage),
+      storage: prefixedJSON,
     }
   )
 );
@@ -195,7 +274,7 @@ interface OneRmSlice {
 export const useOneRmStore = create<OneRmSlice>()(
   persist(
     (set, get) => ({
-      oneRms: getJSON<OneRm[]>(KEYS.ONE_RM, []),
+      oneRms: [],
       put: (exercise, value) => get().putAll({ [exercise]: value }),
       putAll: (values) => {
         const list = [...get().oneRms];
@@ -211,15 +290,10 @@ export const useOneRmStore = create<OneRmSlice>()(
           }
           changed = true;
         }
-        if (changed) {
-          setJSON(KEYS.ONE_RM, list);
-          set({ oneRms: list });
-        }
+        if (changed) set({ oneRms: list });
       },
       remove: (exercise) => {
-        const list = get().oneRms.filter(r => r.n.toLowerCase() !== exercise.toLowerCase());
-        setJSON(KEYS.ONE_RM, list);
-        set({ oneRms: list });
+        set({ oneRms: get().oneRms.filter(r => r.n.toLowerCase() !== exercise.toLowerCase()) });
       },
       get: (exercise) => {
         if (!exercise) return 0;
@@ -227,7 +301,7 @@ export const useOneRmStore = create<OneRmSlice>()(
         return found ? found.v : 0;
       },
     }),
-    { name: KEYS.ONE_RM, storage: createJSONStorage(() => localStorage) }
+    { name: KEYS.ONE_RM, storage: prefixedJSON }
   )
 );
 
@@ -243,24 +317,14 @@ interface JournalSlice {
 export const useJournalStore = create<JournalSlice>()(
   persist(
     (set, get) => ({
-      entries: getJSON<JournalEntry[]>(KEYS.JOURNAL, []),
-      addEntry: (e) => {
-        const list = [e, ...get().entries];
-        setJSON(KEYS.JOURNAL, list);
-        set({ entries: list });
-      },
-      removeEntry: (id) => {
-        const list = get().entries.filter(x => x.id !== id);
-        setJSON(KEYS.JOURNAL, list);
-        set({ entries: list });
-      },
-      updateEntry: (id, updates) => {
-        const list = get().entries.map(x => (x.id === id ? { ...x, ...updates } : x));
-        setJSON(KEYS.JOURNAL, list);
-        set({ entries: list });
-      },
+      entries: [],
+      addEntry: (e) => set({ entries: [e, ...get().entries] }),
+      removeEntry: (id) => set({ entries: get().entries.filter(x => x.id !== id) }),
+      updateEntry: (id, updates) => set({
+        entries: get().entries.map(x => (x.id === id ? { ...x, ...updates } : x)),
+      }),
     }),
-    { name: KEYS.JOURNAL, storage: createJSONStorage(() => localStorage) }
+    { name: KEYS.JOURNAL, storage: prefixedJSON }
   )
 );
 
@@ -276,24 +340,18 @@ interface PrSlice {
 export const usePrStore = create<PrSlice>()(
   persist(
     (set, get) => ({
-      prs: getJSON<PrEntry[]>(KEYS.PR, []),
-      add: (p) => {
-        const list = [p, ...get().prs].slice(0, 500);
-        setJSON(KEYS.PR, list);
-        set({ prs: list });
-      },
-      remove: (exercise) => {
-        const list = get().prs.filter(x => x.name.toLowerCase() !== exercise.toLowerCase());
-        setJSON(KEYS.PR, list);
-        set({ prs: list });
-      },
+      prs: [],
+      add: (p) => set({ prs: [p, ...get().prs].slice(0, 500) }),
+      remove: (exercise) => set({
+        prs: get().prs.filter(x => x.name.toLowerCase() !== exercise.toLowerCase()),
+      }),
       best: (exercise) => {
         const list = get().prs.filter(x => x.name.toLowerCase() === exercise.toLowerCase());
         if (!list.length) return null;
         return list.reduce((a, b) => (b.weight * (1 + b.reps / 30) > a.weight * (1 + a.reps / 30) ? b : a));
       },
     }),
-    { name: KEYS.PR, storage: createJSONStorage(() => localStorage) }
+    { name: KEYS.PR, storage: prefixedJSON }
   )
 );
 
@@ -308,19 +366,11 @@ interface BodyLogSlice {
 export const useBodyLogStore = create<BodyLogSlice>()(
   persist(
     (set, get) => ({
-      logs: getJSON<BodyLogEntry[]>(KEYS.BODYLOG, []),
-      addLog: (l) => {
-        const list = [l, ...get().logs];
-        setJSON(KEYS.BODYLOG, list);
-        set({ logs: list });
-      },
-      removeLog: (id) => {
-        const list = get().logs.filter(x => x.id !== id);
-        setJSON(KEYS.BODYLOG, list);
-        set({ logs: list });
-      },
+      logs: [],
+      addLog: (l) => set({ logs: [l, ...get().logs] }),
+      removeLog: (id) => set({ logs: get().logs.filter(x => x.id !== id) }),
     }),
-    { name: KEYS.BODYLOG, storage: createJSONStorage(() => localStorage) }
+    { name: KEYS.BODYLOG, storage: prefixedJSON }
   )
 );
 
@@ -381,7 +431,7 @@ export const useUIStore = create<UIState>()(
       toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
     }),
-    { name: KEYS.SETTINGS, storage: createJSONStorage(() => localStorage), version: 2,
+    { name: KEYS.SETTINGS, storage: prefixedJSON, version: 2,
       migrate: (persisted: any, version: number) => {
         // До v2 веб по умолчанию использовал «Как в системе». Android 1.18
         // при первом запуске ставит тёмную — выравниваем существующие профили.
@@ -397,7 +447,7 @@ export const useUIStore = create<UIState>()(
 // Apply theme on load (дефолт — тёмная, как в Android 1.18)
 if (typeof window !== 'undefined') {
   let initial: 'light' | 'dark' | 'system' = 'dark';
-  const stored = localStorage.getItem(KEYS.SETTINGS);
+  const stored = localStorage.getItem(PREFIX + KEYS.SETTINGS);
   if (stored) {
     try {
       const parsed = JSON.parse(stored);

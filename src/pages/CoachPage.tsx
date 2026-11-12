@@ -486,17 +486,19 @@ export function CoachPage() {
   const week = plan.week;
   const cycle = cycleNumber(program, coach.activeSince, now);
   const phase: Phase | null = program.phases.find(p => week >= p.weekStart && week <= p.weekEnd) || null;
-  const history = coach.sessions.filter(s => s.programId === program.id);
+  // Только завершённые: черновик (durationSec == null) — не история и не статистика.
+  const sessions = coach.sessions.filter(s => s.durationSec != null);
+  const history = sessions.filter(s => s.programId === program.id);
   const lastSession: Session | null = history[0] ?? null;
   const plannedPerWeek = program.daysPerWeek > 0
     ? program.daysPerWeek
     : (phase ? phase.days.length : (profile?.workoutsPerWeek || 0));
-  const doneThisWeek = sessionsThisWeek(coach.sessions, program.id, coach.activeSince, now);
+  const doneThisWeek = sessionsThisWeek(sessions, program.id, coach.activeSince, now);
   const weekStart = currentWeekStart(coach.activeSince, now);
-  const stalled = progressStalled(coach.sessions, program.id);
+  const stalled = progressStalled(sessions, program.id);
   const deload = plan.deload;
-  const next = phase ? nextDay(coach.sessions, program, phase) : null;
-  const nextIdx = phase ? nextDayIndex(coach.sessions, program, phase) : -1;
+  const next = phase ? nextDay(sessions, program, phase) : null;
+  const nextIdx = phase ? nextDayIndex(sessions, program, phase) : -1;
 
   const draft = coach.sessions.find(s => s.programId === program.id && s.durationSec == null);
   const hasDraft = !!draft;
@@ -584,7 +586,7 @@ export function CoachPage() {
     const labels: string[] = [];
     for (let i = 0; i < n; i++) {
       const w = cur - (n - 1) + i;
-      vals.push(tonnageInWeekIndex(coach.sessions, program.id, coach.activeSince, w));
+      vals.push(tonnageInWeekIndex(sessions, program.id, coach.activeSince, w));
       labels.push(String(w + 1));
     }
     return { vals, labels };
@@ -592,7 +594,7 @@ export function CoachPage() {
 
   // Объём по мышечным группам.
   const actualVolume = weekSetsByGroup(
-    coach.sessions, program.id, coach.activeSince,
+    sessions, program.id, coach.activeSince,
     (name) => {
       const ex = exMap.get(name);
       return ex ? (groupNames[ex.muscleGroup] || ex.muscleGroup) : null;
@@ -604,9 +606,9 @@ export function CoachPage() {
     : null;
 
   // Сила.
-  const top = topExercises(coach.sessions, program.id, 3);
+  const top = topExercises(sessions, program.id, 3);
   const strength = top
-    .map(ex => ({ ex, series: e1rmSeries(coach.sessions, ex, program.id) }))
+    .map(ex => ({ ex, series: e1rmSeries(sessions, ex, program.id) }))
     .filter(x => x.series.length > 0);
 
   // Тело.
@@ -1004,7 +1006,7 @@ export function CoachPage() {
         <Btn onClick={() => navigate('/assessment?checkpoint=1')}>Замеры и чекпоинт</Btn>
 
         <Section title="Тренер записал" />
-        <Line secondary>Тренировок под контролем: {sessionCount(coach.sessions, program.id)}</Line>
+        <Line secondary>Тренировок под контролем: {sessionCount(sessions, program.id)}</Line>
         {lastSession && (
           <>
             <Line secondary>Прошлая: {lastSession.dayTitle || '-'} · {fmtDate(lastSession.ts)}</Line>
@@ -1075,10 +1077,10 @@ export function CoachPage() {
 
         {plannedPerWeek > 0 && currentWeekIndex(coach.activeSince, now) > 0 && (
           <>
-            <Line secondary>Постоянство за 4 недели: {adherePercent(coach.sessions, program.id, coach.activeSince, plannedPerWeek, now)}%</Line>
+            <Line secondary>Постоянство за 4 недели: {adherePercent(sessions, program.id, coach.activeSince, plannedPerWeek, now)}%</Line>
             <Line secondary>
-              {weeksOnPlan(coach.sessions, program.id, coach.activeSince, plannedPerWeek, now) > 0
-                ? `Недель подряд по плану: ${weeksOnPlan(coach.sessions, program.id, coach.activeSince, plannedPerWeek, now)}`
+              {weeksOnPlan(sessions, program.id, coach.activeSince, plannedPerWeek, now) > 0
+                ? `Недель подряд по плану: ${weeksOnPlan(sessions, program.id, coach.activeSince, plannedPerWeek, now)}`
                 : 'Пока ни одной полной недели — начнём сегодня.'}
             </Line>
           </>
@@ -1115,8 +1117,8 @@ export function CoachPage() {
               ? `Ты опережаешь план (${doneThisWeek} из ${plannedPerWeek}). Не добавляй лишних тренировок — мышцам нужно восстановление.`
               : phase && week >= phase.weekEnd
                 ? 'Последняя неделя фазы: разгрузка — веса и объём снижены автоматически.'
-                : missedWeeks(coach.sessions, program.id, coach.activeSince, now) > 0
-                  ? `Пропущено недель: ${missedWeeks(coach.sessions, program.id, coach.activeSince, now)}. Не гонись за пропущенным — продолжай с того же места, вес сохранится.`
+                : missedWeeks(sessions, program.id, coach.activeSince, now) > 0
+                  ? `Пропущено недель: ${missedWeeks(sessions, program.id, coach.activeSince, now)}. Не гонись за пропущенным — продолжай с того же места, вес сохранится.`
                   : `Идёшь по плану: осталось ${plannedPerWeek > 0 ? Math.max(0, plannedPerWeek - doneThisWeek) : 0} тренировок на этой неделе.`}
         </Line>
 
@@ -1183,9 +1185,9 @@ export function CoachPage() {
             if (conflictsWithLimits(ex, limits)) {
               return <Line key={ex} secondary>{ex} · под ограничение — замени</Line>;
             }
-            const last = lastWeight(coach.sessions, ex);
+            const last = lastWeight(sessions, ex);
             const repsRange = slotRepsFor(ex);
-            const missed = missedStreak(coach.sessions, ex);
+            const missed = missedStreak(sessions, ex);
             const mass = program.goal === 'mass';
             let text: string;
             if (last <= 0) {
@@ -1194,13 +1196,13 @@ export function CoachPage() {
                 ? `${ex} · старт ${fw(seeded)} кг — из вводной тренировки`
                 : `${ex} · первый подход — выберите рабочий вес`;
             } else if (missed >= 3) {
-              text = `${ex} · три стопора подряд — сброс −10%: вес ${fw(dropWeight(coach.sessions, ex))} кг`;
+              text = `${ex} · три стопора подряд — сброс −10%: вес ${fw(dropWeight(sessions, ex))} кг`;
             } else if (!lastSession?.items.some(it => it.exercise === ex && it.sets >= it.targetSets)) {
               text = `${ex} · повтори ${fw(last)} кг — подходы ещё не добиты`;
             } else {
-              const nextW = suggestWeight({ sessions: coach.sessions, exercise: ex, goal: program.goal, repRange: repsRange });
+              const nextW = suggestWeight({ sessions: sessions, exercise: ex, goal: program.goal, repRange: repsRange });
               const maxR = maxReps(repsRange);
-              const lr = lastReps(coach.sessions, ex);
+              const lr = lastReps(sessions, ex);
               if (mass && maxR > 0 && lr > 0 && lr < maxR) {
                 text = `${ex} · вес ${fw(last)} кг, повторы доведи до ${maxR} (потом +2,5 кг)`;
               } else if (nextW > last) {

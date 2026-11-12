@@ -412,6 +412,11 @@ export function suggestWeight(params: {
 
 // ---------------------------------------------------------------- сессия
 
+/** Только завершённые тренировки: незаконченная сессия — черновик, не запись журнала. */
+export function finishedSessions(sessions: Session[]): Session[] {
+  return sessions.filter(s => s.durationSec != null);
+}
+
 /** Создаёт сессию по дню программы: веса стартуют с записанных в программе. */
 export function createSession(
   programId: string, week: number, dayTitle: string, program: Program, slots: Slot[]

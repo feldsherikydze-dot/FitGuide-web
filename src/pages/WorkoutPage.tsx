@@ -158,18 +158,23 @@ export function WorkoutPage() {
   // ------------------------------------------------------------ сессия
   useEffect(() => {
     if (!program || !day) return;
+    // Свежий список из стора: в StrictMode эффект вызывается дважды, и
+    // замыкание с прошлым рендером создало бы сессию-двойник.
+    const current = useCoachStore.getState().sessions;
     // Тренировка «с нуля» всегда начинается заново: у неё нет сохранённого дня программы.
     if (!adHoc) {
-      const valid = coach.sessions.find(s =>
+      // Только незавершённый черновик: законченную тренировку того же дня
+      // переиспользовать нельзя, иначе повтор дня перезапишет журнал.
+      const valid = current.find(s =>
         s.programId === programId && s.week === week && s.dayTitle === dayTitle
-        && s.items.length === day.slots.length);
+        && s.items.length === day.slots.length && s.durationSec == null);
       if (valid) {
         setSession(valid);
         return;
       }
     }
     const created = createSession(programId, week, dayTitle, program, day.slots);
-    coach.addSession(created);
+    useCoachStore.getState().addSession(created);
     setSession(created);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [programId, week, dayTitle, program?.id, day?.title]);

@@ -15,6 +15,7 @@ import { useProfileStore, useCoachStore, useProgramsStore, useAssessmentStore, u
 import { useExercises } from '../hooks/useExercises';
 import { safeE1rm, startWeight, fillBodyComp, fillStartWeights, movementOf } from '../core/assessment';
 import { fillFromSessions } from '../core/checkpoint';
+import { finishedSessions } from '../core/coach';
 import { generateProgram, buildProgramName, PERIOD_LINEAR } from '../core/generator';
 import { GOALS, recommendDays } from '../core/goals';
 import { MOV } from '../data/types';
@@ -142,7 +143,7 @@ export function AssessmentPage() {
   useEffect(() => {
     const weights = Array(8).fill(0);
     const reps = Array(8).fill(0);
-    fillFromSessions(coach.sessions, weights, reps);
+    fillFromSessions(finishedSessions(coach.sessions), weights, reps);
     if (!weights.some(w => w > 0)) return;
     setForm(f => ({
       ...f,
