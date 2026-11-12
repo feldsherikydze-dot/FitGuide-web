@@ -291,7 +291,10 @@ export function AnalysisTab() {
               <div className="mt-2 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
                 подходов в неделю
               </div>
-              <div className="mt-1 grid grid-cols-[1fr_auto_auto] gap-x-4 text-[12px]"
+              {/* Колонки фиксированной ширины: иначе заголовок «осн. недели»
+                  шире числа, и grid в каждой строке считает свою ширину —
+                  числа съезжают относительно подписей. */}
+              <div className="mt-1 grid grid-cols-[1fr_72px_72px] gap-x-2 text-[12px]"
                 style={{ color: 'var(--color-text-secondary)' }}>
                 <span />
                 <span className="text-right">осн. недели</span>
@@ -301,7 +304,7 @@ export function AnalysisTab() {
                 {[...report.byMuscle.values()]
                   .sort((a, b) => b.setsPerWeek - a.setsPerWeek)
                   .map(m => (
-                    <div key={m.group} className="grid grid-cols-[1fr_auto_auto] gap-x-4 text-[14px]">
+                    <div key={m.group} className="grid grid-cols-[1fr_72px_72px] gap-x-2 text-[14px]">
                       <span style={{ color: 'var(--color-text-secondary)' }}>{m.group}</span>
                       <span className="text-right" style={{ color: 'var(--color-text-main)', fontWeight: 700 }}>
                         {Math.round(m.setsPerWeek)}
