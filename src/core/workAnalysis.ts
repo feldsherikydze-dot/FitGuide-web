@@ -11,6 +11,20 @@ export const TUT_TOO_LONG_SEC = 90;
 export const TEMPO_FAST_SEC = 1.5;
 
 /**
+ * Норма недельного объёма зависит от размера группы. Большим (грудь, спина,
+ * ноги, ягодицы, плечи) нужно 10–20 подходов в неделю, малым (руки, икры,
+ * пресс, трапеции, поясница, предплечья, приводящие, шея) — 6–12: им хватает
+ * меньше, и флаг «мало» на 8 подходах бицепса был ложным.
+ */
+const LARGE_GROUPS = new Set([
+  'Грудь', 'Широчайшие', 'Квадрицепс', 'Бицепс бедра', 'Ягодицы', 'Плечи',
+]);
+
+export function volumeNorm(group: string): { lo: number; hi: number } {
+  return LARGE_GROUPS.has(group) ? { lo: 10, hi: 20 } : { lo: 6, hi: 12 };
+}
+
+/**
  * Вид упражнения — от него зависит, что вообще имеет смысл считать.
  * Динамика: повторы, темп, вес. Статика (планка, вакуум, удержания):
  * только время подхода. Шаги: повторы-шаги, но не «темп на повтор».
@@ -108,7 +122,7 @@ export interface Report {
   planPct: number;
   tonnage: number;
   byExercise: Map<string, ExStat>;
-  /** Объём по мышечным группам: именно он сравнивается с 10–20 подходами. */
+  /** Объём по мышечным группам: именно он сравнивается с нормой по размеру группы. */
   byMuscle: Map<string, MuscleStat>;
   weeks: Week[];
   flags: Flag[];
@@ -402,13 +416,15 @@ function buildFlags(r: Report) {
     // Разгрузочные недели сюда не идут: там объём снижен намеренно.
     const normalSets = m.sets - m.setsDeload;
     const perWeek = Math.round(m.setsPerWeek);
+    const norm = volumeNorm(m.group);
     // Сравниваем то же число, что показываем: 9,8 — это «10 подходов»,
     // и совет «нужно 10–20» при своих же 10 выглядел бы ошибкой.
-    if (normalSets >= 3 && perWeek < 10) {
+    if (normalSets >= 3 && perWeek < norm.lo) {
       r.flags.push({
         exercise: m.group, code: 'under',
         text: `${m.group}: ${perWeek} ${setsWord(perWeek)} в неделю — `
-          + 'для роста массы обычно нужно 10–20 на мышцу. Добавь упражнение или подход.',
+          + `для роста массы обычно нужно ${norm.lo}–${norm.hi} на мышцу. `
+          + 'Добавь упражнение или подход.',
       });
     }
   }

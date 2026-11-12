@@ -1092,7 +1092,7 @@ export function CoachPage() {
                 {g} — {v} подходов · {v < 10 ? 'мало' : v > 20 ? 'много' : 'норма'}
               </Line>
             ))}
-            <Line secondary size={12}>Ориентир: 10–20 рабочих подходов на группу в неделю.</Line>
+            <Line secondary size={12}>Ориентир: 10–20 рабочих подходов на большие группы в неделю, 6–12 — на малые.</Line>
           </>
         ) : planVolume && !planVolume.empty && planVolume.regionVolume.length > 0 ? (
           <>
