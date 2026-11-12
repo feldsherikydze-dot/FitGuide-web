@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/ui';
 import { LEGEND_CATALOG, type LegendProgram } from '../core/legends';
+import { buildLegendProgram } from '../core/legendPlans';
 import { useProgramsStore, useProfileStore } from '../core/store';
 import { useExercises } from '../hooks/useExercises';
 import { generateProgram, PERIOD_LINEAR, TYPE_AUTO } from '../core/generator';
@@ -32,6 +33,14 @@ export function LegendsPage() {
   const [toast, setToast] = useState<string | null>(null);
 
   const choose = (p: LegendProgram) => {
+    // Сначала настоящий план легенды; генератор — только если плана нет.
+    const planned = buildLegendProgram(p, db);
+    if (planned) {
+      add(planned);
+      setToast(`Программа «${p.name}» добавлена в перечень тренировок`);
+      window.setTimeout(() => setToast(null), 2500);
+      return;
+    }
     if (!db) return;
     const program = generateProgram({
       name: p.name,
