@@ -21,7 +21,7 @@ import { blockFor, compPhaseForDays, daysToComp } from '../core/seasonPlan';
 import {
   compCatsForGender, compCatLabel, stageWeightKg, offseasonKg,
 } from '../core/compCategory';
-import { formatDate } from '../core/coach';
+import { formatDate, plural } from '../core/coach';
 import type { UserProfile } from '../data/types';
 import { Toast } from './progress/common';
 
@@ -542,7 +542,10 @@ export function CoachOnboardingPage() {
       titleText = 'Сколько дней в неделю будешь тренироваться?';
       hintText = 'Лучше меньше, но стабильно: пропуски тренер учтёт.';
       input = single(
-        DAY_OPTIONS.map(d => ({ value: String(d), label: `${d} дней в неделю` })),
+        DAY_OPTIONS.map(d => ({
+          value: String(d),
+          label: `${d} ${plural(d, 'день в неделю', 'дня в неделю', 'дней в неделю')}`,
+        })),
         String(days),
         v => setDays(parseInt(v, 10)),
       );

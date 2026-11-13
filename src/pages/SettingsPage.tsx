@@ -26,7 +26,7 @@ import {
 } from '../core/signal';
 import { Dialog, DialogAction, Field, Toast } from './progress/common';
 
-const APP_VERSION = '1.14.0';
+const APP_VERSION = __APP_VERSION__;
 
 const THEME_VALUES: ('system' | 'light' | 'dark')[] = ['system', 'light', 'dark'];
 const THEME_LABELS = { system: 'Как в системе', light: 'Светлая', dark: 'Тёмная' };
@@ -616,6 +616,13 @@ export function SettingsPage() {
       )}
 
       <Toast text={toast} />
+
+      {/* Версия и сборка — чтобы на глаз отличать новую версию от старой из кэша */}
+      <div className="mt-6 mb-2 text-center text-[12px] leading-snug" style={secondary}>
+        FitGuide (веб) · версия {APP_VERSION}
+        <br />
+        сборка {__BUILD_STAMP__}
+      </div>
     </div>
   );
 }

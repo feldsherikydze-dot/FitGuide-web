@@ -14,6 +14,7 @@ import {
   TYPE_AUTO, TYPE_CIRCUIT, TYPE_FULLBODY, TYPE_SPLIT,
 } from '../core/generator';
 import { GOALS_ALL, GOAL_LABELS, normalizeGoal } from '../core/goals';
+import { plural } from '../core/coach';
 
 const LEVELS = [
   { value: 'beginner', label: 'Новичок' },
@@ -157,7 +158,7 @@ export function ProgramGeneratorPage() {
           <Label>Тренировок в неделю</Label>
           <div className="flex flex-wrap gap-x-1.5 gap-y-0.5">
             {[3, 4, 5, 6].map(d => (
-              <Chip key={d} on={days === d} onClick={() => setDays(d)}>{d} дней в неделю</Chip>
+              <Chip key={d} on={days === d} onClick={() => setDays(d)}>{d} {plural(d, 'день в неделю', 'дня в неделю', 'дней в неделю')}</Chip>
             ))}
           </div>
 

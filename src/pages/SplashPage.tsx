@@ -450,6 +450,14 @@ export function SplashPage({ onDone, initialRoute }: { onDone?: () => void; init
       >
         Старт
       </button>
+
+      {/* Версия сборки — сразу видно, свежая версия или старая из кэша */}
+      <div
+        className="absolute left-3 text-[10px] text-white/45"
+        style={{ bottom: 'calc(4px + env(safe-area-inset-bottom, 0px))' }}
+      >
+        v{__APP_VERSION__} · {__BUILD_STAMP__}
+      </div>
     </div>
   );
 }
