@@ -433,7 +433,7 @@ export function SettingsPage() {
           />
         </div>
         <div className="mt-0.5 text-[12px] leading-snug" style={secondary}>
-          Пускай поиском упражнений на главном экране, если он вам нужен. Плеер всегда на месте.
+          Показывать строку поиска упражнений на главном экране. Плеер всегда на месте.
         </div>
 
         <div className="mt-3 text-[13px] font-bold" style={labelSecondary}>Город для погоды</div>
