@@ -1,0 +1,13 @@
+{
+  "versionCode": 44,
+  "versionName": "1.44",
+  "apkUrl": "https://feldsherikydze-dot.github.io/FitGuide-web/downloads/FitGuide.apk",
+  "force": false,
+  "sha256": "485f1c280d58ac01849309f5df7d394a4e1397ea4affd0deae0827634dcc6d16",
+  "minSdk": 24,
+  "changes": [
+    "автообновление из приложения: проверка версии, загрузка и установка APK",
+    "неразрывный слэш в строке '4 тренировки/нед' - больше не рвётся пополам",
+    "мелкие правки текстов"
+  ]
+}
