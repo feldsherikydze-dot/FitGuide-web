@@ -417,7 +417,7 @@ export function MusicPage() {
     >
       <div className="shrink-0 z-30" style={{ background: 'var(--color-bg)' }}>
         <PageHeader
-          title="Плеер"
+          title="Музыка"
           onBack={() => navigate('/')}
           right={
             <div className="flex items-center">
@@ -459,13 +459,13 @@ export function MusicPage() {
             <input
               value={localQuery}
               onChange={e => setLocalQuery(e.target.value)}
-              placeholder="Поиск по своей музыке…"
+              placeholder="Поиск на своём устройстве"
               className="fg-input"
               style={{ color: 'var(--color-text-main)' }}
             />
             <div className="flex gap-2 mt-1.5">
               <PlayerButton onClick={() => { void onAddTracks(); }} className="flex-1">Добавить треки</PlayerButton>
-              <PlayerButton onClick={() => { void onFindAll(); }} className="flex-1">Найти всё</PlayerButton>
+              <PlayerButton onClick={() => { void onFindAll(); }} className="flex-1">Найти все</PlayerButton>
             </div>
             {localBusy && <Status>{localBusy}</Status>}
             {!localBusy && localVisible.length === 0 && !localLoading && (
@@ -505,12 +505,12 @@ export function MusicPage() {
                 className="fg-input flex-1 min-w-0"
                 style={{ color: 'var(--color-text-main)' }}
               />
-              <PlayerButton onClick={() => { void autotune(true); }} className="flex-shrink-0">Автотюн</PlayerButton>
+              <PlayerButton onClick={() => { void autotune(true); }} className="flex-shrink-0">Авто</PlayerButton>
             </div>
             <input
               value={radioQuery}
               onChange={e => setRadioQuery(e.target.value)}
-              placeholder="Поиск волны…"
+              placeholder="Поиск радио"
               className="fg-input mt-1.5"
               style={{ color: 'var(--color-text-main)' }}
             />
@@ -537,7 +537,7 @@ export function MusicPage() {
         {tab === 'online' && (
           <div className="px-4 pt-1">
             <div className="text-[13px]" style={{ color: 'var(--color-text-main)' }}>
-              Треки целиком, по жанрам
+              Треки целиком, без затрат
             </div>
             <input
               value={onlineQuery}

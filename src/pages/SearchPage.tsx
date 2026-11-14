@@ -43,7 +43,7 @@ export function SearchPage() {
       if (g.name.toLowerCase().includes(q)) {
         out.push({
           key: `g:${g.id}`, title: g.name, sub: 'Группа мышц',
-          icon: asset('icons/ic_tool_strength.svg'),
+          icon: asset('icons/ic_dumbbell.svg'),
           go: () => navigate(`/exercises/${g.id}`),
         });
       }
@@ -53,7 +53,7 @@ export function SearchPage() {
         if (sg.name.toLowerCase().includes(q)) {
           out.push({
             key: `sg:${g.id}:${sg.id}`, title: sg.name, sub: g.name,
-            icon: asset('icons/ic_tool_strength.svg'),
+            icon: asset('icons/ic_dumbbell.svg'),
             go: () => navigate(`/exercises/${g.id}`),
           });
         }
@@ -63,7 +63,7 @@ export function SearchPage() {
       if (e.name.toLowerCase().includes(q) || (e.target || '').toLowerCase().includes(q)) {
         out.push({
           key: `e:${e.id}`, title: e.name, sub: e.target || '',
-          icon: asset('icons/ic_tool_strength.svg'),
+          icon: asset('icons/ic_dumbbell.svg'),
           go: () => navigate(`/exercise/${e.id}`),
         });
       }
@@ -168,7 +168,7 @@ export function SearchPage() {
                 {h.sub}
               </span>
             </span>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--p-labels-text)"
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--p-outline)"
               strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
               <path d="M9 18l6-6-6-6" />
             </svg>

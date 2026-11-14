@@ -107,20 +107,12 @@ export function ExercisesPage() {
                 className="relative rounded-[20px] p-[18px] flex flex-col items-center justify-center text-center active:brightness-95"
                 style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
               >
-                <span className="relative w-[150px] h-[164px] flex items-center justify-center">
-                  {/* Анатомия: тело приглушённое, целевая мышца — акцент с
-                      подсветкой. Раньше всё красилось одним цветом, и группа
-                      мышц не читалась. */}
-                  <span
-                    className="absolute inset-0 rounded-full"
-                    style={{
-                      background: 'radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--p-circle) 16%, transparent) 0%, transparent 72%)',
-                      border: '1px solid color-mix(in srgb, var(--p-circle) 20%, transparent)',
-                    }}
-                  />
-                  <MuscleIcon name={g.icon || 'legs'} height={150} />
+                <span className="relative w-[64px] h-[84px] flex items-center justify-center">
+                  {/* Как item_muscle_group.xml: тело 36×80dp в рамке 64×84dp.
+                      Целевая мышца подсвечена самим MuscleIcon. */}
+                  <MuscleIcon name={g.icon || 'legs'} height={80} />
                   {selectMode && (
-                    <span className="absolute -bottom-0.5 -right-0.5">
+                    <span className="absolute bottom-0 right-0">
                       <MaskIcon
                         src={asset(on ? 'icons/ic_check_circle.svg' : 'icons/ic_uncheck_circle.svg')}
                         color="var(--p-circle)"
@@ -130,7 +122,7 @@ export function ExercisesPage() {
                   )}
                 </span>
                 <span
-                  className="mt-3 text-[15px] font-bold leading-tight"
+                  className="mt-3 text-[15px] font-medium leading-tight"
                   style={{ color: 'var(--p-on-labels)' }}
                 >
                   {g.name}

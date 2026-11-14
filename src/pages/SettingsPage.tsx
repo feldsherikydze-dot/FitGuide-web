@@ -111,7 +111,7 @@ export function SettingsPage() {
     return Array.isArray(raw) ? raw : [];
   });
   const [updateUrl, setUpdateUrl] = useState(() => getString('update_url', ''));
-  const [updateStatus, setUpdateStatus] = useState(`Установлена версия ${APP_VERSION}`);
+  const [updateStatus, setUpdateStatus] = useState(`Обновлений нет: ${APP_VERSION} — последняя версия`);
   const [watchStatus, setWatchStatus] = useState('Часы с зеркалом рядом не найдены. Проверь Bluetooth и что приложение стоит на часах.');
 
   const [clockEnabled, setClockEnabled] = useState(() => getString('splash_clock_enabled', '1') !== '0');
@@ -168,7 +168,7 @@ export function SettingsPage() {
     }
     setString('update_url', url);
     setUpdateStatus('Проверяю…');
-    window.setTimeout(() => setUpdateStatus(`Установлена версия ${APP_VERSION}`), 1200);
+    window.setTimeout(() => setUpdateStatus(`Обновлений нет: ${APP_VERSION} — последняя версия`), 1200);
   };
 
   const findWatch = () => {
