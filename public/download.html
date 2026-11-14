@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0b0c" />
+  <title>FitGuide — скачать для Android</title>
+  <style>
+    :root { --lime: #88f200; --pink: #ff005b; }
+    html, body { margin: 0; min-height: 100%; background: #0b0b0c; color: #f2f2f2;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    body { padding: 32px 22px 56px; display: flex; justify-content: center; }
+    .box { width: 100%; max-width: 460px; }
+    .logo { font-size: 40px; font-weight: 900; letter-spacing: -1px; margin: 0; }
+    .logo span { color: var(--lime); }
+    .rule { width: 76px; height: 5px; background: var(--lime); border-radius: 3px; margin: 10px 0 6px; }
+    .tag { color: #9aa69c; font-size: 13px; letter-spacing: 2.2px; text-transform: uppercase; margin: 0 0 28px; }
+    h1 { font-size: 30px; line-height: 1.15; margin: 0 0 10px; font-weight: 800; }
+    p { font-size: 15px; line-height: 1.5; color: #b6bdb8; margin: 0 0 14px; }
+    .btn { display: block; text-align: center; text-decoration: none; background: var(--lime);
+      color: #0c1008; font-weight: 800; font-size: 19px; padding: 20px; border-radius: 999px;
+      margin: 22px 0 10px; }
+    .btn:active { transform: scale(.99); }
+    .meta { text-align: center; font-size: 12.5px; color: #7d8781; margin: 0 0 30px; }
+    .steps { counter-reset: s; list-style: none; padding: 0; margin: 0 0 26px; }
+    .steps li { counter-increment: s; position: relative; padding: 0 0 0 42px; margin: 0 0 14px;
+      font-size: 14.5px; line-height: 1.45; color: #c8cfca; }
+    .steps li::before { content: counter(s); position: absolute; left: 0; top: -2px; width: 26px; height: 26px;
+      border-radius: 50%; background: #1b201c; color: var(--lime); font-size: 13px; font-weight: 700;
+      display: grid; place-items: center; border: 1px solid #2b332c; }
+    .note { border: 1px solid #242a25; border-radius: 16px; padding: 16px 18px; font-size: 13.5px;
+      color: #9aa39c; line-height: 1.5; }
+    .note b { color: #d9e0db; }
+    a.web { color: var(--lime); }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1 class="logo">Fit<span>Guide</span></h1>
+    <div class="rule"></div>
+    <p class="tag">Карманный тренер</p>
+
+    <h1>Скачать приложение</h1>
+    <p>Тренировки, программы с периодизацией, прогресс, питание и таймер — в одном приложении. Бесплатно, без рекламы и подписок.</p>
+
+    <a class="btn" id="dl" href="./downloads/FitGuide.apk" download>Скачать APK</a>
+    <p class="meta" id="meta">Android 7.0+ · ~3,3 МБ</p>
+
+    <ol class="steps">
+      <li>Нажми «Скачать APK» — файл сохранится в «Загрузки».</li>
+      <li>Открой файл. Если система спросит разрешение — разреши установку из этого источника.</li>
+      <li>Установи. Если приложение уже стоит, оно обновится поверх: профиль и тренировки сохранятся.</li>
+    </ol>
+
+    <div class="note">
+      <b>Что нового в 1.43:</b> склонения «3 дня / 5 дней в неделю», мелкие правки текстов.<br><br>
+      Или открой веб-версию: <a class="web" href="./">FitGuide в браузере</a> — она работает и на компьютере.
+    </div>
+  </div>
+  <script>
+    // Размер файла подставляем честно, если браузер даёт его узнать.
+    fetch('./downloads/FitGuide.apk', { method: 'HEAD' })
+      .then(r => {
+        const len = Number(r.headers.get('content-length') || 0);
+        if (len > 0) {
+          document.getElementById('meta').textContent =
+            'Android 7.0+ · ' + (len / 1048576).toFixed(1).replace('.', ',') + ' МБ · v1.43';
+        }
+      })
+      .catch(() => {});
+  </script>
+</body>
+</html>
