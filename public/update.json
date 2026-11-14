@@ -1,12 +1,11 @@
 {
-  "versionCode": 45,
-  "versionName": "1.45",
+  "versionCode": 46,
+  "versionName": "1.46",
   "apkUrl": "https://feldsherikydze-dot.github.io/FitGuide-web/downloads/FitGuide.apk",
   "force": false,
-  "sha256": "febe759725767a51738686b32fb89f356be177060261bfebb6252b4ceac30e6e",
+  "sha256": "ac859ee69af0a4aa931fc545bd274ad80f22a72658146ad289d39bbdc2b45465",
   "minSdk": 24,
   "changes": [
-    "проверка обновлений теперь честно пишет: 'Обновлений нет: 1.45 - последняя версия'",
-    "автообновление из приложения: проверка версии, загрузка и установка APK"
+    "Настройки: понятное описание переключателя поиска на главном экране"
   ]
 }
