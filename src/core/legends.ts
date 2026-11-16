@@ -246,4 +246,12 @@ export const LEGEND_CATALOG: LegendProgram[] = [
       'ещё много.',
     audience: 'male', goal: GOALS.MASS, level: 'advanced', days: 4, weeks: 8,
   },
+  {
+    id: 'fb_owner_7d', name: 'Программа на 7 дней: ягодицы и ноги', author: 'FitGuide',
+    description: 'Цикл на 7 дней: четыре силовые тренировки — бёдра и ягодицы, спина и дельты, ягодицы, ' +
+      'квадрицепс и спина — с кардио 40 минут в конце. Пятый день — отдых, шестой и седьмой — ' +
+      'кардио по 60 минут. Высокий объём: 3–5 подходов и 10–30 повторов; рабочие веса из ' +
+      'исходной записи сохранены в строке повторов.',
+    audience: 'female', goal: GOALS.RECOMP, level: 'intermediate', days: 4, weeks: 8,
+  },
 ];

@@ -1,11 +1,11 @@
 {
-  "versionCode": 46,
-  "versionName": "1.46",
+  "versionCode": 47,
+  "versionName": "1.47",
   "apkUrl": "https://feldsherikydze-dot.github.io/FitGuide-web/downloads/FitGuide.apk",
   "force": false,
-  "sha256": "28ccc897f54cc7566814e5b1a051ad1dc043e10fdd8591c58ba48bd52d3ddbcf",
+  "sha256": "59280893474955c8c133dc0880cb5dab6aa659d111a9980f8569fec27c958677",
   "minSdk": 24,
   "changes": [
-    "Тексты: «4 тренировки в неделю» вместо «4 тренировок», однонедельная фаза — «Неделя 12»"
+    "Добавлена программа легенд «Программа на 7 дней: ягодицы и ноги»"
   ]
 }
