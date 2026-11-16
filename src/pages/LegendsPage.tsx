@@ -12,6 +12,7 @@ import { useProgramsStore, useProfileStore } from '../core/store';
 import { useExercises } from '../hooks/useExercises';
 import { generateProgram, PERIOD_LINEAR, TYPE_AUTO } from '../core/generator';
 import { GOAL_LABELS, normalizeGoal } from '../core/goals';
+import { plural } from '../core/coach';
 
 const LEVEL_LABELS: Record<string, string> = {
   beginner: 'Новичок',
@@ -75,7 +76,7 @@ export function LegendsPage() {
             <div className="mt-1.5 text-[13px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
               {AUDIENCE_LABELS[p.audience]} · {GOAL_LABELS[normalizeGoal(p.goal)]} · {LEVEL_LABELS[p.level]}
               <br />
-              {p.days} тренировок в неделю · {p.weeks} нед.
+              {p.days} {plural(p.days, 'тренировка', 'тренировки', 'тренировок')} в неделю · {p.weeks} нед.
             </div>
             <p className="mt-2 text-[14px] leading-relaxed" style={{ color: 'var(--color-text-main)' }}>
               {p.description}

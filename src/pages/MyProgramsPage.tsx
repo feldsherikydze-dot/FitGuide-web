@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { PageHeader, asset, MaskIcon } from '../components/ui';
 import { useProgramsStore } from '../core/store';
 import { GOAL_LABELS, normalizeGoal } from '../core/goals';
+import { plural } from '../core/coach';
 import { Toast } from './progress/common';
 
 const LEVEL_LABELS: Record<string, string> = {
@@ -74,7 +75,7 @@ export function MyProgramsPage() {
                 <div className="mt-1 text-[13px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
                   {GOAL_LABELS[normalizeGoal(p.goal)] || p.goal} · {LEVEL_LABELS[p.level] || LEVEL_LABELS.intermediate}
                   <br />
-                  {p.daysPerWeek} тренировок в неделю · {p.weeks} нед.
+                  {p.daysPerWeek} {plural(p.daysPerWeek, 'тренировка', 'тренировки', 'тренировок')} в неделю · {p.weeks} нед.
                 </div>
               </button>
               <div className="flex justify-end">

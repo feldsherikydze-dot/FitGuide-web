@@ -19,13 +19,17 @@ import { useExercises, usePicker } from '../hooks/useExercises';
 import { generateProgram, buildProgramName, PERIOD_LINEAR, PERIOD_NONE, PERIOD_WAVE, TYPE_AUTO, TYPE_CIRCUIT, TYPE_FULLBODY, TYPE_SPLIT } from '../core/generator';
 import { analyzePhase } from '../core/planAdvisor';
 import { GOALS, GOALS_ALL, GOAL_LABELS, GOAL_DESCRIPTIONS, normalizeGoal, recommendDays } from '../core/goals';
-import { currentWeek, phaseForWeek } from '../core/coach';
+import { currentWeek, phaseForWeek, plural } from '../core/coach';
 import type { Program, Phase, Day, Slot } from '../data/types';
 import {
   Card, Dialog, DialogAction, Hint, PrimaryButton,
   ConfirmDialog, Toast, ReplaceExercisePicker,
 } from './progress/common';
 import { ExercisePickerScreen } from '../components/ExercisePickerScreen';
+
+/** «Недели 1–3» или «Неделя 12», если фаза занимает одну неделю. */
+const phaseRange = (start: number, end: number) =>
+  start === end ? `Неделя ${start}` : `Недели ${start}–${end}`;
 
 const TYPE_OPTIONS = [
   { value: TYPE_AUTO, label: 'Авто', desc: 'Система сама выберет сплит' },
@@ -621,7 +625,7 @@ export function ProgramDetailPage() {
         <div className="text-[13px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
           {GOAL_LABELS[normalizeGoal(program.goal)] || program.goal} · {levelLabel(program.level)}
           <br />
-          {program.daysPerWeek} тренировок в неделю · {program.weeks} нед.
+          {program.daysPerWeek} {plural(program.daysPerWeek, 'тренировка', 'тренировки', 'тренировок')} в неделю · {program.weeks} нед.
         </div>
         <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
           Дата создания: {formatDate(program.createdAt)}
@@ -670,7 +674,7 @@ export function ProgramDetailPage() {
                   }}
                 >
                   <div className="font-semibold text-[15px]">
-                    Недели {ph.weekStart}–{ph.weekEnd} · {ph.label}
+                    {phaseRange(ph.weekStart, ph.weekEnd)} · {ph.label}
                   </div>
                   <div className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
                     {ph.scheme}
@@ -685,7 +689,7 @@ export function ProgramDetailPage() {
         {phase && (
           <div style={{ background: 'var(--p-labels)', border: `1px solid ${outline}`, borderRadius: '18px', padding: '16px', marginTop: '8px' }}>
             <div style={{ color: labelsText, fontWeight: 700, fontSize: '16px', marginBottom: '4px' }}>
-              Недели {phase.weekStart}–{phase.weekEnd} · {phase.label}
+              {phaseRange(phase.weekStart, phase.weekEnd)} · {phase.label}
             </div>
             <div className="text-sm" style={{ color: 'var(--color-text-secondary)', marginBottom: '10px' }}>
               {phase.scheme}
