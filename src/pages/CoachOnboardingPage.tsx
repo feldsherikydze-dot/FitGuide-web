@@ -313,6 +313,7 @@ export function CoachOnboardingPage() {
       activityLevel: '', goal: '', trainStyle: '', bodyFatPercent: 0,
       workoutsPerWeek: 0, bio: '', country: '', city: '', level: '',
       equipment: [], place: '',
+      trainingEmphasis: 'auto', lifeStage: 'none', lastPeriodDate: 0, cycleLength: 28,
     };
 
     const nextProfile: UserProfile = {
@@ -370,6 +371,7 @@ export function CoachOnboardingPage() {
           equipment: place === 'home' ? undefined : Array.from(equipment),
           age: ageNum,
           female: gender === 'female',
+          emphasis: profile?.trainingEmphasis,
         }, db);
         if (program.phases?.length) {
           add(program);
@@ -397,6 +399,7 @@ export function CoachOnboardingPage() {
           equipment: place === 'home' ? undefined : Array.from(equipment),
           age: ageNum,
           female: gender === 'female',
+          emphasis: profile?.trainingEmphasis,
         }, db);
         add(program);
         coach.setPrevProgram(previousActive);

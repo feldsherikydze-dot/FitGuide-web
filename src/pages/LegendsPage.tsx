@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/ui';
 import { LEGEND_CATALOG, type LegendProgram } from '../core/legends';
-import { buildLegendProgram } from '../core/legendPlans';
+import { buildLegendProgram, hasLegendPlan } from '../core/legendPlans';
 import { useProgramsStore, useProfileStore } from '../core/store';
 import { useExercises } from '../hooks/useExercises';
 import { generateProgram, PERIOD_LINEAR, TYPE_AUTO } from '../core/generator';
@@ -32,6 +32,11 @@ export function LegendsPage() {
   const { profile } = useProfileStore();
   const { db } = useExercises();
   const [toast, setToast] = useState<string | null>(null);
+  const hasGender = !!profile?.gender;
+  const [mineOnly, setMineOnly] = useState(hasGender);
+  const catalog = mineOnly && hasGender
+    ? LEGEND_CATALOG.filter(p => !p.audience || p.audience === 'any' || p.audience === profile?.gender)
+    : LEGEND_CATALOG;
 
   const choose = (p: LegendProgram) => {
     // Сначала настоящий план легенды; генератор — только если плана нет.
@@ -56,6 +61,7 @@ export function LegendsPage() {
       equipment: profile?.equipment || [],
       age: profile?.age,
       female: profile?.gender === 'female',
+      emphasis: profile?.trainingEmphasis,
     }, db);
     add(program);
     setToast(`Программа «${p.name}» добавлена в перечень тренировок`);
@@ -68,11 +74,40 @@ export function LegendsPage() {
         onBack={() => navigate('/programs')} />
 
       <div className="px-3">
-        {LEGEND_CATALOG.map(p => (
+        <div className="flex gap-1.5 mb-2.5">
+          {([
+            { key: true, label: 'Для меня' },
+            { key: false, label: 'Все' },
+          ] as const).map(f => {
+            const active = mineOnly === f.key;
+            return (
+              <button
+                key={String(f.key)}
+                disabled={f.key && !hasGender}
+                onClick={() => setMineOnly(f.key)}
+                className="px-3 py-1.5 rounded-lg text-[13px] font-medium disabled:opacity-40"
+                style={{
+                  background: active ? 'var(--p-circle)' : 'var(--p-labels)',
+                  color: active ? '#fff' : 'var(--color-text-main)',
+                  border: '1px solid var(--p-outline)',
+                }}
+              >
+                {f.label}
+              </button>
+            );
+          })}
+        </div>
+        {catalog.map(p => (
           <div key={p.id} className="mb-2.5 p-4 rounded-[20px]"
             style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}>
             <div className="text-[18px] font-bold" style={{ color: 'var(--color-text-main)' }}>{p.name}</div>
             <div className="mt-0.5 text-[13px]" style={{ color: 'var(--p-labels-text)' }}>{p.author}</div>
+            {hasLegendPlan(p.id) && (
+              <div className="mt-1.5 inline-block px-2 py-0.5 rounded text-[11px] font-bold"
+                style={{ color: 'var(--p-labels-text)', border: '1px solid var(--p-outline)' }}>
+                План зафиксирован
+              </div>
+            )}
             <div className="mt-1.5 text-[13px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
               {AUDIENCE_LABELS[p.audience]} · {GOAL_LABELS[normalizeGoal(p.goal)]} · {LEVEL_LABELS[p.level]}
               <br />

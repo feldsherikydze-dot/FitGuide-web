@@ -17,6 +17,7 @@ import { PageHeader, usePaletteVars } from '../components/ui';
 import { useProfileStore, useCoachStore, useProgramsStore } from '../core/store';
 import { GOALS, GOALS_ALL, GOAL_LABELS, GOAL_DESCRIPTIONS, recommendDays, recommendPerWeek, caloriesFor, proteinPerKg, fatsPerKg } from '../core/goals';
 import { COMP_PHASE_ORDER, COMP_PHASE_LABELS, stageWeightKg, offseasonWeightKg } from '../core/seasonPlan';
+import { EMPHASIS_LABELS, STAGE_LABELS, cycleInfo, healthNotes, type Emphasis, type LifeStage } from '../core/genderPolicy';
 import type { UserProfile } from '../data/types';
 import { slotColor, contrastOn, withAlpha } from '../core/palette';
 
@@ -67,7 +68,24 @@ const DEFAULT_PROFILE: UserProfile = {
   activityLevel: 'moderate', goal: GOALS.MASS, trainStyle: 'any',
   bodyFatPercent: 0, workoutsPerWeek: 0, bio: '', country: '', city: '',
   level: 'intermediate', equipment: [], place: 'gym',
+  trainingEmphasis: 'auto', lifeStage: 'none', lastPeriodDate: 0, cycleLength: 28,
 };
+
+/** ms → YYYY-MM-DD для input[type=date] в локальной зоне. */
+function dateInputValue(ms?: number): string {
+  if (!ms) return '';
+  const d = new Date(ms);
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+function dateFromInput(value: string): number {
+  if (!value) return 0;
+  const [y, m, d] = value.split('-').map(Number);
+  if (!y || !m || !d) return 0;
+  return new Date(y, m - 1, d).getTime();
+}
 
 function ChipFactoryStyle(checked: boolean) {
   const outline = slotColor('outline');
@@ -228,7 +246,9 @@ export function ProfilePage() {
       return;
     }
     const goalStr = selectedGoalChips.join(',') || GOALS.MASS;
-    const toSave: UserProfile = { ...form, goal: goalStr };
+    const toSave: UserProfile = form.gender === 'female'
+      ? { ...form, goal: goalStr }
+      : { ...form, goal: goalStr, lifeStage: 'none', lastPeriodDate: 0, cycleLength: 28 };
     setProfile(toSave);
     saveProfileToHistory(toSave);
     setToast('Профиль сохранён');
@@ -252,6 +272,9 @@ export function ProfilePage() {
   const textSecondary = 'var(--color-text-secondary)';
   // ?attr/colorAccent в Android = контур (A)
   const accent = outline;
+
+  const cycle = cycleInfo(form.lastPeriodDate || 0, form.cycleLength || 28, Date.now());
+  const health = healthNotes(form, Date.now());
 
   const cardStyle = {
     background: labels,
@@ -310,7 +333,13 @@ export function ProfilePage() {
               return (
                 <button
                   key={g}
-                  onClick={() => setField('gender', g as 'male' | 'female')}
+                  onClick={() => {
+                    setField('gender', g as 'male' | 'female');
+                    if (g === 'male') {
+                      setField('lifeStage', 'none');
+                      setField('lastPeriodDate', 0);
+                    }
+                  }}
                   style={{
                     minHeight: '32px', padding: '0 12px', borderRadius: '8px',
                     border: `1px solid ${s.borderColor}`, background: s.background, color: s.color,
@@ -445,6 +474,107 @@ export function ProfilePage() {
               );
             })}
           </div>
+
+          {/* Акцент программы — чипы singleSelection */}
+          <label style={{ ...labelStyle, marginTop: '16px', display: 'block' }}>Акцент программы</label>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+            {(Object.keys(EMPHASIS_LABELS) as Emphasis[]).map(e => {
+              const checked = (form.trainingEmphasis || 'auto') === e;
+              const cs = ChipFactoryStyle(checked);
+              return (
+                <button
+                  key={e}
+                  onClick={() => setField('trainingEmphasis', e)}
+                  style={{
+                    minHeight: '32px', padding: '0 12px', borderRadius: '8px',
+                    border: `1px solid ${cs.borderColor}`, background: cs.background, color: cs.color,
+                    fontSize: '13px', fontWeight: 500, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  {EMPHASIS_LABELS[e]}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ fontSize: '12px', lineHeight: 1.4, color: textSecondary, marginTop: '6px' }}>
+            Пол задаёт только дефолт. «Ягодицы и ноги» — больше ягодиц и спины, меньше груди и рук;
+            «Верх тела» — наоборот; «Баланс» — без перекоса.
+          </div>
+
+          {form.gender === 'female' && (
+            <>
+              {/* Женское здоровье — необязательно */}
+              <label style={{ ...labelStyle, marginTop: '16px', display: 'block' }}>Женское здоровье (необязательно)</label>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+            {(Object.keys(STAGE_LABELS) as LifeStage[]).map(s => {
+              const checked = (form.lifeStage || 'none') === s;
+              const cs = ChipFactoryStyle(checked);
+              return (
+                <button
+                  key={s}
+                  onClick={() => setField('lifeStage', s)}
+                  style={{
+                    minHeight: '32px', padding: '0 12px', borderRadius: '8px',
+                    border: `1px solid ${cs.borderColor}`, background: cs.background, color: cs.color,
+                    fontSize: '13px', fontWeight: 500, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  {STAGE_LABELS[s]}
+                </button>
+              );
+            })}
+          </div>
+
+          <label style={{ ...labelStyle, marginTop: '12px', display: 'block' }}>Цикл: первый день последней менструации</label>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '6px', alignItems: 'center' }}>
+            <input
+              type="date"
+              className="fg-input"
+              value={dateInputValue(form.lastPeriodDate)}
+              onChange={e => setField('lastPeriodDate', dateFromInput(e.target.value))}
+              style={{
+                flex: 1, minWidth: 0, boxSizing: 'border-box', padding: '12px 16px',
+                fontSize: '15px', color: textMain,
+                background: InputFieldStyle(false).background,
+                border: `${InputFieldStyle(false).borderWidth}px solid ${InputFieldStyle(false).borderColor}`,
+                borderRadius: '14px', outline: 'none',
+              }}
+            />
+            <div style={{ width: '96px' }}>
+              <input
+                type="number"
+                className="fg-input"
+                min={21}
+                max={45}
+                value={form.cycleLength || 28}
+                onChange={e => setNumberField('cycleLength', e.target.value)}
+                style={{
+                  width: '100%', boxSizing: 'border-box', padding: '12px 12px',
+                  fontSize: '15px', color: textMain,
+                  background: InputFieldStyle(false).background,
+                  border: `${InputFieldStyle(false).borderWidth}px solid ${InputFieldStyle(false).borderColor}`,
+                  borderRadius: '14px', outline: 'none',
+                }}
+              />
+            </div>
+          </div>
+
+          {(cycle || health.length > 0) && (
+            <div style={{ marginTop: '8px', fontSize: '13px', lineHeight: 1.45, color: textSecondary }}>
+              {cycle && (
+                <div>
+                  День {cycle.day}, {cycle.label} фаза. {cycle.note}
+                </div>
+              )}
+              {health.filter(n => !n.startsWith('Цикл:')).map((n, i) => (
+                <div key={i} style={{ marginTop: '4px' }}>{n}</div>
+              ))}
+            </div>
+          )}
+            </>
+          )}
 
           {/* % жира / тренировок в неделю — две колонки */}
           <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>

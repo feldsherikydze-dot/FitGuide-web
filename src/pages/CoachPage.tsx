@@ -26,6 +26,7 @@ import { dailyCalories, goalLabel, proteinPerKg, recommendDays } from '../core/g
 import { generateProgram } from '../core/generator';
 import { analyzePhase } from '../core/planAdvisor';
 import { getJSON, getString, setString, KEYS } from '../core/storage';
+import { EMPHASIS_LABELS, healthNotes } from '../core/genderPolicy';
 import type { Day as MenuDay } from '../core/nutrition';
 import type { Phase, Session } from '../data/types';
 
@@ -207,6 +208,7 @@ export function CoachPage() {
       equipment: place === 'home' ? undefined : profile?.equipment,
       age: profile?.age,
       female: profile?.gender === 'female',
+      emphasis: profile?.trainingEmphasis,
     }, db);
     if (!generated.phases?.length) return;
     addProgram(generated);
@@ -280,6 +282,10 @@ export function CoachPage() {
         {p.goal ? <Line>Цель: {goalLabel(p.goal)}</Line> : null}
         {p.trainStyle && p.trainStyle !== 'any' ? <Line secondary>Направление: {styleLabel}</Line> : null}
         {profileFacts2.length > 0 ? <Line secondary>{profileFacts2.join(' · ')}</Line> : null}
+        {p.trainingEmphasis && p.trainingEmphasis !== 'auto'
+          ? <Line secondary>Акцент: {EMPHASIS_LABELS[p.trainingEmphasis as keyof typeof EMPHASIS_LABELS] || p.trainingEmphasis}</Line>
+          : null}
+        {healthNotes(p).map((n, i) => <Line key={i} secondary size={12}>{n}</Line>)}
         {bmi > 0 ? <Line secondary size={12}>ИМТ: {bmi.toFixed(1).replace('.', ',')}</Line> : null}
         {p.bio ? <Line secondary size={12}>{p.bio}</Line> : null}
       </>

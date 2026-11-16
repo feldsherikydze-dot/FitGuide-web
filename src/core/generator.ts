@@ -966,7 +966,20 @@ export interface GenerateOptions {
   type: string;
   equipment?: string[];
   age?: number;
+  /** Старое поле: женский шаблон по полу. Оставлено для совместимости. */
   female?: boolean;
+  /** Новый выбор: auto | glutes_legs | upper | balanced. */
+  emphasis?: string;
+}
+
+/**
+ * Ягодичный шаблон. «Авто» сохраняет прежнее поведение: female → ягодицы,
+ * остальные → баланс. Явный акцент важнее пола.
+ */
+function resolveGlutes(opts: GenerateOptions): boolean {
+  if (opts.emphasis === 'glutes_legs') return true;
+  if (opts.emphasis === 'upper' || opts.emphasis === 'balanced') return false;
+  return !!opts.female;
 }
 
 export function generateProgram(opts: GenerateOptions, db: ExercisesDB): Program {
@@ -985,9 +998,9 @@ export function generateProgram(opts: GenerateOptions, db: ExercisesDB): Program
   const exLimit = exercisesPerDay(opts.level, resolvedType);
 
   const age = opts.age || 0;
-  const female = !!opts.female;
+  const female = resolveGlutes(opts);
   const senior = age >= 40;
-  const restDelta = (female ? -15 : 0) + (senior ? 30 : 0);
+  const restDelta = senior ? 30 : 0;
 
   // группы по имени
   const groupIdByName = (name: string): string | null => {
@@ -1066,7 +1079,7 @@ export function generateProgram(opts: GenerateOptions, db: ExercisesDB): Program
 
 /** Удобная обёртка: из GeneratorInput. */
 export function generateFromInput(input: GeneratorInput, db: ExercisesDB, profile?: {
-  age?: number; female?: boolean; style?: string;
+  age?: number; female?: boolean; style?: string; emphasis?: string;
 }): Program {
   const goal = primaryGoal(input.goals.join(','));
   return generateProgram({
@@ -1083,6 +1096,7 @@ export function generateFromInput(input: GeneratorInput, db: ExercisesDB, profil
     equipment: input.equipment,
     age: profile?.age ?? input.age,
     female: profile?.female ?? (input.gender === 'female'),
+    emphasis: profile?.emphasis,
   }, db);
 }
 

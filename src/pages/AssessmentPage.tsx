@@ -261,6 +261,7 @@ export function AssessmentPage() {
         equipment: profile?.equipment,
         age: form.age,
         female: form.female,
+        emphasis: profile?.trainingEmphasis,
       }, db);
 
       // Стартовые веса — из калибровки: 85% e1RM по базовым движениям

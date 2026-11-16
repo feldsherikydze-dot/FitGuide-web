@@ -247,6 +247,13 @@ export interface UserProfile {
   level: string;
   equipment: string[];       // доступное оборудование в зале
   place: string;             // gym | home
+  /** Акцент программы: auto | glutes_legs | upper | balanced. */
+  trainingEmphasis?: string;
+  /** Жизненный этап: none | perimenopause | menopause | pregnancy | postpartum. */
+  lifeStage?: string;
+  /** Первый день последней менструации, ms; 0 — не отслеживается. */
+  lastPeriodDate?: number;
+  cycleLength?: number;
   compDate?: number;         // дата старта (для сезонного плана)
   compCategory?: string;
 }

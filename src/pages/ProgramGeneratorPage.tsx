@@ -107,6 +107,7 @@ export function ProgramGeneratorPage() {
       equipment,
       age: profile?.age,
       female: profile?.gender === 'female',
+      emphasis: profile?.trainingEmphasis,
     }, db);
     add(program);
     navigate('/programs/mine');

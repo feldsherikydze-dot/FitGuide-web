@@ -78,6 +78,7 @@ export function ProgramsPage() {
       equipment: form.equipment,
       age: profile?.age,
       female: profile?.gender === 'female',
+      emphasis: profile?.trainingEmphasis,
     }, db);
     add(program);
     setShowGen(false);

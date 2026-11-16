@@ -41,6 +41,7 @@ const DEFAULT_PROFILE: UserProfile = {
   activityLevel: '', goal: '', trainStyle: '',
   bodyFatPercent: 0, workoutsPerWeek: 0, bio: '', country: '', city: '',
   level: '', equipment: [], place: '',
+  trainingEmphasis: 'auto', lifeStage: 'none', lastPeriodDate: 0, cycleLength: 28,
 };
 
 /** Заголовок раздела: 17sp bold, цвет (D) — как ?attr/appTextHeader. 

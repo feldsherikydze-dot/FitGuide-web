@@ -5,7 +5,7 @@
 // cache.addAll падает целиком, SW не устанавливается, и браузер
 // не считает приложение устанавливаемым (ярлык открывается во вкладке).
 
-const CACHE_NAME = 'fitguide-v1.64';
+const CACHE_NAME = 'fitguide-v1.65';
 
 const STATIC_ASSETS = [
   './',
