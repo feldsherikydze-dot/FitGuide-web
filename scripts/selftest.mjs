@@ -185,9 +185,9 @@ check('fillFromSessions берёт лучший вес', (() => {
 console.log('\n=== БАЗА ДАННЫХ ===');
 const db = JSON.parse(readFileSync(join(root, 'public', 'exercises.json'), 'utf8'));
 check('упражнений в базе > 300', db.exercises.length > 300, `(${db.exercises.length})`);
-check('групп мышц 16', db.muscleGroups.length === 16);
+check('групп мышц 17', db.muscleGroups.length === 17);
 const picker = JSON.parse(readFileSync(join(root, 'public', 'picker.json'), 'utf8'));
-check('picker: 6 регионов', picker.regions.length === 6);
+check('picker: 7 регионов', picker.regions.length === 7);
 check('picker: карта упражнений не пуста', Object.keys(picker.map).length > 300);
 const staticByName = /^(планка|боковая планка|вакуум|абдоминальный вакуум|статическ|удержание)/i;
 const dynamicMark = /движен|динамик|твист|скручиван|отжиман/i;

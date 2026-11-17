@@ -334,6 +334,18 @@
           "heads": []
         }
       ]
+    },
+    {
+      "id": "cardio",
+      "name": "Кардио",
+      "icon": "cardio",
+      "muscles": [
+        {
+          "id": "cardio",
+          "name": "Кардио",
+          "heads": []
+        }
+      ]
     }
   ],
   "map": {
@@ -1596,6 +1608,38 @@
     "ex_new_132": [
       "neck",
       "ext"
+    ],
+    "ex_new_140": [
+      "cardio",
+      ""
+    ],
+    "ex_new_139": [
+      "cardio",
+      ""
+    ],
+    "ex_new_138": [
+      "cardio",
+      ""
+    ],
+    "ex_new_137": [
+      "cardio",
+      ""
+    ],
+    "ex_new_136": [
+      "cardio",
+      ""
+    ],
+    "ex_new_135": [
+      "cardio",
+      ""
+    ],
+    "ex_new_134": [
+      "cardio",
+      ""
+    ],
+    "ex_new_133": [
+      "cardio",
+      ""
     ]
   }
 }

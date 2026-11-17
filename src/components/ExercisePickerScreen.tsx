@@ -158,12 +158,13 @@ export function ExercisePickerScreen({
     let path = 'Все упражнения';
     if (region) {
       path = region.name;
-      const single = region.muscles.length === 1;
+      const single = (region.muscles || []).length === 1;
       if (muscle) {
         if (!single) path += ' › ' + muscle.name;
+        const heads = muscle.heads || [];
         if (headId) {
-          path += ' › ' + (muscle.heads.find(h => h.id === headId)?.name || headId);
-        } else if (muscle.heads.length) {
+          path += ' › ' + (heads.find(h => h.id === headId)?.name || headId);
+        } else if (heads.length) {
           path += ' › все части';
         }
       } else {
@@ -295,9 +296,9 @@ export function ExercisePickerScreen({
       )}
 
       {/* Головка/пучок */}
-      {muscle && muscle.heads.length > 0 && (
+      {muscle && (muscle.heads || []).length > 0 && (
         <div className="flex gap-1.5 px-3 overflow-x-auto fg-no-scrollbar pb-1">
-          {muscle.heads.map(h => (
+          {(muscle.heads || []).map(h => (
             <button key={h.id} type="button"
               onClick={() => setHeadId(prev => (prev === h.id ? '' : h.id))}
               className={`fg-chip flex-shrink-0 ${headId === h.id ? 'fg-chip-on' : ''}`}>

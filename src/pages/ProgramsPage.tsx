@@ -16,6 +16,7 @@ import {
 import { PageHeader } from '../components/ui';
 import { useProgramsStore, useCoachStore, useProfileStore } from '../core/store';
 import { useExercises, usePicker } from '../hooks/useExercises';
+import { cardioDefaults, isCardioExercise, repsHasTime, strengthDefaults, workLabel } from '../core/cardio';
 import { generateProgram, buildProgramName, PERIOD_LINEAR, PERIOD_NONE, PERIOD_WAVE, TYPE_AUTO, TYPE_CIRCUIT, TYPE_FULLBODY, TYPE_SPLIT } from '../core/generator';
 import { analyzePhase } from '../core/planAdvisor';
 import { GOALS, GOALS_ALL, GOAL_LABELS, GOAL_DESCRIPTIONS, normalizeGoal, recommendDays } from '../core/goals';
@@ -322,7 +323,7 @@ function slotExtra(slot: Slot): string {
       : slot.startWeight!.toFixed(1);
     extra += ` · старт ${w} кг`;
   }
-  if ((slot.workSec ?? 0) > 0) extra += ` · ${slot.workSec} с`;
+  if ((slot.workSec ?? 0) > 0 && !repsHasTime(slot.reps)) extra += ` · ${workLabel(slot.workSec!)}`;
   if (slot.group && slot.group !== slot.exercise) extra = `${slot.group} · ${extra}`;
   return extra;
 }
@@ -498,7 +499,7 @@ export function ProgramDetailPage() {
       rest: rest.trim() || slot.rest,
       restEx: restEx.trim() || undefined,
       startWeight: parseFloat(weight.replace(',', '.')) || 0,
-      workSec: workOn ? Math.max(1, Math.min(600, parseInt(workSec, 10) || 40)) : 0,
+      workSec: workOn ? Math.max(1, Math.min(3600, parseInt(workSec, 10) || 40)) : 0,
     };
     saveProgram({
       ...program,
@@ -522,8 +523,16 @@ export function ProgramDetailPage() {
   const applyReplace = (exercise: string) => {
     if (!replacing) return;
     const { day, slot } = replacing;
-    const ex = byName().get(exercise);
+    const byNameMap = byName();
+    const ex = byNameMap.get(exercise);
+    const prev = byNameMap.get(slot.exercise);
     const group = ex ? (groupNameById()[ex.muscleGroup] || slot.group) : slot.group;
+    let patch: Partial<Slot> = {};
+    if (isCardioExercise(ex)) {
+      patch = cardioDefaults();
+    } else if (isCardioExercise(prev)) {
+      patch = strengthDefaults();
+    }
     saveProgram({
       ...program,
       phases: program.phases.map(ph => {
@@ -531,7 +540,7 @@ export function ProgramDetailPage() {
         return {
           ...ph,
           days: ph.days.map(d => d === day
-            ? { ...d, slots: d.slots.map(s => s === slot ? { ...s, exercise, group } : s) }
+            ? { ...d, slots: d.slots.map(s => s === slot ? { ...s, exercise, group, ...patch } : s) }
             : d),
         };
       }),
@@ -589,7 +598,7 @@ export function ProgramDetailPage() {
     const groupNames = groupNameById();
     const added: Slot[] = names.map(name => {
       const ex = names2.get(name);
-      return {
+      const base: Slot = {
         exercise: name,
         group: ex ? (groupNames[ex.muscleGroup] || '') : '',
         reps: '10–12',
@@ -597,6 +606,7 @@ export function ProgramDetailPage() {
         sets,
         role: 'secondary',
       };
+      return isCardioExercise(ex) ? { ...base, ...cardioDefaults() } : base;
     });
     saveProgram({
       ...program,

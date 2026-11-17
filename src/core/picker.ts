@@ -38,6 +38,7 @@ const GROUP_TO_PICKER_MUSCLES: Record<string, string[]> = {
   'Икры': ['calves', 'tibialis'],
   'Шея': ['neck'],
   'Грудь': ['chest'],
+  'Кардио': ['cardio'],
 };
 
 const lower = (v: string | null | undefined) => (v || '').trim().toLowerCase();

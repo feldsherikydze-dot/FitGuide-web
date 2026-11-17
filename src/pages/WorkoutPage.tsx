@@ -12,6 +12,7 @@ import { ChevronLeft } from 'lucide-react';
 import { useCoachStore, useProgramsStore, useOneRmStore, useProfileStore } from '../core/store';
 import { createSession, applyFeelProgression, loadFeel, setDelta, readinessScore, dayKey, estimateOneRepMax, planReps } from '../core/coach';
 import { playSignal } from '../core/signal';
+import { isCardioExercise, workLabel } from '../core/cardio';
 import { useExercises } from '../hooks/useExercises';
 import { ReplaceExercisePicker } from './progress/common';
 import type { Session, SessionItem, Slot, Program } from '../data/types';
@@ -142,6 +143,8 @@ export function WorkoutPage() {
   const [repsOpen, setRepsOpen] = useState(false);
   const [repsValue, setRepsValue] = useState('10');
   const [pendingReps, setPendingReps] = useState<number | null>(null);
+  // Кардио: обратный отсчёт подхода (WorkoutActivity.renderSetTimer).
+  const [timerEnd, setTimerEnd] = useState<number | null>(null);
   const [toast, setToast] = useState('');
 
   const exStartRef = useRef(Date.now());
@@ -217,6 +220,28 @@ export function WorkoutPage() {
   const targetSets = curItem?.targetSets || curSlot?.sets || 3;
   const doneSets = curItem?.sets || 0;
   const exerciseDone = doneSets >= targetSets;
+  // Кардио: слот с workSec идёт по таймеру, а не по счётчику повторов.
+  const workTotal = Math.max(0, curSlot?.workSec || 0);
+  const timeMode = workTotal > 0;
+  const timerLeft = timerEnd === null ? 0 : Math.max(0, Math.ceil((timerEnd - Date.now()) / 1000));
+
+  // Время подхода вышло — сразу спрашиваем факт, как после таймера в APK.
+  useEffect(() => {
+    if (timerEnd === null || timerLeft > 0) return;
+    setTimerEnd(null);
+    playSignal('restOver');
+    // Кардио: факт — это минуты подхода, а не повторы.
+    setRepsValue(String(timeMode
+      ? Math.max(1, Math.round(workTotal / 60))
+      : Math.max(1, curItem?.reps || planReps(curSlot?.reps || '') || 10)));
+    setRepsOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timerEnd, timerLeft]);
+
+  // Перешли на другое упражнение — старый отсчёт не тащим с собой.
+  useEffect(() => {
+    setTimerEnd(null);
+  }, [idx]);
 
   const totalSets = useMemo(
     () => session ? session.items.reduce((n, it) => n + Math.max(it.targetSets, 1), 0) : 0,
@@ -228,6 +253,24 @@ export function WorkoutPage() {
   );
 
   const exercise = exercises.find(e => e.name === curItem?.exercise);
+
+  /**
+   * Отдых «между упражнениями» — не свойство слота в программе, а вопрос
+   * «есть ли после этого ещё работа». Пропустил упражнение, дошёл до конца,
+   * вернулся к пропущенному — оно стало последним, отдыха после него нет.
+   * Возвращает индекс ближайшего несделанного или -1.
+   */
+  const nextUnfinished = (from: number, list = session?.items || []): number => {
+    const target = (i: number) => list[i].targetSets || day?.slots[i]?.sets || 3;
+    for (let i = from + 1; i < list.length; i++) {
+      if (list[i].sets < target(i)) return i;
+    }
+    for (let i = 0; i < list.length; i++) {
+      if (i !== from && list[i].sets < target(i)) return i;
+    }
+    return -1;
+  };
+  const nextIdx = nextUnfinished(idx);
 
   const elapsed = session && session.startedAt
     ? Math.max(0, Math.floor((Date.now() - session.startedAt) / 1000))
@@ -254,19 +297,22 @@ export function WorkoutPage() {
 
   // Превью следующего упражнения — только на последнем подходе текущего,
   // ровно как nextPreview() в WorkoutActivity.
-  const nextPreview = (doneSets === targetSets - 1 && idx + 1 < (session?.items.length || 0))
-    ? `Следующее упражнение: ${lineOf(session!.items[idx + 1], day?.slots[idx + 1])}`
+  const nextPreview = (doneSets === targetSets - 1 && nextIdx >= 0)
+    ? `Следующее упражнение: ${lineOf(session!.items[nextIdx], day?.slots[nextIdx])}`
     : '';
 
   const progressText = restEnd !== null
     ? (restKind === 'ex'
-        ? (idx + 1 < (session?.items.length || 0)
-            ? `Следующее упражнение: ${lineOf(session!.items[idx + 1], day?.slots[idx + 1])}`
+        ? (nextIdx >= 0
+            ? `Следующее упражнение: ${lineOf(session!.items[nextIdx], day?.slots[nextIdx])}`
             : 'Отдых между упражнениями')
         : 'Отдых между подходами')
     : `Подход ${doneSets} из ${targetSets}`;
 
   const warmup = (() => {
+    if (isCardioExercise(exercise)) {
+      return 'Разминка: 3–5 мин лёгкого темпа, потом рабочий';
+    }
     const w = curItem?.weightKg || 0;
     if (w <= 0) return 'Разминка: пустой гриф (или лёгкий вес) × 12–15';
     const pct = [0.4, 0.6, 0.8];
@@ -340,6 +386,9 @@ export function WorkoutPage() {
     setPendingReps(null);
     setStartRef.current = Date.now();
     const isLast = nextSets >= targetSets;
+    // Работа впереди? Тогда отдых между упражнениями, иначе сразу итог.
+    const workLeft = isLast && nextUnfinished(idx, items) >= 0;
+    if (isLast && !workLeft) return;
     const restValue = isLast ? (curSlot.restEx || curSlot.rest) : curSlot.rest;
     startRest(parseRest(restValue, 90), isLast ? 'ex' : 'set');
   };
@@ -347,8 +396,11 @@ export function WorkoutPage() {
   const skipRest = () => {
     setRestEnd(null);
     if (!session) return;
-    if (exerciseDone && idx + 1 < session.items.length) {
-      setIdx(idx + 1);
+    // Ведём к ближайшему несделанному, а не к соседу по списку: сосед может
+    // быть уже закрыт, если упражнение пропустили и вернулись к нему.
+    const nxt = nextUnfinished(idx);
+    if (nxt >= 0) {
+      setIdx(nxt);
       setHintOpen(false);
       exStartRef.current = Date.now();
       setStartRef.current = Date.now();
@@ -479,6 +531,20 @@ export function WorkoutPage() {
       return;
     }
     if (!exerciseDone) {
+      // Кардио: сначала обратный отсчёт подхода, потом факт повторов.
+      if (timeMode) {
+        if (timerEnd === null) {
+          setTimerEnd(Date.now() + workTotal * 1000);
+          setStartRef.current = Date.now();
+          playSignal('setStart');
+        } else {
+          // Досрочное завершение: спрашиваем факт сразу.
+          setTimerEnd(null);
+          setRepsValue(String(Math.max(1, Math.round(workTotal / 60))));
+          setRepsOpen(true);
+        }
+        return;
+      }
       // Сначала фактическое число повторов, потом оценка подхода — как в APK.
       const planned = Math.max(1, curItem.reps || planReps(curSlot.reps) || 10);
       setRepsValue(String(planned));
@@ -501,9 +567,13 @@ export function WorkoutPage() {
 
   const mainLabel = !started
     ? 'Начать'
-    : !exerciseDone
-      ? `Подход выполнен (${doneSets + 1}/${targetSets})`
-      : allDone ? 'Завершить' : 'К пропущенным';
+    : timerEnd !== null
+      ? 'Завершить подход досрочно'
+      : !exerciseDone
+        ? (timeMode
+            ? `Старт подхода · ${workLabel(workTotal)}`
+            : `Подход выполнен (${doneSets + 1}/${targetSets})`)
+        : allDone ? 'Завершить' : 'К пропущенным';
 
   const swapTo = (name: string) => {
     if (!session || !curItem) return;
@@ -581,7 +651,7 @@ export function WorkoutPage() {
         )}
 
         {/* Подходы / Повторы / Вес */}
-        <div className="grid grid-cols-3 gap-2 mt-[18px]">
+        <div className={`grid ${timeMode ? 'grid-cols-2' : 'grid-cols-3'} gap-2 mt-[18px]`}>
           <label className="fg-wk-field">
             <input
               type="number" min={1} max={20}
@@ -598,8 +668,9 @@ export function WorkoutPage() {
               onChange={e => patchItem({ reps: Math.max(0, parseInt(e.target.value, 10) || 0) })}
               className="fg-wk-input text-center font-mono text-[18px]"
             />
-            <span>Повторы</span>
+            <span>{timeMode ? 'Минуты' : 'Повторы'}</span>
           </label>
+          {!timeMode && (
           <label className="fg-wk-field">
             <input
               type="number" step="0.5" min={0}
@@ -609,6 +680,7 @@ export function WorkoutPage() {
             />
             <span>Вес, кг</span>
           </label>
+          )}
         </div>
 
         <div className="text-center pt-[18px] text-[17px] font-bold" style={{ color: 'var(--color-text-main)' }}>
@@ -635,6 +707,22 @@ export function WorkoutPage() {
               ))}
             </div>
           </>
+        )}
+
+        {/* Кардио: обратный отсчёт подхода вместо счётчика повторов */}
+        {timerEnd !== null && (
+          <div className="mt-4 flex flex-col items-center">
+            <div className="text-[14px]" style={{ color: 'var(--color-text-secondary)' }}>
+              Время подхода
+            </div>
+            <div className="text-[56px] font-bold font-mono leading-none my-1"
+              style={{ color: 'var(--p-labels-text)' }}>
+              {fmt(timerLeft)}
+            </div>
+            <div className="text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
+              Всего {workLabel(workTotal)}
+            </div>
+          </div>
         )}
 
         {/* Отдых */}
@@ -682,7 +770,8 @@ export function WorkoutPage() {
         <button onClick={() => setSwapOpen(true)} className="fg-wk-outline w-full mt-3">
           Заменить упражнение
         </button>
-        <button onClick={() => setWeightsOpen(true)} className="fg-wk-outline w-full mt-2">
+        <button onClick={() => setWeightsOpen(true)} className="fg-wk-outline w-full mt-2"
+          style={timeMode ? { display: 'none' } : undefined}>
           Рабочие веса от 1ПМ
         </button>
         <button onClick={() => setHintOpen(v => !v)} className="fg-wk-outline w-full mt-3">
@@ -784,10 +873,10 @@ export function WorkoutPage() {
           <div className="w-full max-w-md rounded-2xl p-5" style={{ background: 'var(--p-labels)' }}
             onClick={e => e.stopPropagation()}>
             <h3 className="text-[18px] font-bold mb-2" style={{ color: 'var(--color-text-main)' }}>
-              Сколько повторов получилось?
+              {timeMode ? 'Сколько минут длился подход?' : 'Сколько повторов получилось?'}
             </h3>
             <div className="text-[13px] mb-1" style={{ color: 'var(--color-text-secondary)' }}>
-              План: {curItem.reps} · подход {doneSets + 1} из {targetSets}
+              План: {timeMode ? workLabel(workTotal) : curItem.reps} · подход {doneSets + 1} из {targetSets}
             </div>
             <input
               value={repsValue}

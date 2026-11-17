@@ -10,7 +10,9 @@ import { useNavigate } from 'react-router-dom';
 import type React from 'react';
 import { useProfileStore, useProgramsStore } from '../core/store';
 import { GOALS, normalizeGoal } from '../core/goals';
-import type { Program } from '../data/types';
+import { useExercises } from '../hooks/useExercises';
+import { cardioDefaults, isCardioExercise, repsHasTime, workLabel } from '../core/cardio';
+import type { Exercise, Program } from '../data/types';
 import {
   Dialog, DialogAction, ConfirmDialog, Toast,
   parseInt10, parseNum, trimNum,
@@ -78,8 +80,9 @@ interface BlockDraft {
   days: DayDraft[];
 }
 
-function emptySlot(exercise: string): SlotDraft {
-  return { exercise, reps: '8–12', rest: '60–90 сек', restEx: '2–3 мин', sets: 3, startWeight: 0, workSec: 0 };
+function emptySlot(exercise: string, ex?: Exercise | null): SlotDraft {
+  const base: SlotDraft = { exercise, reps: '8–12', rest: '60–90 сек', restEx: '2–3 мин', sets: 3, startWeight: 0, workSec: 0 };
+  return isCardioExercise(ex) ? { ...base, ...cardioDefaults() } : base;
 }
 
 function emptyDay(title: string): DayDraft {
@@ -145,6 +148,7 @@ export function CustomProgramPage() {
   const navigate = useNavigate();
   const { add } = useProgramsStore();
   const { profile } = useProfileStore();
+  const { exercises } = useExercises();
   const [name, setName] = useState('');
   const [periodized, setPeriodized] = useState(false);
   const [blocks, setBlocks] = useState<BlockDraft[]>(() => [emptyBlock('Тренировка 1')]);
@@ -193,10 +197,12 @@ export function CustomProgramPage() {
   const renameDay = (bi: number, di: number, title: string) => setBlocks(list => list.map((b, i) => i === bi
     ? { ...b, days: b.days.map((d, d2) => d2 === di ? { ...d, title } : d) } : b));
 
-  const addSlots = (bi: number, di: number, exercises: string[]) => {
+  const findExercise = (name: string) => exercises.find(e => e.name === name);
+
+  const addSlots = (bi: number, di: number, names: string[]) => {
     setBlocks(list => list.map((b, i) => i === bi
       ? { ...b, days: b.days.map((d, d2) => d2 === di
-        ? { ...d, slots: [...d.slots, ...exercises.map(emptySlot)] } : d) }
+        ? { ...d, slots: [...d.slots, ...names.map(name => emptySlot(name, findExercise(name)))] } : d) }
       : b));
     setPickFor(null);
   };
@@ -241,7 +247,7 @@ export function CustomProgramPage() {
         ? { ...d, slots: d.slots.map((s2, s3) => s3 === si
           ? { ...s2, sets: Math.max(MIN_SETS, Math.min(MAX_SETS, parseInt10(sets))), reps, rest, restEx,
             startWeight: parseNum(weight) || 0,
-            workSec: workOn ? Math.max(1, Math.min(600, parseInt10(workSec))) : 0 }
+            workSec: workOn ? Math.max(1, Math.min(3600, parseInt10(workSec))) : 0 }
           : s2) } : d) } : b));
     setSlotEdit(null);
   };
@@ -292,7 +298,7 @@ export function CustomProgramPage() {
 
   const exerciseLine = (n: number, s: SlotDraft) => {
     const weightPart = s.startWeight > 0 ? ` · старт ${trimNum(s.startWeight)} кг` : '';
-    const workPart = s.workSec > 0 ? ` · ${s.workSec} с` : '';
+    const workPart = s.workSec > 0 && !repsHasTime(s.reps) ? ` · ${workLabel(s.workSec)}` : '';
     return `${n}. ${s.exercise} — ${s.sets > 0 ? s.sets : 3}×${s.reps || '8–12'} · отдых ${s.rest || '60–90 сек'}${weightPart}${workPart}`;
   };
 
