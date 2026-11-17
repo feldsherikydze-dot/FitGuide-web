@@ -108,6 +108,7 @@ export function ProgramGeneratorPage() {
       age: profile?.age,
       female: profile?.gender === 'female',
       emphasis: profile?.trainingEmphasis,
+      pregnant: profile?.lifeStage === 'pregnancy',
     }, db);
     add(program);
     navigate('/programs/mine');

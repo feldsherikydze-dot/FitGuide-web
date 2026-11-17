@@ -29,11 +29,13 @@ export function NutritionPage() {
 
   const weight = profile?.weightKg || 0;
   const age = profile?.age || 0;
-  const gender = profile?.gender || 'male';
+  const gender = profile?.gender || '';
+  const lifeStage = profile?.lifeStage || 'none';
 
   const bmr = useMemo(() => {
     if (!age || !profile?.heightCm || !weight) return 0;
-    const b = 10 * weight + 6.25 * profile.heightCm - 5 * age + (gender === 'male' ? 5 : -161);
+    const sex = gender === 'male' ? 5 : gender === 'female' ? -161 : -78;
+    const b = 10 * weight + 6.25 * profile.heightCm - 5 * age + sex;
     return Math.max(0, Math.round(b));
   }, [age, profile?.heightCm, weight, gender]);
 
@@ -45,8 +47,8 @@ export function NutritionPage() {
   const carbs = Math.max(0, Math.round((calories - protein * 4 - fats * 9) / 4));
 
   const additives: Additive[] = useMemo(
-    () => additivesForProfile({ goal, level, budget, weightKg: weight, age, gender }),
-    [goal, level, budget, weight, age, gender]
+    () => additivesForProfile({ goal, level, budget, weightKg: weight, age, gender, lifeStage }),
+    [goal, level, budget, weight, age, gender, lifeStage]
   );
 
   return (

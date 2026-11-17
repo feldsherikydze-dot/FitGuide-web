@@ -319,7 +319,7 @@ export function CoachOnboardingPage() {
     const nextProfile: UserProfile = {
       ...base,
       name: name.trim(),
-      gender: gender === 'female' ? 'female' : 'male',
+      gender: gender === 'female' ? 'female' : gender === 'male' ? 'male' : (base.gender || ''),
       age: ageNum,
       heightCm: heightNum,
       weightKg: weightNum,
@@ -372,6 +372,7 @@ export function CoachOnboardingPage() {
           age: ageNum,
           female: gender === 'female',
           emphasis: profile?.trainingEmphasis,
+          pregnant: nextProfile.lifeStage === 'pregnancy',
         }, db);
         if (program.phases?.length) {
           add(program);
@@ -400,6 +401,7 @@ export function CoachOnboardingPage() {
           age: ageNum,
           female: gender === 'female',
           emphasis: profile?.trainingEmphasis,
+          pregnant: nextProfile.lifeStage === 'pregnancy',
         }, db);
         add(program);
         coach.setPrevProgram(previousActive);

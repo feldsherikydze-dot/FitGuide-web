@@ -182,6 +182,27 @@ check('fillFromSessions берёт лучший вес', (() => {
   return w[0] === 110 && r[0] === 3;
 })());
 
+console.log('\n=== БЕРЕМЕННОСТЬ И НЕЙТРАЛЬНЫЙ ПОЛ ===');
+// 1:1 с src/core/pregnancy.ts
+function pregnancyAllows(name) {
+  const n = (name || '').toLowerCase();
+  if (n.includes('прыж')) return false;
+  if (n.includes('скручиван') || n.includes('подъем ног') || n.includes('подъём ног')
+    || n.includes('велосипед') || n.includes('вакуум') || n.includes('твист')
+    || n.includes('дровосек') || n.includes('наклон в сторону')) return false;
+  const barbell = n.includes('штанг') || n.includes('смита');
+  if (barbell && (n.includes('присед') || n.includes('станов') || n.includes('тяга')
+    || n.includes('жим стоя') || n.includes('выпад') || n.includes('на плеч'))) return false;
+  return true;
+}
+check('беременность: скручивания убраны', !pregnancyAllows('Скручивания на полу'));
+check('беременность: присед со штангой убран', !pregnancyAllows('Приседания со штангой на плечах'));
+check('беременность: прыжки убраны', !pregnancyAllows('Прыжки на скакалке'));
+check('беременность: жим гантелей остаётся', pregnancyAllows('Жим гантелей на наклонной скамье (30–45°)'));
+check('беременность: тяга блока остаётся', pregnancyAllows('Тяга верхнего блока к груди'));
+const neutralBmr = (w, h, a) => Math.round(10 * w + 6.25 * h - 5 * a - 78);
+check('нейтральный пол: BMR — середина мужской и женской', neutralBmr(80, 180, 30) === 1697);
+
 console.log('\n=== БАЗА ДАННЫХ ===');
 const db = JSON.parse(readFileSync(join(root, 'public', 'exercises.json'), 'utf8'));
 check('упражнений в базе > 300', db.exercises.length > 300, `(${db.exercises.length})`);

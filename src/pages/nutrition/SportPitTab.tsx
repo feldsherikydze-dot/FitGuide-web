@@ -38,19 +38,20 @@ export function SportPitTab() {
 
   const weight = profile?.weightKg || 0;
   const age = profile?.age || 0;
-  const complete = !!profile && age > 0 && (profile.heightCm || 0) > 0 && weight > 0 && !!profile.gender;
+  const complete = !!profile && age > 0 && (profile.heightCm || 0) > 0 && weight > 0;
 
   const calculate = useCallback(() => {
     const list = additivesForProfile({
       goal, level, budget,
-      weightKg: weight, age, gender: profile?.gender || 'male',
+      weightKg: weight, age, gender: profile?.gender || '',
+      lifeStage: profile?.lifeStage || 'none',
     });
     if (list.length === 0) {
       showToast('Выберите параметры для подбора');
       return;
     }
     setAdds(list);
-  }, [goal, level, budget, weight, age, profile?.gender]);
+  }, [goal, level, budget, weight, age, profile?.gender, profile?.lifeStage]);
 
   const openDetail = (a: Additive) => {
     navigate(`/sportpit/${encodeURIComponent(a.key)}?goal=${goal}&level=${level}&budget=${budget}`);

@@ -215,13 +215,14 @@ export function AssessmentPage() {
     oneRm.putAll(rms);
 
     // Профиль: как finishAll() в Android — вес и % жира в границах 5–60.
+    // Пол здесь не переписываем: в замере он нужен только для норм состава тела,
+    // а «не указывать» в профиле затирать мужским нельзя (в Android так же).
     setProfile({
       ...(profile || {
-        name: '', gender: 'male', activityLevel: 'moderate', goal: GOALS.MASS,
+        name: '', gender: '', activityLevel: 'moderate', goal: GOALS.MASS,
         trainStyle: 'any', bodyFatPercent: 0, workoutsPerWeek: 0, bio: '', country: '', city: '',
         level: 'intermediate', equipment: [], place: 'gym',
       }),
-      gender: form.female ? 'female' : 'male',
       age: form.age,
       heightCm: form.heightCm,
       weightKg: form.weightKg,

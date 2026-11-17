@@ -18,6 +18,7 @@ import { Field, Toast, parseInt10, parseNum } from '../progress/common';
 const GENDERS = [
   { value: 'male', label: 'Мужской' },
   { value: 'female', label: 'Женский' },
+  { value: '', label: 'Не указывать' },
 ];
 const ACTIVITIES = [
   { value: 'sedentary', label: 'Сидячий', factor: 1.2 },
@@ -40,15 +41,19 @@ const MACROS = [
   { value: 'keto', label: 'Кето (25/50/25)', p: 0.25, f: 0.50, c: 0.25 },
 ];
 
-/** Формулы BMR — точь-в-точь KbjuFragment.bmrFor. */
+/** Формулы BMR — точь-в-точь KbjuFragment.bmrFor. Пол не указан — середина. */
 function bmrFor(formula: string, gender: string, w: number, h: number, a: number, bodyFat: number): number {
   const male = gender === 'male';
+  const female = gender === 'female';
   let result = 0;
   switch (formula) {
     case 'harris':
       result = male
         ? 88.362 + 13.397 * w + 4.799 * h - 5.677 * a
-        : 447.593 + 9.247 * w + 3.098 * h - 4.330 * a;
+        : female
+          ? 447.593 + 9.247 * w + 3.098 * h - 4.330 * a
+          // середина мужской и женской формул
+          : 267.978 + 11.322 * w + 3.949 * h - 5.004 * a;
       break;
     case 'katch': {
       const lbm = w * (1 - bodyFat / 100);
@@ -63,13 +68,15 @@ function bmrFor(formula: string, gender: string, w: number, h: number, a: number
     case 'who':
       if (male) {
         result = a < 30 ? 15.057 * w + 692.2 : a <= 60 ? 11.6 * w + 879 : 13.5 * w + 487;
-      } else {
+      } else if (female) {
         result = a < 30 ? 14.818 * w + 486.6 : a <= 60 ? 8.126 * w + 845.6 : 9.082 * w + 658.5;
+      } else {
+        result = a < 30 ? 14.938 * w + 589.4 : a <= 60 ? 9.863 * w + 862.3 : 11.291 * w + 572.8;
       }
       break;
     case 'mifflin':
     default:
-      result = 10 * w + 6.25 * h - 5 * a + (male ? 5 : -161);
+      result = 10 * w + 6.25 * h - 5 * a + (male ? 5 : female ? -161 : -78);
       break;
   }
   return Math.max(result, 0);
@@ -82,11 +89,10 @@ function bmiCategory(bmi: number): string {
   return 'Ожирение';
 }
 
-/** Идеальный вес по Девину. */
+/** Идеальный вес по Девину. Пол не указан — середина (47,75). */
 function idealWeight(gender: string, height: number): number {
-  return gender === 'male'
-    ? 50 + 0.91 * (height - 152.4)
-    : 45.5 + 0.91 * (height - 152.4);
+  const base = gender === 'male' ? 50 : gender === 'female' ? 45.5 : 47.75;
+  return base + 0.91 * (height - 152.4);
 }
 
 const f1 = (n: number) => n.toFixed(1);
@@ -115,7 +121,7 @@ function Label({ children }: { children: React.ReactNode }) {
 
 export function KbjuTab() {
   const { profile } = useProfileStore();
-  const [gender, setGender] = useState(profile?.gender || 'male');
+  const [gender, setGender] = useState(profile?.gender || '');
   const [activity, setActivity] = useState(profile?.activityLevel || 'moderate');
   const [goal, setGoal] = useState(profile?.goal ? normalizeGoal(profile.goal) : 'mass');
   const [formula, setFormula] = useState('mifflin');
@@ -155,7 +161,7 @@ export function KbjuTab() {
     const w = parseNum(weight);
     const bf = parseNum(bodyFat);
 
-    if (a <= 0 || h <= 0 || w <= 0 || !gender || !activity || !goal) {
+    if (a <= 0 || h <= 0 || w <= 0 || !activity || !goal) {
       showToast('Заполните параметры для расчёта');
       return;
     }
@@ -237,7 +243,7 @@ export function KbjuTab() {
         <Label>Пол</Label>
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           {GENDERS.map(g => (
-            <button key={g.value} onClick={() => setGender(g.value)} className={chip(gender === g.value)}>
+            <button key={g.value || 'none'} onClick={() => setGender(g.value)} className={chip(gender === g.value)}>
               {g.label}
             </button>
           ))}

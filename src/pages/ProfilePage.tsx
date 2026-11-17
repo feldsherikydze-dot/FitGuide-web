@@ -64,7 +64,8 @@ const CATEGORIES = [
 ];
 
 const DEFAULT_PROFILE: UserProfile = {
-  name: '', gender: 'male', age: 0, heightCm: 0, weightKg: 0,
+  // Пол не обязателен: пустая строка = «не указывать», физиология считается нейтрально.
+  name: '', gender: '', age: 0, heightCm: 0, weightKg: 0,
   activityLevel: 'moderate', goal: GOALS.MASS, trainStyle: 'any',
   bodyFatPercent: 0, workoutsPerWeek: 0, bio: '', country: '', city: '',
   level: 'intermediate', equipment: [], place: 'gym',
@@ -230,7 +231,8 @@ export function ProfilePage() {
   };
 
   const bmr = form.age && form.heightCm && form.weightKg
-    ? Math.round(10 * form.weightKg + 6.25 * form.heightCm - 5 * form.age + (form.gender === 'male' ? 5 : -161))
+    ? Math.round(10 * form.weightKg + 6.25 * form.heightCm - 5 * form.age
+        + (form.gender === 'male' ? 5 : form.gender === 'female' ? -161 : -78))
     : 0;
   const activityFactor = ACTIVITY_LEVELS.find(a => a.value === form.activityLevel)?.factor || 1.2;
   const tdee = bmr ? Math.round(bmr * activityFactor) : 0;
@@ -241,8 +243,8 @@ export function ProfilePage() {
   const bmi = form.heightCm && form.weightKg ? (form.weightKg / Math.pow(form.heightCm / 100, 2)).toFixed(1) : '—';
 
   const save = () => {
-    if (!form.name.trim() || !form.gender || !(form.age > 0) || !(form.heightCm > 0) || !(form.weightKg > 0)) {
-      setToast('Заполните имя, пол и основные параметры');
+    if (!form.name.trim() || !(form.age > 0) || !(form.heightCm > 0) || !(form.weightKg > 0)) {
+      setToast('Заполните имя и основные параметры');
       return;
     }
     const goalStr = selectedGoalChips.join(',') || GOALS.MASS;
@@ -327,15 +329,15 @@ export function ProfilePage() {
           {/* Пол — чипы singleSelection */}
           <label style={{ ...labelStyle, marginTop: '16px', display: 'block' }}>Пол</label>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
-            {['male', 'female'].map(g => {
+            {(['male', 'female', ''] as const).map(g => {
               const checked = form.gender === g;
               const s = ChipFactoryStyle(checked);
               return (
                 <button
-                  key={g}
+                  key={g || 'none'}
                   onClick={() => {
-                    setField('gender', g as 'male' | 'female');
-                    if (g === 'male') {
+                    setField('gender', g);
+                    if (g !== 'female') {
                       setField('lifeStage', 'none');
                       setField('lastPeriodDate', 0);
                     }
@@ -347,7 +349,7 @@ export function ProfilePage() {
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}
                 >
-                  {g === 'male' ? 'Мужской' : 'Женский'}
+                  {g === 'male' ? 'Мужской' : g === 'female' ? 'Женский' : 'Не указывать'}
                 </button>
               );
             })}
@@ -689,7 +691,7 @@ export function ProfilePage() {
                       {p.name || 'Без имени'}
                     </div>
                     <div style={{ fontSize: '12px', color: textSecondary, marginTop: '2px' }}>
-                      {p.gender === 'female' ? 'Женский' : p.gender === 'male' ? 'Мужской' : '—'}
+                      {p.gender === 'female' ? 'Женский' : p.gender === 'male' ? 'Мужской' : 'Пол не указан'}
                       {p.age > 0 ? ` · ${p.age} лет` : ''}
                       {p.heightCm > 0 ? ` · ${p.heightCm} см` : ''}
                       {p.weightKg > 0 ? ` · ${p.weightKg.toFixed(1)} кг` : ''}

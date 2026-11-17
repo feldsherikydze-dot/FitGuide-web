@@ -113,7 +113,7 @@ export function calorieDelta(goal: string): number {
   }
 }
 
-/** Минимальная планка калорий (не даём упасть ниже). */
+/** Минимальная планка калорий (не даём упасть ниже). Без пола — безопасный минимум. */
 export function calorieFloor(goal: string, gender?: string | null): number {
   const male = gender === 'male';
   switch (normalizeGoal(goal)) {
@@ -158,8 +158,8 @@ export function dailyCalories(profile: {
   const h = profile.heightCm || 0;
   const a = profile.age || 0;
   if (w <= 0 || h <= 0 || a <= 0) return 0;
-  const male = profile.gender === 'male';
-  const bmr = Math.max(0, 10 * w + 6.25 * h - 5 * a + (male ? 5 : -161));
+  const sex = profile.gender === 'male' ? 5 : profile.gender === 'female' ? -161 : -78;
+  const bmr = Math.max(0, 10 * w + 6.25 * h - 5 * a + sex);
   return caloriesFor(bmr * activityFactor(profile.activityLevel), profile.goal || '', profile.gender);
 }
 

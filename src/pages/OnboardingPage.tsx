@@ -194,11 +194,21 @@ export function OnboardingPage() {
         </div>
 
         {/* Пол */}
-        <SectionHeader title="Пол" />
+        <SectionHeader title="Пол" desc="Можно не указывать: расчёты пойдут по средней физиологии." />
         <ChipGroup
-          options={[{ value: 'male', label: 'Мужской' }, { value: 'female', label: 'Женский' }]}
-          value={form.gender}
-          onChange={v => set('gender', v)}
+          options={[
+            { value: 'male', label: 'Мужской' },
+            { value: 'female', label: 'Женский' },
+            { value: 'none', label: 'Не указывать' },
+          ]}
+          value={form.gender || 'none'}
+          onChange={v => {
+            set('gender', v === 'none' ? '' : v);
+            if (v !== 'female') {
+              set('lifeStage', 'none');
+              set('lastPeriodDate', 0);
+            }
+          }}
         />
 
         {/* Активность */}

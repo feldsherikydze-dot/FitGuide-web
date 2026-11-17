@@ -88,7 +88,8 @@ export function SearchPage() {
       budget: 'medium',
       weightKg: profile?.weightKg || 0,
       age: profile?.age || 0,
-      gender: profile?.gender || 'male',
+      gender: profile?.gender || '',
+      lifeStage: profile?.lifeStage || 'none',
     })) {
       const hay = (it.name + ' ' + it.dose + ' ' + it.why).toLowerCase();
       if (hay.includes(q)) {

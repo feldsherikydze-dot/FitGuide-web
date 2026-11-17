@@ -16,6 +16,7 @@ import type { Program, Slot, Phase, Day, Exercise, GeneratorInput, ExercisesDB }
 import { STYLE, GOAL } from '../data/types';
 import { GOALS, normalizeGoal, primaryGoal } from './goals';
 import { getEquipCategory, isBasicExercise } from './exercises';
+import { pregnancyAllows, pregnancyAdjustSets, pregnancyAdjustReps, pregnancyRestDelta } from './pregnancy';
 
 export const TYPE_AUTO = 'auto';
 export const TYPE_FULLBODY = 'fullbody';
@@ -741,7 +742,7 @@ function homeOk(ex: Exercise): boolean {
 }
 
 function poolFor(all: Exercise[], spec: Spec, levelFilter: string, place: string, style: string,
-                homeStrict: boolean, equipment: string[]): Exercise[] {
+                homeStrict: boolean, equipment: string[], pregnant: boolean): Exercise[] {
   let base = all;
   if (levelFilter) {
     const maxRank = levelRank(levelFilter);
@@ -807,6 +808,8 @@ function poolFor(all: Exercise[], spec: Spec, levelFilter: string, place: string
     for (const b of spec.ban) { if (n.includes(b)) { banned = true; break; } }
     if (banned) continue;
 
+    if (pregnant && !pregnancyAllows(ex)) continue;
+
     pool.push(ex);
   }
   return pool;
@@ -827,7 +830,7 @@ function orderPool(pool: Exercise[], spec: Spec): Exercise[] {
  */
 function pick(groupExercises: Exercise[], spec: Spec, phaseIndex: number, seed: number,
               level: string, place: string, style: string, salt: string,
-              used: Set<string>, equipment: string[]): Slot | null {
+              used: Set<string>, equipment: string[], pregnant: boolean): Slot | null {
   const home = place === 'home';
 
   for (let stage = 0; stage < 3; stage++) {
@@ -836,7 +839,7 @@ function pick(groupExercises: Exercise[], spec: Spec, phaseIndex: number, seed: 
       ? { ...spec, keys: [], ban: [] }
       : spec;
 
-    const pool = poolFor(groupExercises, useSpec, levelFilter, place, style, home, equipment);
+    const pool = poolFor(groupExercises, useSpec, levelFilter, place, style, home, equipment, pregnant);
     const ordered = orderPool(pool, spec);
     if (!ordered.length) continue;
 
@@ -866,6 +869,7 @@ interface BuildDayParams {
   power: boolean;
   female: boolean;
   senior: boolean;
+  pregnant: boolean;
   rest: string;
   exLimit: number;
   sessionSets: Map<string, number> | null;
@@ -894,13 +898,14 @@ function buildDaySlots(p: BuildDayParams): Slot[] {
     const groupId = p.groupIdByName(spec.group);
     if (!groupId) continue;
     const slot = pick(p.exercisesOf(groupId), spec, p.phaseIndex, p.seed, p.level, p.place,
-      p.style, `${p.dayTitle}|${spec.group}|${spec.role}|${i}`, used, p.equipment);
+      p.style, `${p.dayTitle}|${spec.group}|${spec.role}|${i}`, used, p.equipment, p.pregnant);
     if (!slot) continue;
 
     slot.group = spec.group;
     slot.role = spec.role as Slot['role'];
     slot.reps = circuit ? '12–15'
       : (spec.fixedReps ?? slotReps(spec.role, p.goal, p.phaseIndex, p.style, powerDay));
+    if (p.pregnant) slot.reps = pregnancyAdjustReps(slot.reps);
     slot.rest = circuit ? p.rest
       : restForMuscle(spec.role, spec.group, slot.reps, p.restDelta, p.goal);
     slots.push(slot);
@@ -929,6 +934,7 @@ function buildDaySlots(p: BuildDayParams): Slot[] {
       sets = beginner ? 5 : Math.max(4, Math.min(5, sets));
     }
     if (p.female && s.group === 'Грудь') sets = Math.min(sets, 3);
+    if (p.pregnant) sets = pregnancyAdjustSets(sets);
     s.sets = sets;
   }
 
@@ -970,6 +976,8 @@ export interface GenerateOptions {
   female?: boolean;
   /** Новый выбор: auto | glutes_legs | upper | balanced. */
   emphasis?: string;
+  /** Беременность: правит объём и пул упражнений (см. pregnancy.ts). */
+  pregnant?: boolean;
 }
 
 /**
@@ -1000,7 +1008,8 @@ export function generateProgram(opts: GenerateOptions, db: ExercisesDB): Program
   const age = opts.age || 0;
   const female = resolveGlutes(opts);
   const senior = age >= 40;
-  const restDelta = senior ? 30 : 0;
+  const pregnant = !!opts.pregnant;
+  const restDelta = pregnant ? pregnancyRestDelta(senior ? 30 : 0) : (senior ? 30 : 0);
 
   // группы по имени
   const groupIdByName = (name: string): string | null => {
@@ -1039,8 +1048,10 @@ export function generateProgram(opts: GenerateOptions, db: ExercisesDB): Program
 
     let sets = setsFor(opts.goal, schemeIndex, style, opts.level);
     if (senior) sets = Math.max(2, sets - 1);
+    if (pregnant) sets = pregnancyAdjustSets(sets);
     let reps = slotReps(ROLE_MAIN, opts.goal, schemeIndex, style, power);
     if (senior && (reps === '1–3' || reps === '2–3')) reps = '3–5';
+    if (pregnant) reps = pregnancyAdjustReps(reps);
     let rest = restForReps(reps, restDelta);
     if (circuit) { sets = 3; reps = '12–15'; rest = '30–45 сек'; }
     if (deload) sets = Math.max(2, sets - 2);
@@ -1048,6 +1059,7 @@ export function generateProgram(opts: GenerateOptions, db: ExercisesDB): Program
     const hint = PHASE_HINTS[phaseIndex] ?? PHASE_HINTS[2];
     let schemeReps = slotReps(ROLE_MAIN, opts.goal, schemeIndex, style, power);
     if (senior && (schemeReps === '1–3' || schemeReps === '2–3')) schemeReps = '3–5';
+    if (pregnant) schemeReps = pregnancyAdjustReps(schemeReps);
     const prog = deload ? '' : (power ? ' · прогрессия силы' : ' · прогрессия массы');
 
     phase.scheme = circuit
@@ -1064,7 +1076,7 @@ export function generateProgram(opts: GenerateOptions, db: ExercisesDB): Program
         title: dayTitle,
         slots: buildDaySlots({
           dayTitle, templateId: template.id, goal: opts.goal, phaseIndex, seed,
-          level: opts.level, place: opts.place, style, power, female, senior,
+          level: opts.level, place: opts.place, style, power, female, senior, pregnant,
           rest, exLimit, sessionSets: daySets, phaseSets: sets, restDelta,
           equipment, groupIdByName, exercisesOf,
         }),
@@ -1079,7 +1091,7 @@ export function generateProgram(opts: GenerateOptions, db: ExercisesDB): Program
 
 /** Удобная обёртка: из GeneratorInput. */
 export function generateFromInput(input: GeneratorInput, db: ExercisesDB, profile?: {
-  age?: number; female?: boolean; style?: string; emphasis?: string;
+  age?: number; female?: boolean; style?: string; emphasis?: string; lifeStage?: string;
 }): Program {
   const goal = primaryGoal(input.goals.join(','));
   return generateProgram({
@@ -1097,6 +1109,7 @@ export function generateFromInput(input: GeneratorInput, db: ExercisesDB, profil
     age: profile?.age ?? input.age,
     female: profile?.female ?? (input.gender === 'female'),
     emphasis: profile?.emphasis,
+    pregnant: profile?.lifeStage === 'pregnancy',
   }, db);
 }
 

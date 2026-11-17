@@ -43,12 +43,17 @@ export function additivesForProfile(params: {
   weightKg: number;
   age: number;
   gender: string;
+  lifeStage?: string;
 }): Additive[] {
   const goal = normalizeGoal(params.goal);
   const weight = params.weightKg;
   const hasWeight = weight > 0;
   const level = params.level || 'beginner';
   const budget = params.budget || 'medium';
+  const female = params.gender === 'female';
+  const stage = params.lifeStage || 'none';
+  const pregnant = stage === 'pregnancy';
+  const menopause = stage === 'menopause' || stage === 'perimenopause';
 
   const result: Additive[] = [];
 
@@ -136,7 +141,7 @@ export function additivesForProfile(params: {
     });
   }
 
-  if (goal === GOAL.LOSE || goal === GOAL.CUT) {
+  if ((goal === GOAL.LOSE || goal === GOAL.CUT) && !pregnant) {
     result.push({
       key: 'caffeine',
       name: 'Кофеин',
@@ -172,17 +177,19 @@ export function additivesForProfile(params: {
         p('BSN — True-Mass', 'порошок 1,53 кг', '≈ 4200 ₽', false),
       ],
     });
-    result.push({
-      key: 'zma',
-      name: 'Цинк + магний (ZMA)',
-      dose: 'вечером',
-      why: 'Цинк и магний связаны с синтезом тестостерона и качеством сна — важны при наборе.',
-      products: [
-        p('Now Foods — ZMA', 'капсулы · 90 шт', '≈ 1300 ₽', true),
-        p('Advanced Labs — ZMA', 'капсулы · 90 шт', '≈ 1500 ₽', false),
-        p('IronMaxx — ZMA', 'капсулы · 120 шт', '≈ 1000 ₽', false),
-      ],
-    });
+    if (!pregnant) {
+      result.push({
+        key: 'zma',
+        name: 'Цинк + магний (ZMA)',
+        dose: 'вечером',
+        why: 'Цинк и магний связаны с синтезом тестостерона и качеством сна — важны при наборе.',
+        products: [
+          p('Now Foods — ZMA', 'капсулы · 90 шт', '≈ 1300 ₽', true),
+          p('Advanced Labs — ZMA', 'капсулы · 90 шт', '≈ 1500 ₽', false),
+          p('IronMaxx — ZMA', 'капсулы · 120 шт', '≈ 1000 ₽', false),
+        ],
+      });
+    }
   } else if (level === 'beginner') {
     result.push({
       key: 'magnesium',
@@ -232,6 +239,57 @@ export function additivesForProfile(params: {
         p('IronMaxx — Beta Alanine', 'капсулы · 120 шт', '≈ 1100 ₽', false),
       ],
     });
+  }
+
+  // Женская физиология и этапы: дефициты, которые чаще встречаются у женщин
+  // и на разных этапах жизни. Всё — по анализам и с врачом, без мегадоз.
+  if (female && pregnant) {
+    result.push({
+      key: 'folate',
+      name: 'Фолат (витамин B9)',
+      dose: '400–800 мкг в день',
+      why: 'Профилактика дефектов нервной трубки у плода — до зачатия и в первом триместре. Дозу согласуй с врачом, особенно если уже принимаешь витамины для беременных.',
+      products: [
+        p('Solgar — Folate 400 мкг', 'таблетки · 100 шт', '≈ 1400 ₽', true),
+        p('Now Foods — Methyl Folate 1000 мкг', 'капсулы · 90 шт', '≈ 1500 ₽', false),
+        p('Эвалар — Фолиевая кислота 400 мкг', 'таблетки · 50 шт', '≈ 200 ₽', false),
+      ],
+    });
+    result.push({
+      key: 'iodine',
+      name: 'Йод',
+      dose: '200 мкг в день',
+      why: 'Нужен для щитовидной железы матери и развития ребёнка. Не принимать вместе с комплексами, где йод уже есть.',
+      products: [
+        p('Now Foods — Iodine 225 мкг', 'таблетки · 90 шт', '≈ 900 ₽', true),
+        p('Solgar — Iodine 150 мкг', 'таблетки · 100 шт', '≈ 1100 ₽', false),
+      ],
+    });
+  } else if (female) {
+    result.push({
+      key: 'iron',
+      name: 'Железо (бисглицинат)',
+      dose: '18–25 мг через день',
+      why: 'Частый дефицит у женщин детородного возраста: сдай ферритин и ОАК. Принимать только по анализам, не вслепую и не с кофе.',
+      products: [
+        p('Solgar — Gentle Iron 25 мг', 'капсулы · 90 шт', '≈ 1700 ₽', true),
+        p('Now Foods — Iron Bisglycinate 25 мг', 'капсулы · 90 шт', '≈ 1300 ₽', false),
+        p('Эвалар — Железо хелат', 'таблетки · 60 шт', '≈ 900 ₽', false),
+      ],
+    });
+    if (menopause) {
+      result.push({
+        key: 'calcium',
+        name: 'Кальций + витамин D3',
+        dose: '1000–1200 мг кальция в день',
+        why: 'В менопаузу кости теряют плотность. Кальций лучше добирать едой (творог, кефир, сыр), добавка — по анализу и после разговора с врачом.',
+        products: [
+          p('Now Foods — Calcium Citrate', 'таблетки · 120 шт', '≈ 1300 ₽', true),
+          p('Solgar — Calcium Citrate with D3', 'таблетки · 120 шт', '≈ 1800 ₽', false),
+          p('Эвалар — Кальций-Д3', 'таблетки · 100 шт', '≈ 500 ₽', false),
+        ],
+      });
+    }
   }
 
   // Убираем дубли по ключу, сохраняя порядок.
