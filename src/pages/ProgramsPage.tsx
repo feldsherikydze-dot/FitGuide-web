@@ -21,6 +21,7 @@ import { generateProgram, buildProgramName, PERIOD_LINEAR, PERIOD_NONE, PERIOD_W
 import { analyzePhase } from '../core/planAdvisor';
 import { GOALS, GOALS_ALL, GOAL_LABELS, GOAL_DESCRIPTIONS, normalizeGoal, recommendDays } from '../core/goals';
 import { currentWeek, phaseForWeek, plural } from '../core/coach';
+import { focusLabel } from '../core/focus';
 import type { Program, Phase, Day, Slot } from '../data/types';
 import {
   Card, Dialog, DialogAction, Hint, PrimaryButton,
@@ -80,6 +81,7 @@ export function ProgramsPage() {
       age: profile?.age,
       female: profile?.gender === 'female',
       emphasis: profile?.trainingEmphasis,
+      focus: profile?.focusMuscles,
       pregnant: profile?.lifeStage === 'pregnancy',
     }, db);
     add(program);
@@ -638,6 +640,12 @@ export function ProgramDetailPage() {
           {GOAL_LABELS[normalizeGoal(program.goal)] || program.goal} · {levelLabel(program.level)}
           <br />
           {program.daysPerWeek} {plural(program.daysPerWeek, 'тренировка', 'тренировки', 'тренировок')} в неделю · {program.weeks} нед.
+          {program.focus ? (
+            <>
+              <br />
+              Акцент: {focusLabel(program.focus)}
+            </>
+          ) : null}
         </div>
         <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
           Дата создания: {formatDate(program.createdAt)}

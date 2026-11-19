@@ -18,6 +18,7 @@ import { useProfileStore, useCoachStore, useProgramsStore } from '../core/store'
 import { GOALS, GOALS_ALL, GOAL_LABELS, GOAL_DESCRIPTIONS, recommendDays, recommendPerWeek, caloriesFor, proteinPerKg, fatsPerKg } from '../core/goals';
 import { COMP_PHASE_ORDER, COMP_PHASE_LABELS, stageWeightKg, offseasonWeightKg } from '../core/seasonPlan';
 import { EMPHASIS_LABELS, STAGE_LABELS, cycleInfo, healthNotes, type Emphasis, type LifeStage } from '../core/genderPolicy';
+import { FOCUS_ALL, FOCUS_LABELS, focusKeys, type FocusKey } from '../core/focus';
 import type { UserProfile } from '../data/types';
 import { slotColor, contrastOn, withAlpha } from '../core/palette';
 
@@ -70,6 +71,7 @@ const DEFAULT_PROFILE: UserProfile = {
   bodyFatPercent: 0, workoutsPerWeek: 0, bio: '', country: '', city: '',
   level: 'intermediate', equipment: [], place: 'gym',
   trainingEmphasis: 'auto', lifeStage: 'none', lastPeriodDate: 0, cycleLength: 28,
+  focusMuscles: '',
 };
 
 /** ms → YYYY-MM-DD для input[type=date] в локальной зоне. */
@@ -126,6 +128,14 @@ export function ProfilePage() {
   const [showDelete, setShowDelete] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [selectedGoalChips, setSelectedGoalChips] = useState<string[]>([]);
+  const selectedFocus = focusKeys(form.focusMuscles);
+  /** Мультивыбор без ограничения: можно отметить все группы. */
+  const toggleFocus = (key: FocusKey) => {
+    const next = selectedFocus.includes(key)
+      ? selectedFocus.filter(k => k !== key)
+      : [...selectedFocus, key];
+    setField('focusMuscles', next.join(','));
+  };
   const [savedProfiles, setSavedProfiles] = useState<Array<{profile: UserProfile, index: number}>>([]);
   const [toast, setToast] = useState('');
   const [confirmBox, setConfirmBox] = useState<{ title: string; message: string; action: () => void } | null>(null);
@@ -502,6 +512,34 @@ export function ProfilePage() {
           <div style={{ fontSize: '12px', lineHeight: 1.4, color: textSecondary, marginTop: '6px' }}>
             Пол задаёт только дефолт. «Ягодицы и ноги» — больше ягодиц и спины, меньше груди и рук;
             «Верх тела» — наоборот; «Баланс» — без перекоса.
+          </div>
+
+          {/* Приоритетные группы — мультивыбор, до двух */}
+          <label style={{ ...labelStyle, marginTop: '16px', display: 'block' }}>Приоритетные группы</label>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+            {FOCUS_ALL.map(key => {
+              const checked = selectedFocus.includes(key);
+              const cs = ChipFactoryStyle(checked);
+              return (
+                <button
+                  key={key}
+                  onClick={() => toggleFocus(key)}
+                  style={{
+                    minHeight: '32px', padding: '0 12px', borderRadius: '8px',
+                    border: `1px solid ${cs.borderColor}`, background: cs.background, color: cs.color,
+                    fontSize: '13px', fontWeight: 500, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  {FOCUS_LABELS[key]}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ fontSize: '12px', lineHeight: 1.4, color: textSecondary, marginTop: '6px' }}>
+            Необязательно, можно все. Отмеченные группы получат больше подходов и пойдут первыми
+            в своём дне; остальные чуть ужмутся. Чем больше отмечено, тем мягче перекос —
+            всё сразу = обычная программа.
           </div>
 
           {form.gender === 'female' && (

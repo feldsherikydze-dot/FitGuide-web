@@ -22,6 +22,7 @@ import {
   compCatsForGender, compCatLabel, stageWeightKg, offseasonKg,
 } from '../core/compCategory';
 import { formatDate, plural } from '../core/coach';
+import { FOCUS_ALL, FOCUS_LABELS, focusKeys } from '../core/focus';
 import type { UserProfile } from '../data/types';
 import { Toast } from './progress/common';
 
@@ -37,11 +38,12 @@ const S_PLACE = 7;
 const S_EQUIP = 8;
 const S_DAYS = 9;
 const S_TYPE = 10;
-const S_LIMITS = 11;
-const S_COMPETE = 12;
-const S_CATEGORY = 13;
-const S_TERM = 14;
-const S_FINISH = 15;
+const S_FOCUS = 11;
+const S_LIMITS = 12;
+const S_COMPETE = 13;
+const S_CATEGORY = 14;
+const S_TERM = 15;
+const S_FINISH = 16;
 
 const LEVELS = [
   { value: 'beginner', label: 'Новичок' },
@@ -75,6 +77,9 @@ const LIMITS = [
   { value: 'shoulder', label: 'Плечи' },
   { value: 'wrist', label: 'Кисти' },
 ];
+
+/** Приоритетные группы: без ограничений по количеству, можно все. */
+const FOCUS_OPTIONS = FOCUS_ALL.map(k => ({ value: k, label: FOCUS_LABELS[k] }));
 
 const DAY_OPTIONS = [3, 4, 5, 6];
 const TERM_OPTIONS = [
@@ -138,6 +143,7 @@ export function CoachOnboardingPage() {
       days: Math.max(2, recommendDays(level, goal)),
       type: coach.programType || 'auto',
       restrictions: new Set<string>(coach.restrictions || []),
+      focus: new Set<string>(focusKeys(p?.focusMuscles)),
       category: coach.compCategory || '',
     };
     // префилл один раз, как prefillFromProfile() в Android
@@ -156,6 +162,7 @@ export function CoachOnboardingPage() {
   const [days, setDays] = useState(prefill.days);
   const [type, setType] = useState(prefill.type);
   const [restrictions, setRestrictions] = useState<Set<string>>(prefill.restrictions);
+  const [focus, setFocus] = useState<Set<string>>(prefill.focus);
   const [compete, setCompete] = useState(false);
   const [category, setCategory] = useState(prefill.category);
   const [termMonths, setTermMonths] = useState(12);
@@ -288,6 +295,9 @@ export function CoachOnboardingPage() {
     }
     lines.push(`Тренировок в неделю: ${days}`);
     lines.push(`Деление тренировок: ${typeLabel()}`);
+    if (focus.size) {
+      lines.push(`Акцент: ${focusKeys(Array.from(focus).join(',')).map(k => FOCUS_LABELS[k]).join(', ')}`);
+    }
     lines.push(`Ограничения: ${restrictions.size ? labelsOf(LIMITS, restrictions) : 'Не отмечено. Отметь, если что-то беспокоит — тренер уберёт рискованные упражнения из замен.'}`);
     if (compete) {
       lines.push(`Соревнования: ${compCatLabel(defaultCategory())}, подготовка ${termMonths} мес.`);
@@ -329,6 +339,7 @@ export function CoachOnboardingPage() {
       equipment: place === 'gym' ? Array.from(equipment) : [],
       place,
       trainStyle: compete ? 'bb' : (base.trainStyle || 'any'),
+      focusMuscles: focusKeys(Array.from(focus).join(',')).join(','),
     };
     if (!nextProfile.activityLevel || nextProfile.activityLevel === 'sedentary') {
       nextProfile.activityLevel = days >= 4 ? 'moderate' : 'light';
@@ -371,7 +382,8 @@ export function CoachOnboardingPage() {
           equipment: place === 'home' ? undefined : Array.from(equipment),
           age: ageNum,
           female: gender === 'female',
-          emphasis: profile?.trainingEmphasis,
+          emphasis: nextProfile.trainingEmphasis,
+          focus: nextProfile.focusMuscles,
           pregnant: nextProfile.lifeStage === 'pregnancy',
         }, db);
         if (program.phases?.length) {
@@ -400,7 +412,8 @@ export function CoachOnboardingPage() {
           equipment: place === 'home' ? undefined : Array.from(equipment),
           age: ageNum,
           female: gender === 'female',
-          emphasis: profile?.trainingEmphasis,
+          emphasis: nextProfile.trainingEmphasis,
+          focus: nextProfile.focusMuscles,
           pregnant: nextProfile.lifeStage === 'pregnancy',
         }, db);
         add(program);
@@ -559,6 +572,11 @@ export function CoachOnboardingPage() {
       titleText = 'Как удобнее делить тренировки?';
       hintText = 'Не буду навязывать непривычную схему — соберу под тебя.';
       input = single(TYPES, type, v => setType(v));
+      break;
+    case S_FOCUS:
+      titleText = 'На что сделать акцент?';
+      hintText = 'Можно любое количество групп, хоть все: отмеченные получат больше подходов и пойдут первыми. Чем больше отмечено, тем мягче перекос; всё сразу — обычная программа.';
+      input = multi(FOCUS_OPTIONS, focus, v => toggle(setFocus, v));
       break;
     case S_LIMITS:
       titleText = 'Есть травмы или запреты?';

@@ -62,6 +62,7 @@ export function LegendsPage() {
       age: profile?.age,
       female: profile?.gender === 'female',
       emphasis: profile?.trainingEmphasis,
+      focus: profile?.focusMuscles,
       pregnant: profile?.lifeStage === 'pregnancy',
     }, db);
     add(program);

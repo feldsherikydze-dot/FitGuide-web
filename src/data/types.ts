@@ -95,6 +95,8 @@ export interface Program {
   weeks: number;
   createdAt: number;
   template?: string;
+  /** Акцент программы: chest,back — ради каких групп она собрана. */
+  focus?: string;
   phases: Phase[];
 }
 
@@ -249,6 +251,8 @@ export interface UserProfile {
   place: string;             // gym | home
   /** Акцент программы: auto | glutes_legs | upper | balanced. */
   trainingEmphasis?: string;
+  /** Приоритетные группы мышц: chest,back,shoulders,arms,legs,glutes,abs,calves (до двух). */
+  focusMuscles?: string;
   /** Жизненный этап: none | perimenopause | menopause | pregnancy | postpartum. */
   lifeStage?: string;
   /** Первый день последней менструации, ms; 0 — не отслеживается. */

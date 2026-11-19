@@ -17,6 +17,10 @@ import { STYLE, GOAL } from '../data/types';
 import { GOALS, normalizeGoal, primaryGoal } from './goals';
 import { getEquipCategory, isBasicExercise } from './exercises';
 import { pregnancyAllows, pregnancyAdjustSets, pregnancyAdjustReps, pregnancyRestDelta } from './pregnancy';
+import {
+  focusKeys, focusLabel, focusMaxWeeklySets, focusSpec, focusSpecMissing, focusSpecSecond, focusVolumeFactor,
+  effectiveFocus, fitsDay, isFocus, missingInDay, normalizeFocus,
+} from './focus';
 
 export const TYPE_AUTO = 'auto';
 export const TYPE_FULLBODY = 'fullbody';
@@ -160,7 +164,140 @@ function isPowerDay(templateId: string, dayTitle: string, power: boolean): boole
 
 // ---------------------------------------------------------------- планы дней
 
-function planForDay(dayTitle: string, female: boolean, strengthB: boolean): Spec[] {
+function planForDay(dayTitle: string, female: boolean, strengthB: boolean, focus = '',
+                    limit = 0): Spec[] {
+  return withFocus(basePlanForDay(dayTitle, female, strengthB), dayTitle, focus, limit);
+}
+
+/**
+ * Акцент в дне: недостающая группа добавляется, приоритетные крупные идут
+ * первыми, пока силы свежие. Мелкое (пресс, икры, руки-изоляция) остаётся в
+ * конце — иначе акцент на пресс начинал бы тренировку с пресса.
+ *
+ * Если день уже полон (limit), добавка не дописывается в хвост — она там
+ * обрезалась бы лимитом, и выбор «хочу пресс» тихо превращался бы в «пресса
+ * нет». Вместо этого она вытесняет самую бесполезную изоляцию, а когда
+ * изоляции нет — крайний слот.
+ */
+function withFocus(plan: Spec[], dayTitle: string, focus: string, limit = 0): Spec[] {
+  if (!focus || plan.length === 0) return plan;
+  // 1) Порядок: крупные приоритетные — в начало, мелкое (пресс, икры) остаётся в конце.
+  const ordered: Spec[] = [];
+  const rest: Spec[] = [];
+  for (const spec of plan) {
+    const big = isFocus(focus, spec.group) && spec.group !== 'Пресс' && spec.group !== 'Икры';
+    if (big) ordered.push(spec); else rest.push(spec);
+  }
+  ordered.push(...rest);
+  // 2) Обрезаем день по лимиту ДО добавки: добавлять в хвост, который потом
+  // отрежется, — значит обмануть выбор «хочу пресс».
+  const trimmed = limit > 0 && ordered.length > limit ? ordered.slice(0, limit) : ordered;
+  const present = new Set(trimmed.map(spec => spec.group));
+  // 3) Недостающее — вытеснением хвоста, а не удлинением дня.
+  const added = new Set<string>();
+  for (const key of missingInDay(focus, present)) {
+    if (!fitsDay(key, dayTitle)) continue;
+    const add = focusSpecMissing(key, present);
+    if (!add) continue;
+    const spec = s(add.group, add.priority, add.role, add.keys, add.ban);
+    // Крупную группу ставим после первых базовых движений, а не в самый хвост:
+    // иначе «акцент на ягодицы» стоял бы после всей изоляции, вопреки обещанию
+    // «приоритетное — первым». Мелкое (пресс, икры, руки) остаётся в конце.
+    if (!isIsoGroup(add.group)) {
+      let at = 0;
+      while (at < trimmed.length && at < 2 && trimmed[at].role === ROLE_MAIN) at++;
+      trimmed.splice(at, 0, spec);
+      if (limit > 0 && trimmed.length > limit) {
+        const victim = pickVictim(trimmed, focus, at, false);
+        if (victim < 0) { trimmed.splice(at, 1); continue; }
+        trimmed.splice(victim, 1);
+      }
+      present.add(add.group);
+      added.add(add.group);
+      continue;
+    }
+    if (limit <= 0 || trimmed.length < limit) {
+      trimmed.push(spec);
+    } else {
+      const idx = pickVictim(trimmed, focus, -1, false);
+      if (idx < 0) continue; // всё в дне уже приоритетное — не ломаем
+      trimmed[idx] = spec;
+    }
+    present.add(add.group);
+    added.add(add.group);
+  }
+  // 4) Второе упражнение на приоритетную крупную группу: другой угол/снаряд.
+  // Один слот упирается в потолок подходов, поэтому без второго упражнения
+  // «акцент на грудь» давал бы +1 подход и никакой видимой разницы.
+  for (const key of focusKeys(focus)) {
+    const second = focusSpecSecond(key);
+    if (!second || !fitsDay(key, dayTitle)) continue;
+    // Группу только что добавили сегодня — второго слота ей не даём: иначе один
+    // акцент съедает по 10 подходов в день и вытесняет пресс/икры из недели.
+    if (added.has(second.group)) continue;
+    let count = 0;
+    let at = -1;
+    for (let i = 0; i < trimmed.length; i++) {
+      if (trimmed[i].group === second.group) { count++; at = i; }
+    }
+    if (count !== 1) continue; // нет группы в дне или уже два упражнения
+    const extra = s(second.group, second.priority, second.role, second.keys, second.ban);
+    if (limit <= 0 || trimmed.length < limit) {
+      trimmed.splice(at + 1, 0, extra);
+      continue;
+    }
+    const idx = pickVictim(trimmed, focus, -1, true);
+    if (idx < 0) continue; // не жертвуем основными движениями
+    trimmed[idx] = extra;
+  }
+  return trimmed;
+}
+
+/**
+ * Кого подвинуть ради акцента: сначала лишний (второй) слот неприоритетной
+ * группы — он дублирует уже нагруженную мышцу; потом изоляцию вне акцента;
+ * потом любое второстепенное. Так «акцент на ягодицы» не выкидывает пресс из
+ * недели, а убирает лишний подход той же группы.
+ */
+function pickVictim(plan: Spec[], focus: string, skip: number, keepMain: boolean): number {
+  const counts = new Map<string, number>();
+  for (let i = 0; i < plan.length; i++) {
+    if (i === skip) continue;
+    const g = plan[i].group;
+    counts.set(g, (counts.get(g) || 0) + 1);
+  }
+  for (let i = plan.length - 1; i >= 0; i--) {
+    if (i === skip) continue;
+    const sp = plan[i];
+    if (isFocus(focus, sp.group)) continue;
+    if (keepMain && sp.role === ROLE_MAIN) continue;
+    if ((counts.get(sp.group) || 0) > 1) return i;
+  }
+  for (let i = plan.length - 1; i >= 0; i--) {
+    if (i === skip) continue;
+    const sp = plan[i];
+    if (isFocus(focus, sp.group)) continue;
+    if (keepMain && sp.role === ROLE_MAIN) continue;
+    if (isIsoGroup(sp.group)) return i;
+  }
+  for (let i = plan.length - 1; i >= 0; i--) {
+    if (i === skip) continue;
+    const sp = plan[i];
+    if (isFocus(focus, sp.group)) continue;
+    if (keepMain && sp.role === ROLE_MAIN) continue;
+    return i;
+  }
+  return -1;
+}
+
+/** Изоляция, а не крупное движение: такую спеку можно подвинуть ради акцента. */
+function isIsoGroup(group: string): boolean {
+  return !(group === 'Грудь' || group === 'Широчайшие' || group === 'Плечи'
+    || group === 'Квадрицепс' || group === 'Бицепс бедра' || group === 'Ягодицы');
+}
+
+/** План дня без учёта акцента: чистый шаблон сплита. */
+function basePlanForDay(dayTitle: string, female: boolean, strengthB: boolean): Spec[] {
   const t = dayTitle;
   const variantB = t.includes('B') || t.includes('объём');
   if (t.includes('Круговая')) return circuitPlan(variantB);
@@ -440,12 +577,13 @@ function legsAFemale(): Spec[] {
 // ---------------------------------------------------------------- объём
 
 /** Сколько раз в неделю мышца встречается в сплите (число дней, где она есть). */
-function weeklyFrequency(dayTitles: string[], templateId: string, power: boolean, female: boolean): Map<string, number> {
+function weeklyFrequency(dayTitles: string[], templateId: string, power: boolean, female: boolean,
+                        focus = '', exLimit = 0): Map<string, number> {
   const freq = new Map<string, number>();
   for (const title of dayTitles) {
     const seen = new Set<string>();
     const strengthB = power && templateId === 'fullbody_ab' && title.includes('B');
-    for (const spec of planForDay(title, female, strengthB)) seen.add(spec.group);
+    for (const spec of planForDay(title, female, strengthB, focus, exLimit)) seen.add(spec.group);
     for (const muscle of seen) freq.set(muscle, (freq.get(muscle) || 0) + 1);
   }
   return freq;
@@ -456,7 +594,7 @@ function weeklyFrequency(dayTitles: string[], templateId: string, power: boolean
  * скорректированная под цель, уровень, фазу и профиль.
  */
 function weeklyTargetSets(muscle: string, goal: string, level: string, phaseIndex: number,
-                          deload: boolean, senior: boolean, female: boolean): number {
+                          deload: boolean, senior: boolean, female: boolean, focus = ''): number {
   let mav: number;
   if (female) {
     // женская ветка: акцент низ и спина, грудь и руки поддерживающе
@@ -499,20 +637,24 @@ function weeklyTargetSets(muscle: string, goal: string, level: string, phaseInde
   if (deload) f *= 0.5;                      // разгрузочная неделя
   else if (phaseIndex === 2) f *= 0.85;      // пик: объём снижается, интенсивность растёт
   if (senior) f *= 0.85;
+  f *= focusVolumeFactor(focus, muscle);
 
   const weekly = Math.round(mav * f);
   if (deload) return Math.max(4, weekly);   // разгрузка — исключение из нижней границы
-  if (level === 'beginner') return Math.max(10, Math.min(12, weekly));
-  return Math.max(10, Math.min(20, weekly));
+  const cap = focusMaxWeeklySets(focus, muscle);
+  // новичку при акценте даём чуть больше 12, но не «взрослый» объём
+  if (level === 'beginner') return Math.max(10, Math.min(Math.min(cap, isFocus(focus, muscle) ? 14 : 12), weekly));
+  return Math.max(10, Math.min(cap, weekly));
 }
 
 /** Подходы на одну встречу мышцы в неделю: недельный объём / число встреч. */
 function sessionSets(weeklyDays: Map<string, number>, goal: string, level: string,
-                     phaseIndex: number, deload: boolean, senior: boolean, female: boolean): Map<string, number> {
+                     phaseIndex: number, deload: boolean, senior: boolean, female: boolean,
+                     focus = ''): Map<string, number> {
   const out = new Map<string, number>();
   for (const [muscle, days] of weeklyDays) {
     const sessions = Math.max(1, days);
-    const weekly = weeklyTargetSets(muscle, goal, level, phaseIndex, deload, senior, female);
+    const weekly = weeklyTargetSets(muscle, goal, level, phaseIndex, deload, senior, female, focus);
     out.set(muscle, Math.max(2, Math.round(weekly / sessions)));
   }
   return out;
@@ -615,13 +757,18 @@ function slotReps(role: string, goal: string, phaseIndex: number, style: string,
   return '12–15';
 }
 
-/** Подходы слота: вес роли в дневной норме мышцы (main 3 / secondary 2 / isolation 1). */
-function slotSetsFor(role: string, dayTarget: number, weightSum: number, senior: boolean): number {
+/**
+ * Подходы слота: вес роли в дневной норме мышцы (main 3 / secondary 2 / isolation 1).
+ * Приоритетной изоляции разрешаем 6 подходов вместо 4 — иначе акцент на пресс
+ * или икры упирался бы в потолок одного слота и объём не рос бы вовсе.
+ */
+function slotSetsFor(role: string, dayTarget: number, weightSum: number, senior: boolean,
+                     focused = false): number {
   const w = role === ROLE_MAIN ? 3 : (role === ROLE_SECONDARY ? 2 : 1);
   let sets = Math.round(dayTarget * w / Math.max(1, weightSum));
   if (role === ROLE_MAIN) sets = Math.max(3, Math.min(6, sets));
   else if (role === ROLE_SECONDARY) sets = Math.max(2, Math.min(5, sets));
-  else sets = Math.max(2, Math.min(4, sets));
+  else sets = Math.max(2, Math.min(focused ? 6 : 4, sets));
   if (senior) sets = Math.max(2, sets - 1);
   return sets;
 }
@@ -876,6 +1023,8 @@ interface BuildDayParams {
   phaseSets: number;
   restDelta: number;
   equipment: string[];
+  /** Акцент на группы: chest,back (пусто = без акцента). */
+  focus: string;
   groupIdByName: (name: string) => string | null;
   exercisesOf: (groupId: string) => Exercise[];
 }
@@ -884,7 +1033,7 @@ function buildDaySlots(p: BuildDayParams): Slot[] {
   const slots: Slot[] = [];
   const circuit = p.sessionSets === null;
   const strengthB = p.power && p.templateId === 'fullbody_ab' && p.dayTitle.includes('B');
-  const plan = planForDay(p.dayTitle, p.female, strengthB);
+  const plan = planForDay(p.dayTitle, p.female, strengthB, p.focus, p.exLimit);
   const powerDay = circuit ? false : isPowerDay(p.templateId, p.dayTitle, p.power);
   const fullbody = p.templateId === 'fullbody_ab';
   const beginner = p.level === 'beginner';
@@ -929,17 +1078,19 @@ function buildDaySlots(p: BuildDayParams): Slot[] {
     const spec = taken[i];
     if (spec.fixedSets > 0) { s.sets = spec.fixedSets; continue; }
     const dayTarget = p.sessionSets!.get(s.group) ?? p.phaseSets;
-    let sets = slotSetsFor(spec.role, dayTarget, weightSum.get(s.group) ?? 1, p.senior);
+    let sets = slotSetsFor(spec.role, dayTarget, weightSum.get(s.group) ?? 1, p.senior,
+      isFocus(p.focus, s.group));
     if (powerDay && fullbody && spec.role === ROLE_MAIN) {
       sets = beginner ? 5 : Math.max(4, Math.min(5, sets));
     }
-    if (p.female && s.group === 'Грудь') sets = Math.min(sets, 3);
+    if (p.female && s.group === 'Грудь' && !isFocus(p.focus, 'Грудь')) sets = Math.min(sets, 3);
     if (p.pregnant) sets = pregnancyAdjustSets(sets);
     s.sets = sets;
   }
 
   // гардрейл: подходов в день ≤24 (новичок ≤16). main неприкосновенен —
-  // режем только secondary/isolation, не ниже 2 подходов.
+  // режем только secondary/isolation, не ниже 2 подходов. Приоритетные группы
+  // режем последними: иначе акцент съедался бы собственным гардрейлом.
   const dayCap = beginner ? 16 : 24;
   let total = slots.reduce((sum, s) => sum + s.sets, 0);
   while (total > dayCap) {
@@ -948,6 +1099,7 @@ function buildDaySlots(p: BuildDayParams): Slot[] {
       const sp = taken[i];
       const s = slots[i];
       if (sp.fixedSets > 0 || sp.role === ROLE_MAIN || s.sets <= 2) continue;
+      if (isFocus(p.focus, s.group) && best >= 0) continue;
       if (best < 0 || s.sets > slots[best].sets) best = i;
     }
     if (best < 0) break;
@@ -978,6 +1130,8 @@ export interface GenerateOptions {
   emphasis?: string;
   /** Беременность: правит объём и пул упражнений (см. pregnancy.ts). */
   pregnant?: boolean;
+  /** Приоритетные группы: chest,back,... (до двух). */
+  focus?: string;
 }
 
 /**
@@ -1007,6 +1161,9 @@ export function generateProgram(opts: GenerateOptions, db: ExercisesDB): Program
 
   const age = opts.age || 0;
   const female = resolveGlutes(opts);
+  const focus = normalizeFocus(opts.focus);
+  // «Отмечено всё» = перекоса нет: считаем как обычную программу.
+  const planFocus = effectiveFocus(focus);
   const senior = age >= 40;
   const pregnant = !!opts.pregnant;
   const restDelta = pregnant ? pregnancyRestDelta(senior ? 30 : 0) : (senior ? 30 : 0);
@@ -1028,6 +1185,7 @@ export function generateProgram(opts: GenerateOptions, db: ExercisesDB): Program
     weeks: totalWeeks,
     createdAt: Date.now(),
     template: template.id,
+    focus: focus || undefined,
     phases: [],
   };
 
@@ -1067,9 +1225,9 @@ export function generateProgram(opts: GenerateOptions, db: ExercisesDB): Program
       : `${schemeReps} на базу · ${hint}${prog}`;
 
     const dayTitles = template.titles;
-    const weeklyDays = weeklyFrequency(dayTitles, template.id, power, female);
+    const weeklyDays = weeklyFrequency(dayTitles, template.id, power, female, planFocus, exLimit);
     const daySets = circuit ? null
-      : sessionSets(weeklyDays, opts.goal, opts.level, phaseIndex, deload, senior, female);
+      : sessionSets(weeklyDays, opts.goal, opts.level, phaseIndex, deload, senior, female, planFocus);
 
     for (const dayTitle of dayTitles) {
       const day: Day = {
@@ -1078,7 +1236,7 @@ export function generateProgram(opts: GenerateOptions, db: ExercisesDB): Program
           dayTitle, templateId: template.id, goal: opts.goal, phaseIndex, seed,
           level: opts.level, place: opts.place, style, power, female, senior, pregnant,
           rest, exLimit, sessionSets: daySets, phaseSets: sets, restDelta,
-          equipment, groupIdByName, exercisesOf,
+          equipment, focus: planFocus, groupIdByName, exercisesOf,
         }),
       };
       phase.days.push(day);
@@ -1092,6 +1250,7 @@ export function generateProgram(opts: GenerateOptions, db: ExercisesDB): Program
 /** Удобная обёртка: из GeneratorInput. */
 export function generateFromInput(input: GeneratorInput, db: ExercisesDB, profile?: {
   age?: number; female?: boolean; style?: string; emphasis?: string; lifeStage?: string;
+  focus?: string;
 }): Program {
   const goal = primaryGoal(input.goals.join(','));
   return generateProgram({
@@ -1110,6 +1269,7 @@ export function generateFromInput(input: GeneratorInput, db: ExercisesDB, profil
     female: profile?.female ?? (input.gender === 'female'),
     emphasis: profile?.emphasis,
     pregnant: profile?.lifeStage === 'pregnancy',
+    focus: profile?.focus,
   }, db);
 }
 

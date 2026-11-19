@@ -203,6 +203,81 @@ check('беременность: тяга блока остаётся', pregnanc
 const neutralBmr = (w, h, a) => Math.round(10 * w + 6.25 * h - 5 * a - 78);
 check('нейтральный пол: BMR — середина мужской и женской', neutralBmr(80, 180, 30) === 1697);
 
+console.log('\n=== АКЦЕНТ НА ГРУППЫ МЫШЦ (FocusPolicy) ===');
+// 1:1 с src/core/focus.ts
+const FOCUS_ALL = ['chest', 'back', 'shoulders', 'arms', 'legs', 'glutes', 'abs', 'calves'];
+// Лимита в две группы нет: можно отметить хоть все. Перекос при этом мягче —
+// множитель зависит от количества групп (1:1 с src/core/focus.ts).
+function focusKeys(raw) {
+  if (!raw) return [];
+  const picked = new Set();
+  for (const part of raw.split(',')) {
+    const k = part.trim().toLowerCase();
+    if (FOCUS_ALL.includes(k)) picked.add(k);
+  }
+  return FOCUS_ALL.filter(k => picked.has(k));
+}
+function musclesOfFocus(key) {
+  switch (key) {
+    case 'chest': return ['Грудь'];
+    case 'back': return ['Широчайшие', 'Ромбовидные'];
+    case 'shoulders': return ['Плечи'];
+    case 'arms': return ['Бицепс', 'Трицепс'];
+    case 'legs': return ['Квадрицепс', 'Бицепс бедра', 'Приводящие'];
+    case 'glutes': return ['Ягодицы'];
+    case 'abs': return ['Пресс'];
+    case 'calves': return ['Икры'];
+    default: return [];
+  }
+}
+function isFocus(raw, muscle) {
+  return focusKeys(raw).some(k => musclesOfFocus(k).includes(muscle));
+}
+function focusVolumeFactor(raw, muscle) {
+  const n = focusKeys(raw).length;
+  if (n === 0) return 1;
+  const focus = isFocus(raw, muscle);
+  if (n <= 2) return focus ? 1.35 : 0.9;
+  if (n <= 4) return focus ? 1.2 : 0.95;
+  if (n <= 6) return focus ? 1.1 : 1;
+  return 1;
+}
+function fitsDay(key, dayTitle) {
+  const t = dayTitle || '';
+  const upper = t.includes('Верх') || t.includes('Толкай') || t.includes('Тяни')
+    || t.includes('Грудь') || t.includes('Спина') || t.includes('Полное тело') || t.includes('Круговая');
+  const lower = t.includes('Низ') || t.includes('Ноги') || t.includes('квадрицепс')
+    || t.includes('Полное тело') || t.includes('Круговая');
+  const push = t.includes('Толкай') || t.includes('жим') || t.includes('Грудь');
+  const pull = t.includes('Тяни') || t.includes('Спина');
+  if (key === 'chest') return push || t.includes('Верх') || t.includes('Полное тело') || t.includes('Круговая');
+  if (key === 'back') return pull || t.includes('Верх') || t.includes('Полное тело') || t.includes('Круговая');
+  if (key === 'shoulders' || key === 'arms') return upper;
+  if (key === 'legs' || key === 'glutes' || key === 'calves') return lower;
+  if (key === 'abs') return upper || lower;
+  return false;
+}
+
+check('акцент: только известные ключи', focusKeys('chest,грудь,back').join(',') === 'chest,back');
+check('акцент: можно отметить все восемь', focusKeys('chest,back,shoulders,arms,legs,glutes,abs,calves').length === 8);
+check('акцент: порядок канонический', focusKeys('arms,chest').join(',') === 'chest,arms');
+check('акцент: дубли схлопываются', focusKeys('legs,legs').join(',') === 'legs');
+check('акцент: пусто = без акцента', focusKeys('').length === 0 && focusVolumeFactor('', 'Грудь') === 1);
+check('акцент: грудь +35%', focusVolumeFactor('chest', 'Грудь') === 1.35);
+check('акцент: остальное −10%', focusVolumeFactor('chest', 'Квадрицепс') === 0.9);
+check('акцент: четыре группы — умеренный перекос',
+  focusVolumeFactor('chest,back,arms,abs', 'Грудь') === 1.2
+  && focusVolumeFactor('chest,back,arms,abs', 'Квадрицепс') === 0.95);
+check('акцент: пять групп — мягкий перекос', focusVolumeFactor('chest,back,arms,abs,legs', 'Грудь') === 1.1);
+check('акцент: все группы = без перекоса',
+  focusVolumeFactor('chest,back,shoulders,arms,legs,glutes,abs,calves', 'Грудь') === 1);
+check('акцент: руки = бицепс и трицепс', isFocus('arms', 'Бицепс') && isFocus('arms', 'Трицепс'));
+check('акцент: спина = широчайшие и ромбовидные', isFocus('back', 'Ромбовидные'));
+check('акцент: грудь не в день ног', !fitsDay('chest', 'Ноги A'));
+check('акцент: икры в день ног', fitsDay('calves', 'Ноги A'));
+check('акцент: руки в день верха', fitsDay('arms', 'Верх A'));
+check('акцент: пресс и в день ног, и в день верха', fitsDay('abs', 'Ноги A') && fitsDay('abs', 'Верх A'));
+
 console.log('\n=== БАЗА ДАННЫХ ===');
 const db = JSON.parse(readFileSync(join(root, 'public', 'exercises.json'), 'utf8'));
 check('упражнений в базе > 300', db.exercises.length > 300, `(${db.exercises.length})`);

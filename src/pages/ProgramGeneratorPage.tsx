@@ -14,6 +14,7 @@ import {
   TYPE_AUTO, TYPE_CIRCUIT, TYPE_FULLBODY, TYPE_SPLIT,
 } from '../core/generator';
 import { GOALS_ALL, GOAL_LABELS, normalizeGoal } from '../core/goals';
+import { FOCUS_ALL, FOCUS_LABELS, focusKeys, type FocusKey } from '../core/focus';
 import { plural } from '../core/coach';
 
 const LEVELS = [
@@ -83,12 +84,20 @@ export function ProgramGeneratorPage() {
   const [style, setStyle] = useState(profile?.trainStyle || 'any');
   const [period, setPeriod] = useState<number>(PERIOD_LINEAR);
   const [equipment, setEquipment] = useState<string[]>(profile?.equipment || []);
+  const [focus, setFocus] = useState<string>(profile?.focusMuscles || '');
 
   const toggleGoal = (g: string) =>
     setGoals(list => (list.includes(g) ? list.filter(x => x !== g) : [...list, g]));
 
   const toggleEquip = (e: string) =>
     setEquipment(list => (list.includes(e) ? list.filter(x => x !== e) : [...list, e]));
+
+  /** Акцент: любой набор групп, можно все (тогда перекоса не будет). */
+  const toggleFocus = (key: FocusKey) => {
+    const picked = focusKeys(focus);
+    const next = picked.includes(key) ? picked.filter(k => k !== key) : [...picked, key];
+    setFocus(next.join(','));
+  };
 
   const goal = useMemo(() => goals.join(',') || normalizeGoal(profile?.goal || 'mass'), [goals, profile]);
 
@@ -108,6 +117,7 @@ export function ProgramGeneratorPage() {
       age: profile?.age,
       female: profile?.gender === 'female',
       emphasis: profile?.trainingEmphasis,
+      focus: focus || profile?.focusMuscles,
       pregnant: profile?.lifeStage === 'pregnancy',
     }, db);
     add(program);
@@ -195,6 +205,20 @@ export function ProgramGeneratorPage() {
           </div>
           <p className="mt-1.5 text-[12px] leading-snug" style={{ color: 'var(--color-text-secondary)' }}>
             Отметь, что есть в твоём зале. Ничего не выбрано — считаем, что есть всё.
+          </p>
+
+          <Label>Приоритетные группы</Label>
+          <div className="flex flex-wrap gap-x-1.5 gap-y-0.5">
+            {FOCUS_ALL.map(key => (
+              <Chip key={key} on={focusKeys(focus).includes(key)} onClick={() => toggleFocus(key)}>
+                {FOCUS_LABELS[key]}
+              </Chip>
+            ))}
+          </div>
+          <p className="mt-1.5 text-[12px] leading-snug" style={{ color: 'var(--color-text-secondary)' }}>
+            Необязательно, можно все. Отмеченные группы получат больше подходов и пойдут первыми
+            в своём дне. Чем больше отмечено, тем мягче перекос — всё сразу = обычная программа.
+            По умолчанию берётся из профиля.
           </p>
 
           <button
