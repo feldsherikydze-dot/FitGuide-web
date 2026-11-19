@@ -27,6 +27,7 @@ import { generateProgram } from '../core/generator';
 import { analyzePhase } from '../core/planAdvisor';
 import { getJSON, getString, setString, KEYS } from '../core/storage';
 import { EMPHASIS_LABELS, healthNotes } from '../core/genderPolicy';
+import { shortExerciseName } from '../core/exercises';
 import type { Day as MenuDay } from '../core/nutrition';
 import type { Phase, Session } from '../data/types';
 
@@ -536,10 +537,10 @@ export function CoachPage() {
       const r = estimateOneRepMax(it.weightKg, it.reps);
       const best = prev1rm[it.exercise];
       if (best == null || r > best + 0.01) {
-        out.push(`Рекорд: ${it.exercise} — ${fw(it.weightKg)} кг × ${it.reps} (1ПМ ${fw(r)} кг)`);
+        out.push(`Рекорд: ${shortExerciseName(it.exercise)} — ${fw(it.weightKg)} кг × ${it.reps} (1ПМ ${fw(r)} кг)`);
       } else {
         const w = prevWeight[it.exercise];
-        if (w == null || it.weightKg > w) out.push(`Рекорд: ${it.exercise} — ${fw(it.weightKg)} кг`);
+        if (w == null || it.weightKg > w) out.push(`Рекорд: ${shortExerciseName(it.exercise)} — ${fw(it.weightKg)} кг`);
       }
     }
     return out;
@@ -557,16 +558,16 @@ export function CoachPage() {
       planned += Math.max(it.targetSets, 0);
       done += Math.max(it.sets, 0);
       if (it.targetSets > 0 && it.sets >= it.targetSets) full++;
-      else if (it.targetSets > 0) shortEx.push(it.exercise);
+      else if (it.targetSets > 0) shortEx.push(shortExerciseName(it.exercise));
       // Фактические повторы по подходам: 10/10/9/8 — видно, где просело.
       const vals = (it.setReps || []).filter(r => r > 0);
       if (vals.length > 0) {
         const min = Math.min(...vals);
         const fail = (it.setFeels || []).includes(1);
         if (it.reps > 0 && min < it.reps) {
-          repsNotes.push(`${it.exercise}: ${vals.join('/')} из ${it.reps} — снижу вес.`);
+          repsNotes.push(`${shortExerciseName(it.exercise)}: ${vals.join('/')} из ${it.reps} — снижу вес.`);
         } else if (fail) {
-          repsNotes.push(`${it.exercise}: подход до отказа — снижу вес.`);
+          repsNotes.push(`${shortExerciseName(it.exercise)}: подход до отказа — снижу вес.`);
         }
       }
     }

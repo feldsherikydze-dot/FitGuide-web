@@ -4,7 +4,7 @@
 // советы, отклонения и кнопка выгрузки отчёта. Арифметика — в core/workAnalysis.
 
 import { useMemo, useState } from 'react';
-import { useCoachStore } from '../../core/store';
+import { useCoachStore, useProfileStore } from '../../core/store';
 import { finishedSessions } from '../../core/coach';
 import { useExercises } from '../../hooks/useExercises';
 import {
@@ -53,8 +53,27 @@ function heartFacts(
   return { hrAvg: n > 0 ? sum / n : 0, kcalTotal: kcal };
 }
 
+/**
+ * Пульс с зоной по возрасту: максимум 220 − возраст, границы 60/75/85 %.
+ * Без возраста показываем просто число — врать про зоны нельзя.
+ */
+function hrWithZone(hr: number, age: number): string {
+  if (hr <= 0) return '';
+  if (!age || age <= 0) return `${Math.round(hr)} уд/мин`;
+  const max = Math.max(120, 220 - age);
+  const z2 = Math.round(max * 0.6);
+  const z3 = Math.round(max * 0.75);
+  const z4 = Math.round(max * 0.85);
+  const v = Math.round(hr);
+  if (v < z2) return `${v} уд/мин · лёгкая зона (до ${z2})`;
+  if (v < z3) return `${v} уд/мин · средняя зона (${z2}–${z3})`;
+  if (v < z4) return `${v} уд/мин · жёсткая зона (${z3}–${z4})`;
+  return `${v} уд/мин · выше жёсткой (от ${z4})`;
+}
+
 export function AnalysisTab() {
   const { sessions: allSessions } = useCoachStore();
+  const { profile } = useProfileStore();
   const sessions = finishedSessions(allSessions);
   const { exercises, muscleGroups } = useExercises();
   const [periodDays, setPeriodDays] = useState(30);
@@ -115,7 +134,7 @@ export function AnalysisTab() {
     if (report.planPct > 0) rows.push(['Отработка плана', `${Math.round(report.planPct)} %`]);
     if (report.tonnage > 0) rows.push(['Тоннаж', fmtTonnage(report.tonnage)]);
     if (heart.hrAvg > 0) {
-      rows.push(['Средний пульс', `${Math.round(heart.hrAvg)} уд/мин`]);
+      rows.push(['Средний пульс', hrWithZone(heart.hrAvg, profile?.age || 0)]);
       if (heart.kcalTotal > 0) rows.push(['Калории с часов', `${Math.round(heart.kcalTotal)} ккал`]);
     }
     return rows;

@@ -7,7 +7,7 @@ import { useNavigate, useParams, useSearchParams, useLocation } from 'react-rout
 import { PageHeader, MaskIcon, asset } from '../components/ui';
 import { useExercises } from '../hooks/useExercises';
 import { useProfileStore } from '../core/store';
-import { isBasicExercise, isIsolationExercise } from '../core/exercises';
+import { humanMuscle, isBasicExercise, isIsolationExercise } from '../core/exercises';
 import { slotColor, contrastOn } from '../core/palette';
 import {
   buildExerciseIndex, byGroupPrimary, secondaryForGroup, subgroupInGroup,
@@ -255,7 +255,7 @@ export function MuscleGroupPage() {
                         </span>
                       </div>
                       <div className="mt-1 text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
-                        {ex.target}
+                        {humanMuscle(ex.target)}
                       </div>
                       <div className="mt-2.5 flex items-center gap-2">
                         {badge && (

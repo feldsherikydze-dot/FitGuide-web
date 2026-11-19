@@ -4,7 +4,7 @@
 //  - отметка самочувствия: сон / забитость / энергия, каждая 1..3;
 //  - готовность = сумма трёх шкал (3..9);
 //  - разгрузка: фаза помечена ИЛИ последняя неделя фазы (если фаза длиннее недели);
-//  - поправка нагрузки: разгрузка ×0.8, низкая готовность ×0.9 — берём более жёсткий, НЕ перемножаем;
+//  - поправка нагрузки: только низкая готовность ×0.9 — разгрузка снижает объём, а не вес;
 //  - прогрессия: 3 стопора подряд → −10%; не добрал повторы → тот же вес или сброс;
 //    масса + повторы не набраны → вес тот же (двойная прогрессия); всё выполнено → +2,5 / +5 кг;
 //  - потолок: не выше 95% e1RM.
@@ -124,12 +124,15 @@ export function setDelta(program: Program | null, week: number, score: number): 
   return (deload || low) ? -1 : 0;
 }
 
-/** Общий множитель рабочего веса: разгрузка ×0.8, низкая готовность ×0.9 — берём более жёсткий. */
+/**
+ * Общий множитель рабочего веса: только низкая готовность ×0.9.
+ *
+ * Разгрузка раньше давала ещё ×0.8 — вместе с −50 % объёма это минус 60 %
+ * нагрузки. Наука снижает в разгрузку объём, а интенсивность держит: вес не трогаем.
+ */
 export function loadFactor(program: Program | null, week: number, score: number): number {
-  let f = 1;
-  if (isDeload(program, week)) f = Math.min(f, 0.8);
-  if (score > 0 && score <= 4) f = Math.min(f, 0.9);
-  return f;
+  if (score > 0 && score <= 4) return 0.9;
+  return 1;
 }
 
 /** Рекомендуемый вес с учётом разгрузки и готовности. */
@@ -492,9 +495,13 @@ export function applyFeelProgression(
   return changed ? program : null;
 }
 
-/** Новый вес по отметке: легко +5%, тяжело −5%. */
+/** Новый вес по отметке: легко +5 % (не меньше шага 2,5 кг), тяжело −5 %. */
 export function progressValue(weightKg: number, feel: 1 | 2 | 3): number {
-  if (feel === 3) return roundHalf(weightKg * 1.05);
+  if (weightKg <= 0) return weightKg;
+  if (feel === 3) {
+    const next = Math.max(weightKg + 2.5, weightKg * 1.05);
+    return Math.max(weightKg + 0.5, roundHalf(next));
+  }
   if (feel === 1) return roundHalf(weightKg * 0.95);
   return weightKg;
 }

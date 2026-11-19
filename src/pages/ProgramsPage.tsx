@@ -19,6 +19,7 @@ import { useExercises, usePicker } from '../hooks/useExercises';
 import { cardioDefaults, isCardioExercise, repsHasTime, strengthDefaults, workLabel } from '../core/cardio';
 import { generateProgram, buildProgramName, PERIOD_LINEAR, PERIOD_NONE, PERIOD_WAVE, TYPE_AUTO, TYPE_CIRCUIT, TYPE_FULLBODY, TYPE_SPLIT } from '../core/generator';
 import { analyzePhase } from '../core/planAdvisor';
+import { shortExerciseName } from '../core/exercises';
 import { GOALS, GOALS_ALL, GOAL_LABELS, GOAL_DESCRIPTIONS, normalizeGoal, recommendDays } from '../core/goals';
 import { currentWeek, phaseForWeek, plural } from '../core/coach';
 import { focusLabel } from '../core/focus';
@@ -801,7 +802,7 @@ export function ProgramDetailPage() {
                       <div className="flex items-center gap-1.5 min-w-0">
                         {roleBadge(slot.role)}
                         <span className="text-[14px] leading-snug" style={{ color: 'var(--color-text-main)' }}>
-                          {slot.exercise}
+                          {shortExerciseName(slot.exercise)}
                         </span>
                       </div>
                       <div className="text-[12px] mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>

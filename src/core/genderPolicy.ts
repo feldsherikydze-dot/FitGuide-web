@@ -82,6 +82,17 @@ export function cycleInfo(
   };
 }
 
+/**
+ * Срок беременности в неделях от первого дня последней менструации.
+ * 0 — даты нет или она в будущем: подсказка остаётся общей.
+ */
+export function pregnancyWeek(lastPeriodDate: number, nowMillis = Date.now()): number {
+  if (!lastPeriodDate || lastPeriodDate <= 0) return 0;
+  const days = Math.floor((nowMillis - lastPeriodDate) / 86400000);
+  if (days <= 0 || days > 320) return 0;
+  return Math.floor(days / 7);
+}
+
 export function healthNotes(
   profile: { gender?: string; lastPeriodDate?: number; cycleLength?: number; lifeStage?: string } | null,
   nowMillis = Date.now(),
@@ -103,9 +114,19 @@ export function healthNotes(
     case 'menopause':
       out.push('Менопауза: силовая 2–3 раза в неделю и ударная нагрузка поддерживают кости. Белок 1,6–2,2 г/кг, кальций и витамин D — по анализу и согласованию с врачом.');
       break;
-    case 'pregnancy':
-      out.push('Беременность: после первого триместра не тренируйся лёжа на спине, следи за давлением и тазовым дном. Программу согласуй с врачом.');
+    case 'pregnancy': {
+      const week = pregnancyWeek(profile.lastPeriodDate || 0, nowMillis);
+      if (week > 0 && week < 13) {
+        out.push('Беременность, I триместр: осевую нагрузку, прыжки и скручивания убрали. Следи за самочувствием и не работай до отказа; программу согласуй с врачом.');
+      } else if (week >= 13 && week < 28) {
+        out.push('Беременность, II триместр: не тренируйся лёжа на спине, следи за давлением и тазовым дном. Программу согласуй с врачом.');
+      } else if (week >= 28) {
+        out.push('Беременность, III триместр: короткие подходы без задержки дыхания, без резких смен положения; следи за давлением и тазовым дном. Программу согласуй с врачом.');
+      } else {
+        out.push('Беременность: после первого триместра не тренируйся лёжа на спине, следи за давлением и тазовым дном. Программу согласуй с врачом.');
+      }
       break;
+    }
     case 'postpartum':
       out.push('Послеродовой период: начни с дыхания и тазового дна, не гонись за весом. При диастазе или боли — к специалисту.');
       break;

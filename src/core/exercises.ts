@@ -85,6 +85,59 @@ export function searchExercises(db: ExercisesDB, query: string): Exercise[] {
   );
 }
 
+// Короткое имя для карточек программы: скобки с уточнениями убираем,
+// длинный хвост режем по слову. Полное имя остаётся на экране упражнения.
+export function shortExerciseName(full: string): string {
+  if (!full) return '';
+  const stripped = full.replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
+  const s = stripped || full.trim();
+  if (s.length <= 44) return s;
+  let cut = s.lastIndexOf(' ', 44);
+  if (cut < 20) cut = 44;
+  // Хвостовые «/», «·», «-» после обрезки читаются как обрыв, а не имя.
+  const head = s.slice(0, cut).replace(/[^\p{L}\p{N})]+$/u, '').trim();
+  return head ? `${head}…` : s;
+}
+
+// Человеческое имя целевой мышцы для карточек: в каталоге поле target
+// смешивает латынь и русский («средняя (грудинная) часть m. pectoralis major»
+// рядом с «грудь»). Для поиска данные не трогаем, но показываем по-русски.
+export function humanMuscle(raw: string): string {
+  if (!raw || !raw.trim()) return '';
+  const s = raw.trim();
+  const l = s.toLowerCase();
+  if (l.includes('дельт') || l.includes('deltoideus')) {
+    if (l.includes('передн')) return 'Передняя дельта';
+    if (l.includes('задн')) return 'Задняя дельта';
+    if (l.includes('средн')) return 'Средняя дельта';
+    return 'Плечи';
+  }
+  if (l.includes('широчайш') || l.includes('latissimus')) return 'Широчайшие';
+  if (l.includes('трапец') || l.includes('trapezius')) return 'Трапеция';
+  if (l.includes('ромбовид')) return 'Ромбовидные';
+  if (l.includes('поясниц') || l.includes('erector spinae')) return 'Поясница';
+  if (l.includes('бицепс бедра') || l.includes('biceps femoris') || l.includes('hamstring')) return 'Бицепс бедра';
+  if (l.includes('квадрицепс') || l.includes('quadriceps')) return 'Квадрицепс';
+  if (l.includes('ягодич') || l.includes('gluteus')) return 'Ягодицы';
+  if (l.includes('трицепс') || l.includes('triceps')) return 'Трицепс';
+  if (l.includes('бицепс') || l.includes('biceps') || l.includes('brachialis')) return 'Бицепс';
+  if (l.includes('предплеч') || l.includes('brachioradialis')) return 'Предплечья';
+  if (l.includes('икронож') || l.includes('камбаловид') || l.includes('gastrocnemius') || l.includes('soleus')) return 'Икры';
+  if (l.includes('большеберц') || l.includes('tibialis')) return 'Передняя большеберцовая';
+  if (l.includes('косые') || l.includes('obliquus')) return 'Косые мышцы живота';
+  if (l.includes('пресс') || l.includes('прямая мышца живота') || l.includes('rectus abdominis')) return 'Пресс';
+  if (l.includes('приводящ') || l.includes('adductor')) return 'Приводящие';
+  if (l.includes('зубчат') || l.includes('serratus')) return 'Зубчатая';
+  if (l.includes('вращательн') || l.includes('infraspinatus') || l.includes('teres')) return 'Вращательная манжета';
+  if (l.includes('шея') || l.includes('sternocleidomastoid') || l.includes('грудино-ключично')) return 'Шея';
+  if (l.includes('груд') || l.includes('pectoralis')) return 'Грудь';
+  if (l.includes('сердечно') || l.includes('cardio')) return 'Кардио';
+  if (l.includes('хват')) return 'Хват и предплечья';
+  const out = s.replace(/\([^)]*\)/g, ' ').replace(/m\.\s*[A-Za-z. ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!out) return s;
+  return out.charAt(0).toUpperCase() + out.slice(1);
+}
+
 // Определение категории оборудования (порт с Exercise.equipCategory)
 export const EQUIP_CAT = {
   BARBELL: 'barbell',

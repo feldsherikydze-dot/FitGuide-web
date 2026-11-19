@@ -5,7 +5,7 @@
 import { useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useExercises } from '../hooks/useExercises';
-import { isBasicExercise } from '../core/exercises';
+import { humanMuscle, isBasicExercise } from '../core/exercises';
 import { slotColor, contrastOn, darken } from '../core/palette';
 
 function blend(from: string, to: string, t: number): string {
@@ -137,7 +137,7 @@ export function ExerciseDetailPage() {
           )}
           <div className={subgroup ? 'mt-4' : ''} style={labelStyle}>Целевые мышцы</div>
           <div className="mt-1.5 text-[15px]" style={{ color: 'var(--color-text-main)' }}>
-            {ex.target}
+            {humanMuscle(ex.target)}
           </div>
           <div className="mt-4" style={labelStyle}>Вспомогательные мышцы</div>
           <div className="mt-1.5 text-[15px]" style={{ color: 'var(--color-text-main)' }}>

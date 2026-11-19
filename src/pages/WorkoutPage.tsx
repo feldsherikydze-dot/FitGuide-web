@@ -14,6 +14,10 @@ import { createSession, applyFeelProgression, loadFeel, setDelta, readinessScore
 import { playSignal } from '../core/signal';
 import { isCardioExercise, workLabel } from '../core/cardio';
 import { useExercises } from '../hooks/useExercises';
+import {
+  REDFLAGS_ADVICE_BODY, REDFLAGS_ADVICE_TITLE, REDFLAGS_BODY, REDFLAGS_TITLE,
+  markRedFlags, redFlagsAnswer,
+} from '../core/redFlags';
 import { ReplaceExercisePicker } from './progress/common';
 import type { Session, SessionItem, Slot, Program } from '../data/types';
 
@@ -146,6 +150,9 @@ export function WorkoutPage() {
   // Кардио: обратный отсчёт подхода (WorkoutActivity.renderSetTimer).
   const [timerEnd, setTimerEnd] = useState<number | null>(null);
   const [toast, setToast] = useState('');
+  // Скрининг красных флагов: показываем до первой тренировки, один раз.
+  const [redOpen, setRedOpen] = useState(() => redFlagsAnswer() === '');
+  const [redAdvice, setRedAdvice] = useState(false);
 
   const exStartRef = useRef(Date.now());
   const setStartRef = useRef(Date.now());
@@ -827,6 +834,57 @@ export function WorkoutPage() {
             <div className="flex gap-2">
               <button onClick={discard} className="fg-wk-outline flex-1">Не сохранять</button>
               <button onClick={finish} className="fg-wk-main flex-1">Сохранить</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- Скрининг красных флагов (перед первой тренировкой) ---------- */}
+      {redOpen && (
+        <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center px-6">
+          <div className="w-full max-w-md rounded-2xl p-5 max-h-[85vh] overflow-y-auto" style={{ background: 'var(--p-labels)' }}>
+            <h3 className="text-[18px] font-bold mb-2" style={{ color: 'var(--color-text-main)' }}>
+              {REDFLAGS_TITLE}
+            </h3>
+            <p className="text-[14px] leading-relaxed whitespace-pre-line" style={{ color: 'var(--color-text-secondary)' }}>
+              {REDFLAGS_BODY}
+            </p>
+            <div className="flex flex-col gap-2 mt-4">
+              <button
+                onClick={() => { markRedFlags('ok'); setRedOpen(false); }}
+                className="fg-wk-main">
+                Всё в порядке
+              </button>
+              <button
+                onClick={() => { markRedFlags('flag'); setRedAdvice(true); }}
+                className="fg-wk-outline">
+                Есть такой пункт
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {redOpen && redAdvice && (
+        <div className="fixed inset-0 z-[61] bg-black/60 flex items-center justify-center px-6">
+          <div className="w-full max-w-md rounded-2xl p-5 max-h-[85vh] overflow-y-auto" style={{ background: 'var(--p-labels)' }}>
+            <h3 className="text-[18px] font-bold mb-2" style={{ color: 'var(--color-text-main)' }}>
+              {REDFLAGS_ADVICE_TITLE}
+            </h3>
+            <p className="text-[14px] leading-relaxed whitespace-pre-line" style={{ color: 'var(--color-text-secondary)' }}>
+              {REDFLAGS_ADVICE_BODY}
+            </p>
+            <div className="flex flex-col gap-2 mt-4">
+              <button
+                onClick={() => { setRedAdvice(false); setRedOpen(false); }}
+                className="fg-wk-outline">
+                Продолжить осторожно
+              </button>
+              <button
+                onClick={() => navigate(-1)}
+                className="fg-wk-main">
+                Вернуться
+              </button>
             </div>
           </div>
         </div>

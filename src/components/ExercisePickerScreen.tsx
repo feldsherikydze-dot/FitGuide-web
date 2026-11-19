@@ -13,7 +13,7 @@ import {
   buildExerciseIndex, exercisesOf, filterByStyle,
   levelRank, matchesType, pluralExercises,
 } from '../core/exerciseIndex';
-import { isBasicExercise } from '../core/exercises';
+import { humanMuscle, isBasicExercise } from '../core/exercises';
 import { conflictsWithLimits } from '../core/coach';
 import {
   buildPickerIndex, isPrimaryInPicker, pickerExercises, regionOfMuscle,
@@ -227,7 +227,7 @@ export function ExercisePickerScreen({
             </span>
           </span>
           <span className="block text-[12px] mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
-            {ex.target || index.groupNameById.get(ex.muscleGroup) || ''}
+            {humanMuscle(ex.target) || index.groupNameById.get(ex.muscleGroup) || ''}
           </span>
         </span>
         <span
