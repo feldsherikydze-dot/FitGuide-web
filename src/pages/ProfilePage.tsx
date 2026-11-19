@@ -15,7 +15,7 @@ import { clsx } from 'clsx';
 import { ChevronLeft, Save, Trash2, MapPin } from 'lucide-react';
 import { PageHeader, usePaletteVars } from '../components/ui';
 import { useProfileStore, useCoachStore, useProgramsStore } from '../core/store';
-import { GOALS, GOALS_ALL, GOAL_LABELS, GOAL_DESCRIPTIONS, recommendDays, recommendPerWeek, caloriesFor, proteinPerKg, fatsPerKg } from '../core/goals';
+import { GOALS, GOALS_ALL, GOAL_LABELS, GOAL_DESCRIPTIONS, recommendDays, recommendPerWeek, caloriesFor, proteinPerKg, proteinWeight, fatsPerKg } from '../core/goals';
 import { COMP_PHASE_ORDER, COMP_PHASE_LABELS, stageWeightKg, offseasonWeightKg } from '../core/seasonPlan';
 import { EMPHASIS_LABELS, STAGE_LABELS, cycleInfo, healthNotes, type Emphasis, type LifeStage } from '../core/genderPolicy';
 import { FOCUS_ALL, FOCUS_LABELS, focusKeys, type FocusKey } from '../core/focus';
@@ -247,7 +247,7 @@ export function ProfilePage() {
   const activityFactor = ACTIVITY_LEVELS.find(a => a.value === form.activityLevel)?.factor || 1.2;
   const tdee = bmr ? Math.round(bmr * activityFactor) : 0;
   const calories = caloriesFor(tdee, form.goal, form.gender);
-  const protein = Math.round(form.weightKg * proteinPerKg(form.goal));
+  const protein = Math.round(proteinWeight(form) * proteinPerKg(form.goal));
   const fats = Math.round(form.weightKg * fatsPerKg(form.goal));
   const carbs = Math.max(0, Math.round((calories - protein * 4 - fats * 9) / 4));
   const bmi = form.heightCm && form.weightKg ? (form.weightKg / Math.pow(form.heightCm / 100, 2)).toFixed(1) : '—';

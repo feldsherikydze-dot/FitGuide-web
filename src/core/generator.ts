@@ -166,7 +166,37 @@ function isPowerDay(templateId: string, dayTitle: string, power: boolean): boole
 
 function planForDay(dayTitle: string, female: boolean, strengthB: boolean, focus = '',
                     limit = 0): Spec[] {
-  return withFocus(basePlanForDay(dayTitle, female, strengthB), dayTitle, focus, limit);
+  let out = withFocus(basePlanForDay(dayTitle, female, strengthB), dayTitle, focus, limit);
+  if (limit > 0) {
+    // Лимит дня применяется здесь, а не в сборке слотов: иначе частота встреч
+    // (для деления недельного объёма) считала бы упражнения, которые в день
+    // не влезли.
+    out = ensureHinge(out, limit);
+    if (out.length > limit) out = out.slice(0, limit);
+  }
+  return out;
+}
+
+/**
+ * Гарантия шарнира в дне: бицепс бедра и ягодицы стоят в конце плана, поэтому
+ * жёсткий лимит упражнений вырезает их первыми. У новичка в фулбоди тогда не
+ * оставалось ни одного шарнира (аудит 1.51: бицепс бедра — 0 подходов/нед).
+ * Меняем местами с последним слотом, который влезает в день.
+ */
+function ensureHinge(plan: Spec[], limit: number): Spec[] {
+  if (limit <= 0 || plan.length <= limit) return plan;
+  let hingeIn = false;
+  let hingeAt = -1;
+  for (let i = 0; i < plan.length; i++) {
+    if (plan[i].priority !== 'hinge') continue;
+    if (i < limit) { hingeIn = true; break; }
+    if (hingeAt < 0) hingeAt = i;
+  }
+  if (hingeIn || hingeAt < 0) return plan;
+  const out = plan.slice();
+  const [hinge] = out.splice(hingeAt, 1);
+  out.splice(Math.max(0, limit - 1), 0, hinge);
+  return out;
 }
 
 /**
@@ -190,41 +220,53 @@ function withFocus(plan: Spec[], dayTitle: string, focus: string, limit = 0): Sp
   }
   ordered.push(...rest);
   // 2) Обрезаем день по лимиту ДО добавки: добавлять в хвост, который потом
-  // отрежется, — значит обмануть выбор «хочу пресс».
-  const trimmed = limit > 0 && ordered.length > limit ? ordered.slice(0, limit) : ordered;
+  // отрежется, — значит обмануть выбор «хочу пресс». Режем не хвост, а самую
+  // бесполезную спеку: дубль группы, затем изоляцию. Хвост — добро (пресс,
+  // икры), он не должен страдать от переполнения дня.
+  while (limit > 0 && ordered.length > limit) {
+    const victim = pickVictim(ordered, focus, -1, true);
+    if (victim < 0) ordered.pop();
+    else ordered.splice(victim, 1);
+  }
+  const trimmed = ordered;
   const present = new Set(trimmed.map(spec => spec.group));
   // 3) Недостающее — вытеснением хвоста, а не удлинением дня.
   const added = new Set<string>();
   for (const key of missingInDay(focus, present)) {
     if (!fitsDay(key, dayTitle)) continue;
-    const add = focusSpecMissing(key, present);
-    if (!add) continue;
-    const spec = s(add.group, add.priority, add.role, add.keys, add.ban);
-    // Крупную группу ставим после первых базовых движений, а не в самый хвост:
-    // иначе «акцент на ягодицы» стоял бы после всей изоляции, вопреки обещанию
-    // «приоритетное — первым». Мелкое (пресс, икры, руки) остаётся в конце.
-    if (!isIsoGroup(add.group)) {
-      let at = 0;
-      while (at < trimmed.length && at < 2 && trimmed[at].role === ROLE_MAIN) at++;
-      trimmed.splice(at, 0, spec);
-      if (limit > 0 && trimmed.length > limit) {
-        const victim = pickVictim(trimmed, focus, at, false);
-        if (victim < 0) { trimmed.splice(at, 1); continue; }
-        trimmed.splice(victim, 1);
+    // «Руки» — это две мышцы: пока focusSpecMissing находит недостающую,
+    // добавляем вторую. Раньше дню доставался только трицепс, а бицепс
+    // оставался с одной встречей в неделю — акцент на руки почти не рос.
+    for (let pass = 0; pass < 2; pass++) {
+      const add = focusSpecMissing(key, present);
+      if (!add) break;
+      const spec = s(add.group, add.priority, add.role, add.keys, add.ban);
+      // Крупную группу ставим после первых базовых движений, а не в самый хвост:
+      // иначе «акцент на ягодицы» стоял бы после всей изоляции, вопреки обещанию
+      // «приоритетное — первым». Мелкое (пресс, икры, руки) остаётся в конце.
+      if (!isIsoGroup(add.group)) {
+        let at = 0;
+        while (at < trimmed.length && at < 2 && trimmed[at].role === ROLE_MAIN) at++;
+        trimmed.splice(at, 0, spec);
+        if (limit > 0 && trimmed.length > limit) {
+          const victim = pickVictim(trimmed, focus, at, false);
+          if (victim < 0) { trimmed.splice(at, 1); break; }
+          trimmed.splice(victim, 1);
+        }
+        present.add(add.group);
+        added.add(add.group);
+        continue;
+      }
+      if (limit <= 0 || trimmed.length < limit) {
+        trimmed.push(spec);
+      } else {
+        const idx = pickVictim(trimmed, focus, -1, false);
+        if (idx < 0) break; // всё в дне уже приоритетное — не ломаем
+        trimmed[idx] = spec;
       }
       present.add(add.group);
       added.add(add.group);
-      continue;
     }
-    if (limit <= 0 || trimmed.length < limit) {
-      trimmed.push(spec);
-    } else {
-      const idx = pickVictim(trimmed, focus, -1, false);
-      if (idx < 0) continue; // всё в дне уже приоритетное — не ломаем
-      trimmed[idx] = spec;
-    }
-    present.add(add.group);
-    added.add(add.group);
   }
   // 4) Второе упражнение на приоритетную крупную группу: другой угол/снаряд.
   // Один слот упирается в потолок подходов, поэтому без второго упражнения
@@ -278,6 +320,10 @@ function pickVictim(plan: Spec[], focus: string, skip: number, keepMain: boolean
     const sp = plan[i];
     if (isFocus(focus, sp.group)) continue;
     if (keepMain && sp.role === ROLE_MAIN) continue;
+    // Второе упражнение на приоритетную группу не отбирает пресс и икры:
+    // это единственные слоты core/голени в дне, и они не восстанавливаются
+    // из других дней так же легко, как дубль тяги или жима.
+    if (keepMain && (sp.group === 'Пресс' || sp.group === 'Икры')) continue;
     if (isIsoGroup(sp.group)) return i;
   }
   for (let i = plan.length - 1; i >= 0; i--) {
@@ -285,6 +331,7 @@ function pickVictim(plan: Spec[], focus: string, skip: number, keepMain: boolean
     const sp = plan[i];
     if (isFocus(focus, sp.group)) continue;
     if (keepMain && sp.role === ROLE_MAIN) continue;
+    if (keepMain && (sp.group === 'Пресс' || sp.group === 'Икры')) continue;
     return i;
   }
   return -1;
@@ -356,15 +403,17 @@ function circuitPlan(variantB: boolean): Spec[] {
 function fullbodyA(female: boolean): Spec[] {
   const plan = [
     s('Квадрицепс', 'squat', ROLE_MAIN, 'приседания со штангой;классические приседания', 'фронт;гакк'),
+  ];
+  if (female) {
+    // женский акцент: ягодицы сразу после приседа — лимит дня их уже не срежет
+    plan.push(s('Ягодицы', 'hinge', ROLE_SECONDARY, 'мост;хип-траст;выпад', ''));
+  }
+  plan.push(
     s('Грудь', 'bench', ROLE_MAIN, 'горизонтальной', 'наклон;обратным'),
     s('Широчайшие', 'row', ROLE_MAIN, 'наклон', 'блок;подтягиван;пуловер'),
     s('Плечи', 'press', ROLE_SECONDARY, 'стоя;сидя', 'махи;развед;блок'),
     s('Бицепс бедра', 'hinge', ROLE_SECONDARY, 'румын;сгибан', 'гипер'),
-  ];
-  if (female) {
-    // женский акцент: ягодицы в каждом фулбоди-дне
-    plan.push(s('Ягодицы', 'hinge', ROLE_SECONDARY, 'мост;хип-траст;выпад', ''));
-  }
+  );
   return plan;
 }
 
@@ -376,6 +425,9 @@ function fullbodyB(female: boolean): Spec[] {
   ];
   if (!female) {
     plan.push(s('Грудь', 'bench', ROLE_SECONDARY, 'наклон', 'вниз;обратным'));
+    // Шарнир есть и в дне B: иначе при 3 днях A/B/A бицепс бедра остаётся
+    // с одной встречей в неделю, а у новичка — с нулём.
+    plan.push(s('Бицепс бедра', 'hinge', ROLE_SECONDARY, 'румын;сгибан', 'гипер'));
   } else {
     plan.push(s('Ягодицы', 'hinge', ROLE_SECONDARY, 'мост;хип-траст', ''));
     plan.push(s('Бицепс бедра', 'hinge', ROLE_SECONDARY, 'румын;сгибан', ''));
@@ -401,9 +453,11 @@ function upperA(): Spec[] {
     s('Широчайшие', 'row', ROLE_MAIN, 'наклон', 'блок;подтягиван;пуловер'),
     s('Плечи', 'press', ROLE_SECONDARY, 'стоя;сидя', 'махи;развед;блок'),
     s('Широчайшие', 'row', ROLE_SECONDARY, 'блок', 'наклон;подтягиван;за голову'),
-    s('Плечи', 'iso', ROLE_ISOLATION, 'стороны', 'перед собой;наклон;блок;тренажер;кроссовер'),
+    // Руки — до добивки на дельты: при лимите 6 средний уровень иначе терял
+    // оба прямых упражнения на руки целиком (аудит 1.51).
     s('Бицепс', 'curl', ROLE_ISOLATION, 'сгибан;молот', ''),
     s('Трицепс', 'iso', ROLE_ISOLATION, 'блок;канат', 'французск;лежа'),
+    s('Плечи', 'iso', ROLE_ISOLATION, 'стороны', 'перед собой;наклон;блок;тренажер;кроссовер'),
   ];
 }
 
@@ -413,9 +467,9 @@ function upperB(): Spec[] {
     s('Грудь', 'bench', ROLE_MAIN, 'наклон', 'вниз;обратным'),
     s('Плечи', 'press', ROLE_SECONDARY, 'сидя', 'махи'),
     s('Ромбовидные', 'row', ROLE_SECONDARY, 'гантел;одной', 'блок;рычажн'),
-    s('Грудь', 'iso', ROLE_ISOLATION, 'развед;кроссовер;пуловер', ''),
-    s('Трицепс', 'iso', ROLE_ISOLATION, 'французск', ''),
     s('Бицепс', 'curl', ROLE_ISOLATION, 'молот', ''),
+    s('Трицепс', 'iso', ROLE_ISOLATION, 'французск', ''),
+    s('Грудь', 'iso', ROLE_ISOLATION, 'развед;кроссовер;пуловер', ''),
   ];
 }
 
@@ -425,9 +479,9 @@ function upperAFemale(): Spec[] {
     s('Грудь', 'bench', ROLE_SECONDARY, 'горизонтальной', 'наклон'),
     s('Плечи', 'press', ROLE_SECONDARY, 'стоя;сидя', 'махи'),
     s('Ромбовидные', 'row', ROLE_SECONDARY, 'гантел;блок', ''),
-    s('Плечи', 'iso', ROLE_ISOLATION, 'стороны', 'перед собой;блок'),
     s('Бицепс', 'curl', ROLE_ISOLATION, 'сгибан', ''),
     s('Трицепс', 'iso', ROLE_ISOLATION, 'блок', ''),
+    s('Плечи', 'iso', ROLE_ISOLATION, 'стороны', 'перед собой;блок'),
   ];
 }
 
@@ -437,9 +491,9 @@ function upperBFemale(): Spec[] {
     s('Плечи', 'press', ROLE_SECONDARY, 'сидя;стоя', 'махи'),
     s('Ромбовидные', 'row', ROLE_SECONDARY, 'гантел;нижнего', ''),
     s('Грудь', 'bench', ROLE_SECONDARY, 'наклон', 'вниз'),
-    s('Плечи', 'iso', ROLE_ISOLATION, 'стороны', ''),
     s('Бицепс', 'curl', ROLE_ISOLATION, 'сгибан;молот', ''),
     s('Трицепс', 'iso', ROLE_ISOLATION, 'блок;канат', ''),
+    s('Плечи', 'iso', ROLE_ISOLATION, 'стороны', ''),
   ];
 }
 
@@ -448,6 +502,9 @@ function lowerA(): Spec[] {
     s('Квадрицепс', 'squat', ROLE_MAIN, 'классические;широкой', 'фронт;гакк'),
     s('Квадрицепс', 'squat', ROLE_SECONDARY, 'выпад;болгар;ногами', 'фронт'),
     s('Бицепс бедра', 'hinge', ROLE_SECONDARY, 'румын;сгибан', ''),
+    // Ягодицы — вторая встреча в неделю: без неё они получали 4 подхода
+    // против цели 13, и «акцент на ягодицы» упирался в отсутствие слота.
+    s('Ягодицы', 'hinge', ROLE_SECONDARY, 'мост;хип-траст;отведен', ''),
     s('Икры', 'calf', ROLE_ISOLATION, 'носк', ''),
     s('Пресс', 'core', ROLE_ISOLATION, 'скручиван;планка', 'блок'),
   ];
@@ -470,6 +527,7 @@ function lowerAFemale(): Spec[] {
     s('Бицепс бедра', 'hinge', ROLE_SECONDARY, 'румын;сгибан', ''),
     s('Ягодицы', 'iso', ROLE_ISOLATION, 'назад;коленях;разведение', 'тренажер'),
     s('Икры', 'calf', ROLE_ISOLATION, 'носк', ''),
+    s('Пресс', 'core', ROLE_ISOLATION, 'скручиван;планка', ''),
   ];
 }
 
@@ -479,6 +537,7 @@ function lowerBFemale(): Spec[] {
     s('Ягодицы', 'hinge', ROLE_SECONDARY, 'выпад;сплит', 'мост'),
     s('Бицепс бедра', 'hinge', ROLE_SECONDARY, 'сгибан;румын', ''),
     s('Ягодицы', 'iso', ROLE_ISOLATION, 'назад;разведение', ''),
+    s('Икры', 'calf', ROLE_ISOLATION, 'носк', ''),
     s('Пресс', 'core', ROLE_ISOLATION, 'скручиван;планка', ''),
   ];
 }
@@ -571,6 +630,7 @@ function legsAFemale(): Spec[] {
     s('Квадрицепс', 'squat', ROLE_SECONDARY, 'выпад;болгар', ''),
     s('Ягодицы', 'iso', ROLE_ISOLATION, 'назад;разведение', ''),
     s('Икры', 'calf', ROLE_ISOLATION, 'носк', ''),
+    s('Пресс', 'core', ROLE_ISOLATION, 'скручиван;планка', ''),
   ];
 }
 
@@ -589,9 +649,17 @@ function weeklyFrequency(dayTitles: string[], templateId: string, power: boolean
   return freq;
 }
 
+/** Крупные группы: у них выше и цель, и нижняя граница объёма. */
+const LARGE_GROUPS = new Set([
+  'Грудь', 'Широчайшие', 'Квадрицепс', 'Бицепс бедра', 'Ягодицы', 'Плечи',
+]);
+
 /**
- * Целевой недельный объём на мышцу (подходов/нед) — середина MAV по RP,
- * скорректированная под цель, уровень, фазу и профиль.
+ * Целевой недельный объём на мышцу (подходов/нед) — прямые подходы.
+ * База — MAV по RP (rpstrength / arvo.guru volume-landmarks), но для мышц,
+ * которым достаётся много непрямой работы (ромбовидные, ягодицы, дельты,
+ * руки), цель ниже: иначе программа физически не может её набрать, а «Анализ»
+ * ругает собственный генератор. Аудит 1.51.
  */
 function weeklyTargetSets(muscle: string, goal: string, level: string, phaseIndex: number,
                           deload: boolean, senior: boolean, female: boolean, focus = ''): number {
@@ -599,32 +667,35 @@ function weeklyTargetSets(muscle: string, goal: string, level: string, phaseInde
   if (female) {
     // женская ветка: акцент низ и спина, грудь и руки поддерживающе
     switch (muscle) {
-      case 'Грудь': mav = 10; break;
-      case 'Широчайшие': mav = 16; break;
-      case 'Плечи': mav = 12; break;
-      case 'Квадрицепс': mav = 15; break;
-      case 'Бицепс бедра': mav = 12; break;
-      case 'Ягодицы': mav = 16; break;
+      case 'Грудь': mav = 6; break;       // женский шаблон: грудь поддерживающе
+      case 'Широчайшие': mav = 13; break;
+      case 'Ромбовидные': mav = 6; break;
+      case 'Плечи': mav = 8; break;
+      case 'Квадрицепс': mav = 13; break;
+      case 'Бицепс бедра': mav = 10; break;
+      case 'Ягодицы': mav = 13; break;
       case 'Бицепс':
-      case 'Трицепс': mav = 10; break;
-      case 'Икры': mav = 12; break;
-      case 'Поясница': mav = 10; break;
-      default: mav = 12;
+      case 'Трицепс': mav = 8; break;
+      case 'Икры': mav = 9; break;
+      case 'Пресс': mav = 8; break;
+      case 'Поясница': mav = 6; break;
+      default: mav = 9;
     }
   } else {
     switch (muscle) {
-      case 'Грудь': mav = 15; break;       // MEV 6–8 / MAV 12–18
-      case 'Широчайшие': mav = 17; break; // MAV 14–20
-      case 'Ромбовидные': mav = 12; break;
-      case 'Плечи': mav = 14; break;      // MAV 12–16
-      case 'Квадрицепс': mav = 15; break; // MAV 12–18
-      case 'Бицепс бедра': mav = 12; break; // MAV 10–14
-      case 'Ягодицы': mav = 13; break;
-      case 'Бицепс': mav = 12; break;      // MAV 10–14
-      case 'Трицепс': mav = 11; break;    // MAV 10–12
-      case 'Икры': mav = 14; break;       // MAV 12–16
-      case 'Поясница': mav = 10; break;
-      default: mav = 12;
+      case 'Грудь': mav = 14; break;       // MEV 6–8 / MAV 12–18
+      case 'Широчайшие': mav = 16; break; // MAV 14–20
+      case 'Ромбовидные': mav = 5; break;  // живут за счёт тяг на широчайшие
+      case 'Плечи': mav = 10; break;       // передняя дельта грузится жимами
+      case 'Квадрицепс': mav = 14; break; // MAV 12–18
+      case 'Бицепс бедра': mav = 10; break; // MAV 10–14
+      case 'Ягодицы': mav = 10; break;
+      case 'Бицепс': mav = 9; break;       // + непрямая работа в тягах
+      case 'Трицепс': mav = 9; break;     // + непрямая работа в жимах
+      case 'Икры': mav = 10; break;
+      case 'Пресс': mav = 8; break;
+      case 'Поясница': mav = 6; break;
+      default: mav = 9;
     }
   }
 
@@ -642,9 +713,15 @@ function weeklyTargetSets(muscle: string, goal: string, level: string, phaseInde
   const weekly = Math.round(mav * f);
   if (deload) return Math.max(4, weekly);   // разгрузка — исключение из нижней границы
   const cap = focusMaxWeeklySets(focus, muscle);
-  // новичку при акценте даём чуть больше 12, но не «взрослый» объём
-  if (level === 'beginner') return Math.max(10, Math.min(Math.min(cap, isFocus(focus, muscle) ? 14 : 12), weekly));
-  return Math.max(10, Math.min(cap, weekly));
+  // Нижняя граница — MEV, а не «10 на всё»: ромбовидным и прессу 10 подходов
+  // не нужны и не влезают в день рядом с базой. Порог не выше 80 % цели:
+  // иначе для женской груди (MAV 6) граница 10 была бы недостижима.
+  const floor = Math.min(LARGE_GROUPS.has(muscle) ? 10 : 6, Math.round(mav * 0.8));
+  // новичку при акценте даём чуть больше, но не «взрослый» объём
+  if (level === 'beginner') {
+    return Math.max(floor, Math.min(Math.min(cap, isFocus(focus, muscle) ? 14 : 12), weekly));
+  }
+  return Math.max(floor, Math.min(cap, weekly));
 }
 
 /** Подходы на одну встречу мышцы в неделю: недельный объём / число встреч. */
@@ -714,16 +791,14 @@ function restForMuscle(role: string, muscle: string, reps: string, deltaSec: num
     hi = Math.max(hi, 180);
   }
   if (role === ROLE_ISOLATION) {
-    // изоляция: кап 60–90 с
-    lo = Math.min(lo, 60);
-    hi = Math.min(hi, 90);
+    // изоляция: не короче 60–90 с. Короткий отдых режет объём следующего
+    // подхода, а 30–45 с на 15–20 повторах — метаболический стресс, а не
+    // гипертрофия (Grgic и др., 2018).
+    lo = Math.max(lo, 60);
+    hi = Math.max(hi, 90);
   }
-  const g = normalizeGoal(goal);
-  if (g === GOALS.CUT || g === GOALS.LOSE || g === GOALS.ENDURANCE) {
-    // сушка и выносливость: отдых на ступень короче
-    lo = Math.max(15, lo - 15);
-    hi = Math.max(lo, hi - 15);
-  }
+  // На сушке и выносливости отдых НЕ сокращаем: дефицит сам бьёт по
+  // работоспособности, укорачивать отдых — значит добивать объём.
   lo = Math.max(15, lo + deltaSec);
   hi = Math.max(lo, hi + deltaSec);
   return formatRest(lo, hi);
@@ -759,8 +834,9 @@ function slotReps(role: string, goal: string, phaseIndex: number, style: string,
 
 /**
  * Подходы слота: вес роли в дневной норме мышцы (main 3 / secondary 2 / isolation 1).
- * Приоритетной изоляции разрешаем 6 подходов вместо 4 — иначе акцент на пресс
- * или икры упирался бы в потолок одного слота и объём не рос бы вовсе.
+ * Изоляции разрешаем 5 подходов (приоритетной — 7): иначе акцент на пресс,
+ * икры или руки упирался бы в потолок одного слота, и объём не рос бы вовсе.
+ * Аудит 1.51: при кап 4 руки получали 3–4 подхода в неделю против нормы 6–12.
  */
 function slotSetsFor(role: string, dayTarget: number, weightSum: number, senior: boolean,
                      focused = false): number {
@@ -768,7 +844,7 @@ function slotSetsFor(role: string, dayTarget: number, weightSum: number, senior:
   let sets = Math.round(dayTarget * w / Math.max(1, weightSum));
   if (role === ROLE_MAIN) sets = Math.max(3, Math.min(6, sets));
   else if (role === ROLE_SECONDARY) sets = Math.max(2, Math.min(5, sets));
-  else sets = Math.max(2, Math.min(focused ? 6 : 4, sets));
+  else sets = Math.max(2, Math.min(focused ? 7 : 5, sets));
   if (senior) sets = Math.max(2, sets - 1);
   return sets;
 }
@@ -865,9 +941,12 @@ function resolveType(type: string, level: string, days: number): string {
 
 function exercisesPerDay(level: string, type: string): number {
   if (type === TYPE_CIRCUIT) return 6;
-  if (level === 'beginner') return 4;
-  if (level === 'advanced') return 6;
-  return 5;
+  // Лимит дня обязан вмещать полный шаблон: иначе малые мышцы (руки, икры,
+  // пресс) и шарнир на бицепс бедра вырезаются как «хвост» плана. Аудит 1.51:
+  // при 4/5/6 новичок оставался без румынской тяги, средний — без работы на руки.
+  if (level === 'beginner') return 6;
+  if (level === 'advanced') return 7;
+  return 6;
 }
 
 // ---------------------------------------------------------------- подбор упражнений
@@ -1088,10 +1167,10 @@ function buildDaySlots(p: BuildDayParams): Slot[] {
     s.sets = sets;
   }
 
-  // гардрейл: подходов в день ≤24 (новичок ≤16). main неприкосновенен —
+  // гардрейл: подходов в день ≤28 (новичок ≤20). main неприкосновенен —
   // режем только secondary/isolation, не ниже 2 подходов. Приоритетные группы
   // режем последними: иначе акцент съедался бы собственным гардрейлом.
-  const dayCap = beginner ? 16 : 24;
+  const dayCap = beginner ? 22 : 28;
   let total = slots.reduce((sum, s) => sum + s.sets, 0);
   while (total > dayCap) {
     let best = -1;
@@ -1144,6 +1223,26 @@ function resolveGlutes(opts: GenerateOptions): boolean {
   return !!opts.female;
 }
 
+/** Для тестов: недельная цель объёма мышцы (подходов/нед). */
+export function weeklyTargetFor(muscle: string, goal: string, level: string, focus = '',
+                                female = false, senior = false, phaseIndex = 0,
+                                deload = false): number {
+  return weeklyTargetSets(muscle, goal, level, phaseIndex, deload, senior, female, focus);
+}
+
+/** Для отладки объёмов: частота встреч и подходы на сессию. */
+export function debugVolume(dayTitles: string[], templateId: string, power: boolean,
+                            female: boolean, goal: string, level: string, focus = '',
+                            exLimit: number, phaseIndex = 0, senior = false,
+                            deload = false): { freq: Record<string, number>; session: Record<string, number> } {
+  const freq = weeklyFrequency(dayTitles, templateId, power, female, focus, exLimit);
+  const session = sessionSets(freq, goal, level, phaseIndex, deload, senior, female, focus);
+  return {
+    freq: Object.fromEntries(freq),
+    session: Object.fromEntries(session),
+  };
+}
+
 export function generateProgram(opts: GenerateOptions, db: ExercisesDB): Program {
   const totalWeeks = opts.weeks > 0 ? opts.weeks : 12;
   const days = Math.max(2, Math.min(7, opts.daysPerWeek));
@@ -1164,7 +1263,7 @@ export function generateProgram(opts: GenerateOptions, db: ExercisesDB): Program
   const focus = normalizeFocus(opts.focus);
   // «Отмечено всё» = перекоса нет: считаем как обычную программу.
   const planFocus = effectiveFocus(focus);
-  const senior = age >= 40;
+  const senior = age >= 50;
   const pregnant = !!opts.pregnant;
   const restDelta = pregnant ? pregnancyRestDelta(senior ? 30 : 0) : (senior ? 30 : 0);
 

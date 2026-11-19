@@ -100,15 +100,19 @@ export function goalLabel(goal: string): string {
   return GOAL_LABELS[normalizeGoal(goal)] ?? GOAL_LABELS[GOALS.MAINTAIN];
 }
 
-/** Сдвиг калорий от поддерживающей нормы (TDEE). */
+/**
+ * Сдвиг калорий от поддерживающей нормы (TDEE) — в долях, а не фикс. шагом.
+ * Фиксированные −500/+300 давали разную скорость для разных тел: при TDEE 1600
+ * это −31 %, при TDEE 3500 — −14 %. Проценты держат темп одинаковым.
+ */
 export function calorieDelta(goal: string): number {
   switch (normalizeGoal(goal)) {
-    case GOALS.LOSE: return -500;
-    case GOALS.CUT: return -400;
-    case GOALS.RECOMP: return -150;
-    case GOALS.MASS: return +300;
-    case GOALS.STRENGTH: return +150;
-    case GOALS.ENDURANCE: return +100;
+    case GOALS.LOSE: return -0.20;
+    case GOALS.CUT: return -0.16;
+    case GOALS.RECOMP: return -0.06;
+    case GOALS.MASS: return +0.12;
+    case GOALS.STRENGTH: return +0.06;
+    case GOALS.ENDURANCE: return +0.04;
     default: return 0;
   }
 }
@@ -128,7 +132,7 @@ export function calorieFloor(goal: string, gender?: string | null): number {
 export function caloriesFor(tdee: number, goal: string, gender?: string | null): number {
   if (tdee <= 0) return 0;
   const delta = calorieDelta(goal);
-  const target = tdee + delta;
+  const target = tdee * (1 + delta);
   if (delta < 0) return Math.max(target, calorieFloor(goal, gender));
   return target;
 }
@@ -174,6 +178,26 @@ export function proteinPerKg(goal: string): number {
     case GOALS.RECOMP: return 2.0;
     default: return 2.0;
   }
+}
+
+/**
+ * Вес для расчёта белка. При ИМТ ≥ 30 масса тела завышает норму: 130 кг
+ * дают 260–286 г белка в день. Берём сухую массу, если известен % жира,
+ * иначе — вес при ИМТ 22 (верхняя граница нормального веса).
+ */
+export function proteinWeight(p: {
+  weightKg?: number; heightCm?: number; bodyFatPercent?: number;
+} | null | undefined): number {
+  if (!p) return 0;
+  const w = p.weightKg || 0;
+  if (w <= 0) return 0;
+  const h = (p.heightCm || 0) / 100;
+  const bmi = h > 0 ? w / (h * h) : 0;
+  if (bmi < 30) return w;
+  const bf = p.bodyFatPercent || 0;
+  if (bf > 0 && bf < 60) return w * (1 - bf / 100);
+  const target = 22 * h * h;
+  return target > 0 ? Math.min(w, target) : w;
 }
 
 /** Нормы жиров, г на кг массы тела. */

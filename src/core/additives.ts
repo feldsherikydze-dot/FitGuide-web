@@ -22,17 +22,6 @@ function p(name: string, format: string, price: string, best: boolean): Additive
   return { name, format, price, best };
 }
 
-function dosePerKg(weight: number, hasWeight: boolean, perKg: string, fallback: string): string {
-  if (!hasWeight || weight <= 0) return fallback;
-  const parts = perKg.split('–');
-  const lo = parseFloat(parts[0].trim());
-  const hi = parts.length > 1 ? parseFloat(parts[1].trim()) : lo;
-  if (isNaN(lo)) return fallback;
-  const gramsLo = Math.round(weight * lo);
-  const gramsHi = Math.round(weight * hi);
-  return `${gramsLo}–${gramsHi} г в день (${perKg} г/кг, тело ${Math.round(weight)} кг)`;
-}
-
 /**
  * Подбор дополнений под цель, уровень, бюджет и параметры пользователя.
  */
@@ -46,8 +35,6 @@ export function additivesForProfile(params: {
   lifeStage?: string;
 }): Additive[] {
   const goal = normalizeGoal(params.goal);
-  const weight = params.weightKg;
-  const hasWeight = weight > 0;
   const level = params.level || 'beginner';
   const budget = params.budget || 'medium';
   const female = params.gender === 'female';
@@ -57,13 +44,16 @@ export function additivesForProfile(params: {
 
   const result: Additive[] = [];
 
-  // Белок: дозировка привязана к весу тела пользователя.
+  // Белок: дозировка — порция, а не «суточная норма». Раньше считалось
+  // 1.6–2.2 г/кг от веса, то есть 80 кг → 128–176 г порошка в день:
+  // это замена рациона, а не добавка. Дневную норму считает профиль (Goals).
+  const proteinWhy = 'Добирает белок, когда из еды не хватает 20–40 г. Норму в день считает профиль.';
   if (budget === 'econom') {
     result.push({
       key: 'whey_concentrate',
       name: 'Сывороточный протеин',
-      dose: dosePerKg(weight, hasWeight, '0.8–1.0', 'Главный источник аминокислот, покрывает норму белка, если её трудно добирать из еды.'),
-      why: 'Покрывает потребность в белке, если не хватает из обычной еды.',
+      dose: '20–30 г на порцию, 1–2 порции в день',
+      why: proteinWhy,
       products: [
         p('Optimum Nutrition — Gold Standard 100% Whey', 'порошок 2,27 кг · 70 порций', '≈ 6500 ₽', true),
         p('MyProtein — Impact Whey', 'порошок 2,5 кг · 80 порций', '≈ 5200 ₽', false),
@@ -76,8 +66,8 @@ export function additivesForProfile(params: {
     result.push({
       key: 'whey_isolate',
       name: 'Изолят сывороточного протеина',
-      dose: dosePerKg(weight, hasWeight, '1.6–2.2', 'Быстро усваивается и удобно добирать норму белка сразу после тренировки.'),
-      why: 'Быстро усваивается, удобно добирать норму белка после тренировки.',
+      dose: '25–40 г на порцию, 1–2 порции в день',
+      why: proteinWhy,
       products: [
         p('Dymatize — ISO100 Hydrolyzed', 'порошок 2,3 кг · 70 порций', '≈ 8000 ₽', true),
         p('Optimum Nutrition — 100% Whey Gold Standard', 'порошок 2,27 кг', '≈ 6500 ₽', true),
@@ -88,12 +78,15 @@ export function additivesForProfile(params: {
     });
   }
 
-  if (goal !== GOAL.LOSE) {
+  // Креатин нужен при любой цели: в дефиците он удерживает сухую массу.
+  // Раньше при «похудении» выпадал — это была ошибка. При беременности
+  // не предлагаем: данных мало.
+  if (!pregnant) {
     result.push({
       key: 'creatine',
       name: 'Креатин моногидрат',
-      dose: hasWeight && weight >= 55 ? `3–${Math.round(weight * 0.08)} г в день (0.03–0.05 г/кг)` : '3–5 г в день',
-      why: 'Единственная добавка с доказанным эффектом на силу и сухую массу.',
+      dose: '3–5 г в день, без фазы загрузки',
+      why: 'Единственная добавка с доказанным эффектом на силу и сухую массу. Работает и на сушке.',
       products: [
         p('Optimum Nutrition — Micronized Creatine', 'порошок 600 г', '≈ 1600 ₽', true),
         p('MyProtein — Creatine Monohydrate', 'порошок 1 кг', '≈ 1500 ₽', true),
@@ -107,8 +100,8 @@ export function additivesForProfile(params: {
     result.push({
       key: 'vitamin_d',
       name: 'Витамин D3 + K2',
-      dose: '2000–5000 МЕ + 100 мкг/день',
-      why: 'Частый дефицит, особенно зимой. Влияет на гормоны, иммунитет, кости и восстановление.',
+      dose: 'D3 2000–5000 МЕ + K2 (MK-7) 90–120 мкг в день',
+      why: 'Частый дефицит, особенно зимой. Влияет на кости, иммунитет и восстановление.',
       products: [
         p('Now Foods — Vitamin D-3 + K-2', 'капсулы · 120 шт', '≈ 1100 ₽', true),
         p("Doctor's Best — Vitamin D3 + K2", 'капсулы · 60 шт', '≈ 1300 ₽', false),
@@ -131,7 +124,7 @@ export function additivesForProfile(params: {
       key: 'magnesium',
       name: 'Магний (цитрат/глицинат)',
       dose: '300–400 мг вечером',
-      why: 'Улучшает сон и восстановление, снижает судороги и тревожность.',
+      why: 'Помогает при подтверждённом дефиците: судороги, плохой сон. Без анализа — не обязателен.',
       products: [
         p("Doctor's Best — Magnesium Glycinate Chelated", 'таблетки · 120 шт', '≈ 1400 ₽', true),
         p('Now Foods — Magnesium Glycinate', 'таблетки · 180 шт', '≈ 1500 ₽', false),
@@ -157,7 +150,7 @@ export function additivesForProfile(params: {
       key: 'carnitine',
       name: 'L-карнитин',
       dose: '1–2 г перед тренировкой',
-      why: 'Поддерживает транспорт жирных кислот в митохондрии. Работает только вместе с дефицитом калорий.',
+      why: 'Механизм (транспорт жирных кислот) реальный, но добавка почти не меняет жиросжигание в исследованиях. Не обязательна.',
       products: [
         p('Now Foods — L-Carnitine', 'капсулы 500 мг · 120 шт', '≈ 1500 ₽', true),
         p('MyProtein — L-Carnitine', 'капсулы · 180 шт', '≈ 1100 ₽', false),
@@ -181,8 +174,8 @@ export function additivesForProfile(params: {
       result.push({
         key: 'zma',
         name: 'Цинк + магний (ZMA)',
-        dose: 'вечером',
-        why: 'Цинк и магний связаны с синтезом тестостерона и качеством сна — важны при наборе.',
+        dose: 'вечером, по анализам',
+        why: 'Нужен только при подтверждённом дефиците цинка или магния. У людей с нормальным питанием тестостерон не повышает (Wilborn, 2010).',
         products: [
           p('Now Foods — ZMA', 'капсулы · 90 шт', '≈ 1300 ₽', true),
           p('Advanced Labs — ZMA', 'капсулы · 90 шт', '≈ 1500 ₽', false),
@@ -195,7 +188,7 @@ export function additivesForProfile(params: {
       key: 'magnesium',
       name: 'Магний',
       dose: '300–400 мг вечером',
-      why: 'Поддерживает восстановление и сон при регулярных тренировках.',
+      why: 'Нужен при дефиците. При разнообразном питании добавка не обязательна.',
       products: [
         p("Doctor's Best — Magnesium Glycinate Chelated", 'таблетки · 120 шт', '≈ 1400 ₽', true),
         p('Now Foods — Magnesium Glycinate', 'таблетки · 180 шт', '≈ 1500 ₽', false),
@@ -220,8 +213,8 @@ export function additivesForProfile(params: {
     result.push({
       key: 'bcaa',
       name: 'BCAA',
-      dose: '5–10 г при тренировке',
-      why: 'Лейцин участвует в запуске синтеза белка; удобно пить прямо во время тренинга.',
+      dose: '5–10 г во время тренировки',
+      why: 'Смысл есть только при общем дефиците белка: изолированные BCAA не заменяют полноценный протеин, а стоят дороже. Если норма белка набрана — деньги на ветер (Jackman и др., 2017).',
       products: [
         p('Scivation — Xtend', 'порошок · 30 порций', '≈ 2400 ₽', true),
         p('Optimum Nutrition — BCAA 1000 Caps', 'капсулы · 200 шт', '≈ 2200 ₽', false),

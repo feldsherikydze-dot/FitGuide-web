@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { clsx } from 'clsx';
 import { Apple, Pill, ChevronDown, ChevronUp, Info, Target, Calculator } from 'lucide-react';
 import { useProfileStore } from '../core/store';
-import { GOALS, GOALS_ALL, GOAL_LABELS, GOAL_DESCRIPTIONS, caloriesFor, proteinPerKg, fatsPerKg, normalizeGoal } from '../core/goals';
+import { GOALS, GOALS_ALL, GOAL_LABELS, GOAL_DESCRIPTIONS, caloriesFor, proteinPerKg, proteinWeight, fatsPerKg, normalizeGoal } from '../core/goals';
 import { additivesForProfile, type Additive } from '../core/additives';
 
 const BUDGETS = [
@@ -42,7 +42,9 @@ export function NutritionPage() {
   const factor = { sedentary: 1.2, light: 1.375, moderate: 1.55, high: 1.725, athlete: 1.9 }[profile?.activityLevel || 'moderate'] || 1.2;
   const tdee = bmr ? Math.round(bmr * factor) : 0;
   const calories = caloriesFor(tdee, goal, gender);
-  const protein = Math.round(weight * proteinPerKg(goal));
+  const protein = Math.round(proteinWeight({
+    weightKg: weight, heightCm: profile?.heightCm, bodyFatPercent: profile?.bodyFatPercent,
+  }) * proteinPerKg(goal));
   const fats = Math.round(weight * fatsPerKg(goal));
   const carbs = Math.max(0, Math.round((calories - protein * 4 - fats * 9) / 4));
 

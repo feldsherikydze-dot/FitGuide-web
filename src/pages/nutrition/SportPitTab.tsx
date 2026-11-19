@@ -6,7 +6,7 @@ import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProfileStore } from '../../core/store';
 import { getString } from '../../core/storage';
-import { dailyCalories, GOALS_ALL, GOAL_LABELS, goalLabel, normalizeGoal, proteinPerKg } from '../../core/goals';
+import { dailyCalories, GOALS_ALL, GOAL_LABELS, goalLabel, normalizeGoal, proteinPerKg, proteinWeight } from '../../core/goals';
 import { additivesForProfile } from '../../core/additives';
 import type { Additive } from '../../core/additives';
 import { Toast } from '../progress/common';
@@ -121,7 +121,7 @@ export function SportPitTab() {
           <p className="text-[13px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
             {complete
               ? `Ваш профиль: ${weight.toFixed(0)} кг · ${age} лет · ${goalLabel(goal)} — `
-                + `${dailyCalories(profile).toFixed(0)} ккал/сутки, белок ~${(weight * proteinPerKg(goal)).toFixed(0)} г`
+                + `${dailyCalories(profile).toFixed(0)} ккал/сутки, белок ~${(proteinWeight(profile) * proteinPerKg(goal)).toFixed(0)} г`
               : 'Дозировки рассчитаны приблизительно — заполните профиль (вес, возраст, пол, цель), чтобы подобрать точнее.'}
           </p>
 

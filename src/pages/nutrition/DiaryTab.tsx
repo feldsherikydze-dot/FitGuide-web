@@ -4,7 +4,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useProfileStore } from '../../core/store';
 import { getJSON, setJSON, KEYS } from '../../core/storage';
-import { dailyCalories, proteinPerKg } from '../../core/goals';
+import { dailyCalories, proteinPerKg, proteinWeight } from '../../core/goals';
 import { Dialog, DialogAction, Field, Toast, parseInt10, parseNum } from '../progress/common';
 import type { Day } from '../../core/nutrition';
 import { searchFoods, foodPortion } from '../../data/foods';
@@ -88,7 +88,7 @@ export function DiaryTab() {
   // Норма — из профиля, её же считает КБЖУ-калькулятор (Profile.getDailyCalories).
   const kcalTarget = Math.round(dailyCalories(profile));
   const ready = !!profile && (profile.weightKg || 0) > 0 && kcalTarget > 0;
-  const proteinTarget = ready ? (profile!.weightKg || 0) * proteinPerKg(profile!.goal) : 0;
+  const proteinTarget = ready ? proteinWeight(profile) * proteinPerKg(profile!.goal) : 0;
 
   const date = useMemo(() => {
     const d = new Date();

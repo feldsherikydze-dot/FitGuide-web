@@ -158,6 +158,31 @@ check('все 8: день не удлиняется',
   <= Math.max(...base.phases[0].days.map(d => d.slots.length)),
   `(${Math.max(...all.phases[0].days.map(d => d.slots.length))} vs ${Math.max(...base.phases[0].days.map(d => d.slots.length))})`);
 
+// --- Согласованность слоёв объёма: программа обязана набирать хотя бы 80 %
+// собственной недельной цели по каждой мышце, которая в ней есть. Аудит 1.51
+// нашёл обратное: цель 12–13, факт 3–4, и «Анализ» ругал программу приложения.
+console.log('\n=== ОБЪЁМ: ЦЕЛЬ vs ФАКТ (муж/жен, новичок/средний/продвинутый) ===');
+for (const [level, days, female] of [
+  ['beginner', 3, false], ['beginner', 3, true],
+  ['intermediate', 4, false], ['intermediate', 4, true],
+  ['advanced', 5, false], ['advanced', 5, true],
+]) {
+  const prog = gen.generateProgram({
+    name: 'Объём', goal: 'mass', level, daysPerWeek: days, weeks: 8,
+    place: 'gym', style: 'any', periodType: 0, type: 'auto', equipment: [],
+    age: 30, female, emphasis: female ? 'glutes_legs' : 'balanced', focus: '',
+  }, db);
+  const fact = weeklySets(prog);
+  const tag = `${level}/${days}д/${female ? 'жен' : 'муж'}`;
+  for (const [group, sets] of fact) {
+    if (!sets) continue;
+    const target = gen.weeklyTargetFor(group, 'mass', level, '', female, false, 0, false);
+    const ratio = target > 0 ? sets / target : 1;
+    check(`${tag}: ${group} ${sets}/${target} ≥ 80 %`, ratio >= 0.8,
+      `(${Math.round(ratio * 100)} %)`);
+  }
+}
+
 console.log(`\n=== ИТОГ: ${pass} OK, ${fail} FAIL ===\n`);
 try { fs.unlinkSync(out); } catch { /* временный файл могли уже убрать */ }
 process.exit(fail > 0 ? 1 : 0);

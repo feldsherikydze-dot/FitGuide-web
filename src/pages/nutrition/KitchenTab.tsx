@@ -5,7 +5,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useProfileStore } from '../../core/store';
 import { getJSON, setJSON, KEYS } from '../../core/storage';
-import { dailyCalories, goalList, goalLabel, proteinPerKg } from '../../core/goals';
+import { dailyCalories, goalList, goalLabel, proteinPerKg, proteinWeight } from '../../core/goals';
 import { week } from '../../core/nutrition';
 import type { Day } from '../../core/nutrition';
 import { Field, PrimaryButton, Toast } from '../progress/common';
@@ -38,9 +38,9 @@ export function KitchenTab() {
   // Норма белка от веса и цели: меню должно не только попадать в калории,
   // но и не проваливать белок (2.0 г/кг на массе — это ~30% калорий).
   const proteinTarget = useMemo(() => {
-    const w = profile?.weightKg || 0;
+    const w = proteinWeight(profile);
     return w > 0 ? Math.round(w * proteinPerKg(profile?.goal || 'mass')) : 0;
-  }, [profile?.weightKg, profile?.goal]);
+  }, [profile]);
 
   const goals = useMemo(() => {
     const g = profile?.goal ? goalList(profile.goal) : [];
