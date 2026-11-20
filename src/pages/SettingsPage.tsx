@@ -17,6 +17,15 @@ import { useUIStore } from '../core/store';
 import { PaletteSettings } from '../components/PaletteSettings';
 import { getString, setString, getJSON, setJSON } from '../core/storage';
 import {
+  exportDataJson,
+  inspectBackup,
+  importData,
+  hasSafetyBackup,
+  restoreSafetyBackup,
+  backupFileName,
+} from '../core/dataPort';
+import type { BackupInfo } from '../core/dataPort';
+import {
   SIGNAL_PROFILES,
   getSignalProfileKey,
   getSignalVolume,
@@ -93,6 +102,11 @@ export function SettingsPage() {
   const { theme, setTheme } = useUIStore();
 
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
+  const [hasBackup, setHasBackup] = useState(() => hasSafetyBackup());
+  const [pendingImport, setPendingImport] = useState<
+    { text: string; name: string; info: BackupInfo } | null
+  >(null);
   const [showClockDialog, setShowClockDialog] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -128,6 +142,76 @@ export function SettingsPage() {
   const showToast = (text: string) => {
     setToast(text);
     window.setTimeout(() => setToast(null), 2500);
+  };
+
+  const handleExportData = () => {
+    try {
+      const json = exportDataJson();
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = backupFileName();
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast('Файл сохранён');
+    } catch {
+      showToast('Не удалось сохранить файл');
+    }
+  };
+
+  const handlePickImport = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json,.json,text/plain';
+    input.onchange = () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const text = String(reader.result || '');
+        try {
+          const info = inspectBackup(text);
+          if (info.platform !== 'web') {
+            showToast('Файл создан в Android-версии — перенос между платформами пока не поддерживается');
+            return;
+          }
+          setPendingImport({ text, name: file.name, info });
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : '';
+          showToast(msg === 'platform' ? 'Файл от другой платформы' : 'Это не файл FitGuide');
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
+  const handleApplyImport = () => {
+    if (!pendingImport) return;
+    try {
+      const keys = importData(pendingImport.text);
+      setPendingImport(null);
+      setHasBackup(true);
+      showToast(`Импортировано ключей: ${keys}. Перезапуск…`);
+      window.setTimeout(() => window.location.reload(), 700);
+    } catch (e) {
+      setPendingImport(null);
+      showToast('Не удалось импортировать: ' + (e instanceof Error ? e.message : '?'));
+    }
+  };
+
+  const handleRestoreBackup = () => {
+    setShowRestoreConfirm(false);
+    try {
+      restoreSafetyBackup();
+      showToast('Данные восстановлены. Перезапуск…');
+      window.setTimeout(() => window.location.reload(), 700);
+    } catch {
+      showToast('Копии для отката нет');
+    }
   };
 
   const handleResetAll = () => {
@@ -506,6 +590,49 @@ export function SettingsPage() {
           Как поставить зеркало на часы. Важно: передать файл по Bluetooth НЕ получится — часы не
           появляются в списке «Поделиться». Пока программа не стоит на часах, они не видны и здесь.
         </div>
+
+        <div className="mt-4 text-[13px] font-bold" style={labelSecondary}>Напоминания</div>
+        <div className="mt-1 text-[12px] leading-snug" style={secondary}>
+          В веб-версии напоминаний нет: браузер не даёт приложению проснуться и напомнить о
+          тренировке, пока оно закрыто. В Android-версии напоминания работают — поставьте её, если
+          они нужны.
+        </div>
+      </SettingsCard>
+
+      {/* ===== ДАННЫЕ ===== */}
+      <SettingsCard>
+        <div className="text-[16px] font-bold" style={sectionTitle}>Данные</div>
+        <div className="mt-1 text-[13px]" style={secondary}>
+          Резервная копия: профиль, программы, тренировки, замеры, рекорды и настройки.
+        </div>
+
+        <button
+          onClick={handleExportData}
+          className="fg-btn fg-btn-ghost w-full mt-3"
+          style={{ height: 48 }}
+        >
+          Экспорт данных
+        </button>
+        <button
+          onClick={handlePickImport}
+          className="fg-btn fg-btn-ghost w-full mt-2"
+          style={{ height: 48 }}
+        >
+          Импорт данных
+        </button>
+        {hasBackup && (
+          <button
+            onClick={() => setShowRestoreConfirm(true)}
+            className="w-full mt-1.5 text-[13px]"
+            style={{ height: 40, color: 'var(--p-outline)' }}
+          >
+            Вернуть данные до импорта
+          </button>
+        )}
+
+        <div className="mt-1.5 text-[12px] leading-snug" style={secondary}>
+          Импорт заменяет текущие данные. Перед заменой автоматически сохраняется копия для отката.
+        </div>
       </SettingsCard>
 
       {/* ===== СБРОС ===== */}
@@ -611,6 +738,52 @@ export function SettingsPage() {
             Профиль, журнал тренировок, программы, рекорды и все настройки будут удалены.
             База упражнений и библиотека знаний останутся. Приложение перезапустится как при
             первой установке.
+          </p>
+        </Dialog>
+      )}
+
+      {/* Подтверждение импорта */}
+      {pendingImport && (
+        <Dialog
+          title="Импортировать данные?"
+          onClose={() => setPendingImport(null)}
+          actions={
+            <>
+              <DialogAction onClick={() => setPendingImport(null)}>Отмена</DialogAction>
+              <DialogAction strong onClick={handleApplyImport}>Импортировать</DialogAction>
+            </>
+          }
+        >
+          <p className="text-[14px] leading-relaxed" style={{ color: 'var(--p-on-labels-soft)' }}>
+            Файл: {pendingImport.name}
+            <br />
+            Версия: {pendingImport.info.appVersion} ·{' '}
+            {new Date(pendingImport.info.exportedAt).toLocaleString('ru-RU')}
+            <br />
+            Ключей: {pendingImport.info.keys}
+            <br />
+            <br />
+            Текущие данные будут заменены. Перед заменой сохранится копия — её можно вернуть
+            кнопкой «Вернуть данные до импорта».
+          </p>
+        </Dialog>
+      )}
+
+      {/* Подтверждение отката */}
+      {showRestoreConfirm && (
+        <Dialog
+          title="Вернуть данные до импорта?"
+          onClose={() => setShowRestoreConfirm(false)}
+          actions={
+            <>
+              <DialogAction onClick={() => setShowRestoreConfirm(false)}>Отмена</DialogAction>
+              <DialogAction strong onClick={handleRestoreBackup}>Вернуть</DialogAction>
+            </>
+          }
+        >
+          <p className="text-[14px] leading-relaxed" style={{ color: 'var(--p-on-labels-soft)' }}>
+            Текущие изменения будут потеряны. Вернётся состояние, сохранённое перед последним
+            импортом.
           </p>
         </Dialog>
       )}

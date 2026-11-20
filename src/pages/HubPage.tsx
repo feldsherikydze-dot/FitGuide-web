@@ -14,6 +14,7 @@ import { useProfileStore, useProgramsStore, useCoachStore } from '../core/store'
 import { usePaletteVars, TopBar, TopBarButton, ToolTile, MiniPlayer, SearchField, MaskIcon, type ToolDef, asset } from '../components/ui';
 import { getJSON, setJSON, setString, KEYS, getString } from '../core/storage';
 import { usePlayer } from '../core/player';
+import { getWaterToday, addWater, getWaterGoal, liters } from '../core/water';
 import { fetchWeek, weatherEmoji, useWeather, type DayForecast } from '../core/weather';
 import { slotColor } from '../core/palette';
 
@@ -55,6 +56,7 @@ export function HubPage() {
 
   const [now, setNow] = useState(new Date());
   const [query, setQuery] = useState('');
+  const [water, setWater] = useState(() => getWaterToday());
   const [order, setOrder] = useState<string[]>(TOOLS.map(t => t.key));
   const [dragEnabled, setDragEnabled] = useState(
     () => getString('drag_enabled', getString('home_drag_enabled', '1')) !== '0'
@@ -419,6 +421,43 @@ export function HubPage() {
           })}
         </div>
       </div>
+
+      {/* Вода на сегодня — как homeWaterRow в Android */}
+      {(() => {
+        const goal = getWaterGoal(profile?.weightKg ?? 0);
+        const done = water >= goal;
+        return (
+          <div
+            className="mx-4 mb-1 flex items-center gap-1 px-3.5 py-1"
+            style={{
+              background: labels,
+              border: `1px solid ${outline}`,
+              borderRadius: '16px',
+              color: 'var(--p-on-labels)',
+            }}
+          >
+            <div className="flex-1 min-w-0 text-[13px]">
+              {done
+                ? `Вода сегодня: ${liters(water)} л — норма выполнена`
+                : `Вода сегодня: ${liters(water)} из ${liters(goal)} л`}
+            </div>
+            <button
+              onClick={() => setWater(addWater(250))}
+              className="fg-btn fg-btn-ghost px-2.5"
+              style={{ height: 34, fontSize: 12, borderRadius: 17 }}
+            >
+              +250
+            </button>
+            <button
+              onClick={() => setWater(addWater(500))}
+              className="fg-btn fg-btn-ghost px-2.5"
+              style={{ height: 34, fontSize: 12, borderRadius: 17 }}
+            >
+              +500
+            </button>
+          </div>
+        );
+      })()}
 
       {/* Поиск — скрыт если выключено в настройках */}
       {searchEnabled && (
