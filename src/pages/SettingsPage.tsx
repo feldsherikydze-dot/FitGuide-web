@@ -117,6 +117,9 @@ export function SettingsPage() {
   const [pendingImport, setPendingImport] = useState<
     { text: string; name: string; info: BackupInfo } | null
   >(null);
+  const [transferReport, setTransferReport] = useState<
+    { keys: number; lines: string[] } | null
+  >(null);
   const [showClockDialog, setShowClockDialog] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -189,8 +192,8 @@ export function SettingsPage() {
         const text = String(reader.result || '');
         try {
           const info = inspectBackup(text);
-          if (info.platform !== 'web') {
-            showToast('Файл создан в Android-версии — перенос между платформами пока не поддерживается');
+          if (info.platform !== 'web' && info.platform !== 'android') {
+            showToast('Файл создан в неизвестной версии FitGuide');
             return;
           }
           setPendingImport({ text, name: file.name, info });
@@ -207,11 +210,10 @@ export function SettingsPage() {
   const handleApplyImport = () => {
     if (!pendingImport) return;
     try {
-      const keys = importData(pendingImport.text);
+      const res = importData(pendingImport.text);
       setPendingImport(null);
       setHasBackup(true);
-      showToast(`Импортировано ключей: ${keys}. Перезапуск…`);
-      window.setTimeout(() => window.location.reload(), 700);
+      setTransferReport({ keys: res.keys, lines: res.report });
     } catch (e) {
       setPendingImport(null);
       showToast('Не удалось импортировать: ' + (e instanceof Error ? e.message : '?'));
@@ -929,10 +931,46 @@ export function SettingsPage() {
             {new Date(pendingImport.info.exportedAt).toLocaleString('ru-RU')}
             <br />
             Ключей: {pendingImport.info.keys}
+            {pendingImport.info.platform === 'android' && (
+              <>
+                <br />
+                <br />
+                Файл создан в Android-версии. Профиль, программы, тренировки, замеры, рекорды
+                и дневник будут сконвертированы под веб. Плеер, погода и вода есть только
+                в Android; палитра и заставка вернутся к стандартным.
+              </>
+            )}
             <br />
             <br />
             Текущие данные будут заменены. Перед заменой сохранится копия — её можно вернуть
             кнопкой «Вернуть данные до импорта».
+          </p>
+        </Dialog>
+      )}
+
+      {/* Отчёт после импорта: что перенесено, что осталось на платформе */}
+      {transferReport && (
+        <Dialog
+          title="Перенос данных"
+          onClose={() => window.location.reload()}
+          actions={
+            <DialogAction strong onClick={() => window.location.reload()}>
+              Перезапустить
+            </DialogAction>
+          }
+        >
+          <p className="text-[14px] leading-relaxed" style={{ color: 'var(--p-on-labels-soft)' }}>
+            Импортировано ключей: {transferReport.keys}
+            {transferReport.lines.length > 0 && (
+              <>
+                <br />
+                <br />
+                <span style={{ whiteSpace: 'pre-line' }}>{transferReport.lines.join('\n')}</span>
+              </>
+            )}
+            <br />
+            <br />
+            Перезапустите приложение, чтобы все экраны показали новые данные.
           </p>
         </Dialog>
       )}

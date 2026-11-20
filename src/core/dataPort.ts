@@ -14,6 +14,12 @@
 // Значения — исходные строки localStorage, а не разобранный JSON: так
 // импорт возвращает байт в байт то, что было сохранено, включая поля,
 // которых текущая версия ещё не знает.
+//
+// Импорт принимает и файл Android-версии (platform="android"): его prefs
+// конвертируются в ключи веба через core/crossPort.ts. Это и есть перенос
+// Android ↔ веб: файл один и тот же, разбирает его принимающая сторона.
+
+import { convertAndroidBackup } from './crossPort';
 
 const PREFIX = 'fitguide_web_';
 const APP = 'FitGuide';
@@ -31,6 +37,12 @@ export interface BackupInfo {
   appVersion: string;
   exportedAt: number;
   keys: number;
+}
+
+export interface ImportResult {
+  keys: number;
+  /** Что перенесено и что осталось на платформе — для отчёта после импорта. */
+  report: string[];
 }
 
 export function exportDataJson(): string {
@@ -58,12 +70,23 @@ export function inspectBackup(text: string): BackupInfo {
   if (root.app !== APP) throw new Error('not-fitguide');
   const format = Number(root.format);
   if (!Number.isFinite(format) || format < 1 || format > FORMAT) throw new Error('format');
-  const storage = root.storage;
-  if (!storage || typeof storage !== 'object') throw new Error('storage');
-  const keys = Object.keys(storage as Record<string, unknown>).filter(k => !SKIP.has(k)).length;
+  const platform = typeof root.platform === 'string' ? root.platform : 'web';
+
+  let keys = 0;
+  if (platform === 'android') {
+    // Резервная копия Android: prefs-файлы → ключи хранилища. Для диалога
+    // считаем по ключам prefs: ровно столько сущностей приедет после конвертера.
+    const prefs = root.prefs;
+    if (!prefs || typeof prefs !== 'object') throw new Error('prefs');
+    keys = Object.keys(prefs as Record<string, unknown>).length;
+  } else {
+    const storage = root.storage;
+    if (!storage || typeof storage !== 'object') throw new Error('storage');
+    keys = Object.keys(storage as Record<string, unknown>).filter(k => !SKIP.has(k)).length;
+  }
   if (keys === 0) throw new Error('empty');
   return {
-    platform: typeof root.platform === 'string' ? root.platform : 'web',
+    platform,
     appVersion: typeof root.appVersion === 'string' ? root.appVersion : '?',
     exportedAt: Number(root.exportedAt) || 0,
     keys,
@@ -71,9 +94,10 @@ export function inspectBackup(text: string): BackupInfo {
 }
 
 /** Заменяет данные приложения. Перед заменой сохраняет копию «как было». */
-export function importData(text: string): number {
+export function importData(text: string): ImportResult {
   const info = inspectBackup(text);
-  if (info.platform !== 'web') throw new Error('platform');
+  if (info.platform !== 'web' && info.platform !== 'android') throw new Error('platform');
+  const root = JSON.parse(text) as Record<string, unknown>;
 
   // Точка возврата: снимок текущего состояния под отдельным ключом.
   try {
@@ -82,14 +106,36 @@ export function importData(text: string): number {
     // Переполнение хранилища не должно мешать импорту: данных и так мало.
   }
 
-  const root = JSON.parse(text) as { storage: Record<string, string> };
+  const report: string[] = [];
+  let storage: Record<string, string>;
+  if (info.platform === 'android') {
+    const converted = convertAndroidBackup(root);
+    storage = converted.storage;
+    report.push('Файл Android-версии — данные сконвертированы под веб.');
+    report.push(...converted.report);
+  } else {
+    storage = (root.storage || {}) as Record<string, string>;
+  }
+
+  // Импорт заменяет данные, как в Android: старые ключи, которых нет в файле,
+  // иначе остались бы (например, старые замеры) и смешались бы с новыми.
+  // Кэши и точка возврата — не данные пользователя, их не трогаем.
+  try {
+    const ours = Object.keys(localStorage).filter(
+      k => k.startsWith(PREFIX) && !SKIP.has(k.slice(PREFIX.length)),
+    );
+    ours.forEach(k => localStorage.removeItem(k));
+  } catch {
+    // Хранилище недоступно — ниже всё равно попробуем записать.
+  }
+
   let written = 0;
-  for (const [name, raw] of Object.entries(root.storage)) {
+  for (const [name, raw] of Object.entries(storage)) {
     if (SKIP.has(name) || typeof raw !== 'string') continue;
     localStorage.setItem(PREFIX + name, raw);
     written++;
   }
-  return written;
+  return { keys: written, report };
 }
 
 export function hasSafetyBackup(): boolean {
