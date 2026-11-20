@@ -26,12 +26,6 @@ export const LEGEND_CATALOG: LegendProgram[] = [
     audience: 'any', goal: GOALS.STRENGTH, level: 'beginner', days: 3, weeks: 12,
   },
   {
-    id: 'golden_age', name: 'Золотая эра', author: 'Арнольд Шварценеггер',
-    description: 'Сплит «золотой эры» бодибилдинга: шесть тренировок в неделю, большие объёмы и ' +
-      'тяжёлые базовые движения. Строит массивную мускулатуру всего тела.',
-    audience: 'male', goal: GOALS.MASS, level: 'advanced', days: 6, weeks: 8,
-  },
-  {
     id: 'gvt', name: 'Германский объёмный тренинг', author: 'Чарльз Поликвин',
     description: '10 подходов × 10 повторов на одно упражнение — главное оружие набора мышечной ' +
       'массы в 70-х. Работает только при строжайшем контроле отдыха и техники.',

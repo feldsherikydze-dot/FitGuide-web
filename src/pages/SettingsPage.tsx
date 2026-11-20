@@ -26,6 +26,12 @@ import {
 } from '../core/dataPort';
 import type { BackupInfo } from '../core/dataPort';
 import {
+  goldenTestCounts,
+  goldenBackupKey,
+  removeGoldenTestData,
+  restoreCoachStateFromGoldenBackup,
+} from '../core/goldenTest';
+import {
   SIGNAL_PROFILES,
   getSignalProfileKey,
   getSignalVolume,
@@ -104,6 +110,10 @@ export function SettingsPage() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [hasBackup, setHasBackup] = useState(() => hasSafetyBackup());
+  const [goldenCounts, setGoldenCounts] = useState(() => goldenTestCounts());
+  const [goldenBackup, setGoldenBackup] = useState(() => goldenBackupKey());
+  const [showGoldenCleanConfirm, setShowGoldenCleanConfirm] = useState(false);
+  const [showGoldenRestoreConfirm, setShowGoldenRestoreConfirm] = useState(false);
   const [pendingImport, setPendingImport] = useState<
     { text: string; name: string; info: BackupInfo } | null
   >(null);
@@ -217,6 +227,28 @@ export function SettingsPage() {
     } catch {
       showToast('Копии для отката нет');
     }
+  };
+
+  // «Золотая эра»: удалить только синтетику теста, остальное не трогать.
+  const handleCleanGolden = () => {
+    setShowGoldenCleanConfirm(false);
+    const res = removeGoldenTestData();
+    setGoldenCounts(goldenTestCounts());
+    showToast(`Удалено: тренировок ${res.sessions}, программ ${res.programs}. Перезапуск…`);
+    window.setTimeout(() => window.location.reload(), 800);
+  };
+
+  // «Золотая эра»: вернуть состояние тренера из копии до теста.
+  const handleRestoreGolden = () => {
+    setShowGoldenRestoreConfirm(false);
+    const res = restoreCoachStateFromGoldenBackup();
+    if (!res.ok) {
+      showToast(res.reason === 'no-backup' ? 'Копия не найдена' : 'Копия повреждена');
+      setGoldenBackup(goldenBackupKey());
+      return;
+    }
+    showToast(`Состояние тренера восстановлено: тренировок ${res.sessions}. Перезапуск…`);
+    window.setTimeout(() => window.location.reload(), 800);
   };
 
   const handleResetAll = () => {
@@ -737,6 +769,38 @@ export function SettingsPage() {
         <div className="mt-1.5 text-[12px] leading-snug" style={secondary}>
           Импорт заменяет текущие данные. Перед заменой автоматически сохраняется копия для отката.
         </div>
+
+        {(goldenCounts.sessions > 0 || goldenCounts.programs > 0 || goldenBackup) && (
+          <div className="mt-4 pt-3.5" style={{ borderTop: '1px solid var(--p-outline)' }}>
+            <div className="text-[14px] font-bold" style={sectionTitle}>
+              Тестовые данные «Золотой эры»
+            </div>
+            <div className="mt-1 text-[12px] leading-snug" style={secondary}>
+              Прогон «Анализа» от 12.11.2026 — это не ваши тренировки.
+              {(goldenCounts.sessions > 0 || goldenCounts.programs > 0)
+                ? ` Осталось: тренировок ${goldenCounts.sessions}, программ ${goldenCounts.programs}.`
+                : ' Тренировок и программ не осталось.'}
+            </div>
+            {(goldenCounts.sessions > 0 || goldenCounts.programs > 0) && (
+              <button
+                onClick={() => setShowGoldenCleanConfirm(true)}
+                className="fg-btn fg-btn-ghost w-full mt-2"
+                style={{ height: 44 }}
+              >
+                Удалить тестовые тренировки
+              </button>
+            )}
+            {goldenBackup && (
+              <button
+                onClick={() => setShowGoldenRestoreConfirm(true)}
+                className="w-full mt-1.5 text-[13px]"
+                style={{ height: 40, color: 'var(--p-outline)' }}
+              >
+                Вернуть состояние тренера до теста
+              </button>
+            )}
+          </div>
+        )}
       </SettingsCard>
 
       {/* ===== СБРОС ===== */}
@@ -888,6 +952,45 @@ export function SettingsPage() {
           <p className="text-[14px] leading-relaxed" style={{ color: 'var(--p-on-labels-soft)' }}>
             Текущие изменения будут потеряны. Вернётся состояние, сохранённое перед последним
             импортом.
+          </p>
+        </Dialog>
+      )}
+
+      {/* Подтверждение уборки «Золотой эры» */}
+      {showGoldenCleanConfirm && (
+        <Dialog
+          title="Удалить тестовые тренировки?"
+          onClose={() => setShowGoldenCleanConfirm(false)}
+          actions={
+            <>
+              <DialogAction onClick={() => setShowGoldenCleanConfirm(false)}>Отмена</DialogAction>
+              <DialogAction strong onClick={handleCleanGolden}>Удалить</DialogAction>
+            </>
+          }
+        >
+          <p className="text-[14px] leading-relaxed" style={{ color: 'var(--p-on-labels-soft)' }}>
+            Из журнала и «Моих программ» исчезнут тренировки «Золотой эры»
+            (тренировок: {goldenCounts.sessions}, программ: {goldenCounts.programs}).
+            Ваши собственные тренировки, замеры и записи останутся.
+          </p>
+        </Dialog>
+      )}
+
+      {/* Подтверждение отката на копию до теста */}
+      {showGoldenRestoreConfirm && (
+        <Dialog
+          title="Вернуть состояние до теста?"
+          onClose={() => setShowGoldenRestoreConfirm(false)}
+          actions={
+            <>
+              <DialogAction onClick={() => setShowGoldenRestoreConfirm(false)}>Отмена</DialogAction>
+              <DialogAction strong onClick={handleRestoreGolden}>Вернуть</DialogAction>
+            </>
+          }
+        >
+          <p className="text-[14px] leading-relaxed" style={{ color: 'var(--p-on-labels-soft)' }}>
+            Вернётся состояние тренера из копии, снятой 12.11.2026 перед прогоном «Золотой
+            эры». Всё, что записано после этой копии, пропадёт.
           </p>
         </Dialog>
       )}
