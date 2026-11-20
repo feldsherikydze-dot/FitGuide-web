@@ -61,7 +61,11 @@ export function HubPage() {
   const [dragEnabled, setDragEnabled] = useState(
     () => getString('drag_enabled', getString('home_drag_enabled', '1')) !== '0'
   );
-  const [searchEnabled, setSearchEnabled] = useState(() => getString('home_search_enabled', '1') !== '0');
+  const [searchEnabled, setSearchEnabled] = useState(() => getString('home_search_enabled', '0') !== '0');
+  // Вода и плеер включены по умолчанию; поиск — наоборот, чтобы главный экран
+  // не был завален. Всё три переключаются в «Настройки → Главный экран».
+  const [waterEnabled] = useState(() => getString('home_water_enabled', '1') !== '0');
+  const [playerEnabled] = useState(() => getString('home_player_enabled', '1') !== '0');
   const [dragSrc, setDragSrc] = useState<number | null>(null);
   const player = usePlayer();
   const [city, setCity] = useState(() => getString('weather_city', 'Красноярск'));
@@ -423,7 +427,7 @@ export function HubPage() {
       </div>
 
       {/* Вода на сегодня — как homeWaterRow в Android */}
-      {(() => {
+      {waterEnabled && (() => {
         const goal = getWaterGoal(profile?.weightKg ?? 0);
         const done = water >= goal;
         return (
@@ -475,7 +479,7 @@ export function HubPage() {
 
       {/* Сетка ярлыков — 2 колонки, карточки чёрные (B) с розовой обводкой (A) */}
       <div
-        className="flex-1 fg-scroll fg-no-select px-2 pt-1 pb-28"
+        className={`flex-1 fg-scroll fg-no-select px-2 pt-1 ${playerEnabled ? 'pb-28' : 'pb-4'}`}
         onContextMenu={e => e.preventDefault()}
       >
         <div ref={gridRef} className="grid grid-cols-2 gap-0">
@@ -514,27 +518,29 @@ export function HubPage() {
       </div>
 
       {/* Мини-плеер — как <include layout="@layout/mini_player"> в activity_main.xml.
-          В Android он виден всегда (в том числе с подписью «Выберите трек или радио»). */}
-      <div
-        className="fixed bottom-0 left-0 right-0 z-40 w-full"
-        style={{
-          paddingBottom: 'env(safe-area-inset-bottom)',
-          background: 'linear-gradient(to top, var(--color-bg) 72%, transparent)',
-        }}
-      >
-        <div className="max-w-3xl mx-auto w-full">
-          <MiniPlayer state={{
-            title: player.title,
-            subtitle: player.subtitle,
-            playing: player.playing,
-            onToggle: player.toggle,
-            onPrev: player.prev,
-            onNext: player.next,
-            onClose: player.close,
-            onOpen: () => navigate('/music'),
-          }} />
+          В Android он виден, только если не выключен в настройках главного экрана. */}
+      {playerEnabled && (
+        <div
+          className="fixed bottom-0 left-0 right-0 z-40 w-full"
+          style={{
+            paddingBottom: 'env(safe-area-inset-bottom)',
+            background: 'linear-gradient(to top, var(--color-bg) 72%, transparent)',
+          }}
+        >
+          <div className="max-w-3xl mx-auto w-full">
+            <MiniPlayer state={{
+              title: player.title,
+              subtitle: player.subtitle,
+              playing: player.playing,
+              onToggle: player.toggle,
+              onPrev: player.prev,
+              onNext: player.next,
+              onClose: player.close,
+              onOpen: () => navigate('/music'),
+            }} />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Диалог «Погода на неделю» — showWeatherWeekDialog() */}
       {weatherOpen && (

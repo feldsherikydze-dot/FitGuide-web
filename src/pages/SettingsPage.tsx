@@ -113,7 +113,9 @@ export function SettingsPage() {
   const [dragEnabled, setDragEnabled] = useState(
     () => getString('drag_enabled', getString('home_drag_enabled', '1')) !== '0'
   );
-  const [searchEnabled, setSearchEnabled] = useState(() => getString('home_search_enabled', '1') !== '0');
+  const [searchEnabled, setSearchEnabled] = useState(() => getString('home_search_enabled', '0') !== '0');
+  const [waterEnabled, setWaterEnabled] = useState(() => getString('home_water_enabled', '1') !== '0');
+  const [playerEnabled, setPlayerEnabled] = useState(() => getString('home_player_enabled', '1') !== '0');
   const [weatherCity, setWeatherCity] = useState(() => getString('weather_city', 'Красноярск'));
   const [weatherIpDetect, setWeatherIpDetect] = useState(() => getString('weather_ip_detect', '0') === '1');
   const [signalProfileKey, setSignalProfileKeyState] = useState(() => getSignalProfileKey());
@@ -475,7 +477,43 @@ export function SettingsPage() {
       <SettingsCard>
         <div className="text-[16px] font-bold" style={sectionTitle}>Главный экран</div>
         <div className="mt-1 text-[13px]" style={secondary}>
-          Настраивайте ярлыки инструментов, строку поиска и плеер.
+          Что показывать на главном: ярлыки, поиск, воду и плеер.
+        </div>
+
+        <div className="mt-3 flex items-center gap-2">
+          <div className="flex-1 text-[14px]" style={labelMain}>Строка поиска на главном</div>
+          <Switch
+            checked={searchEnabled}
+            label="Строка поиска на главном"
+            onChange={v => { setSearchEnabled(v); setString('home_search_enabled', v ? '1' : '0'); }}
+          />
+        </div>
+        <div className="mt-0.5 text-[12px] leading-snug" style={secondary}>
+          По умолчанию скрыта, чтобы главный экран не был завален. Понадобится — включите.
+        </div>
+
+        <div className="mt-3 flex items-center gap-2">
+          <div className="flex-1 text-[14px]" style={labelMain}>Счётчик воды на главном</div>
+          <Switch
+            checked={waterEnabled}
+            label="Счётчик воды на главном"
+            onChange={v => { setWaterEnabled(v); setString('home_water_enabled', v ? '1' : '0'); }}
+          />
+        </div>
+        <div className="mt-0.5 text-[12px] leading-snug" style={secondary}>
+          Строка «Вода сегодня» с кнопками +250 и +500. По умолчанию включена.
+        </div>
+
+        <div className="mt-3 flex items-center gap-2">
+          <div className="flex-1 text-[14px]" style={labelMain}>Мини-плеер на главном</div>
+          <Switch
+            checked={playerEnabled}
+            label="Мини-плеер на главном"
+            onChange={v => { setPlayerEnabled(v); setString('home_player_enabled', v ? '1' : '0'); }}
+          />
+        </div>
+        <div className="mt-0.5 text-[12px] leading-snug" style={secondary}>
+          Полоса музыки внизу главного экрана. Выключите — останется только раздел «Музыка».
         </div>
 
         <div className="mt-3 flex items-center gap-2">
@@ -506,19 +544,7 @@ export function SettingsPage() {
       {/* ===== ИНСТРУМЕНТЫ ===== */}
       <SettingsCard>
         <div className="text-[16px] font-bold" style={sectionTitle}>Инструменты</div>
-        <div className="mt-1 text-[13px]" style={secondary}>Строка поиска и город для погоды.</div>
-
-        <div className="mt-3 flex items-center gap-2">
-          <div className="flex-1 text-[14px]" style={labelMain}>Строка поиска на главном</div>
-          <Switch
-            checked={searchEnabled}
-            label="Строка поиска на главном"
-            onChange={v => { setSearchEnabled(v); setString('home_search_enabled', v ? '1' : '0'); }}
-          />
-        </div>
-        <div className="mt-0.5 text-[12px] leading-snug" style={secondary}>
-          Показывать строку поиска упражнений на главном экране. Плеер всегда на месте.
-        </div>
+        <div className="mt-1 text-[13px]" style={secondary}>Город для погоды, обновления и часы.</div>
 
         <div className="mt-3 text-[13px] font-bold" style={labelSecondary}>Город для погоды</div>
         <Field
