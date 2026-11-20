@@ -116,6 +116,7 @@ export function SettingsPage() {
   const [searchEnabled, setSearchEnabled] = useState(() => getString('home_search_enabled', '0') !== '0');
   const [waterEnabled, setWaterEnabled] = useState(() => getString('home_water_enabled', '1') !== '0');
   const [playerEnabled, setPlayerEnabled] = useState(() => getString('home_player_enabled', '1') !== '0');
+  const [watchEnabled, setWatchEnabled] = useState(() => getString('watch_enabled', '1') !== '0');
   const [weatherCity, setWeatherCity] = useState(() => getString('weather_city', 'Красноярск'));
   const [weatherIpDetect, setWeatherIpDetect] = useState(() => getString('weather_ip_detect', '0') === '1');
   const [signalProfileKey, setSignalProfileKeyState] = useState(() => getSignalProfileKey());
@@ -126,8 +127,10 @@ export function SettingsPage() {
     const raw = getJSON<string[]>('splash_my_bgs', []);
     return Array.isArray(raw) ? raw : [];
   });
-  const [updateUrl, setUpdateUrl] = useState(() => getString('update_url', ''));
-  const [updateStatus, setUpdateStatus] = useState(`Обновлений нет: ${APP_VERSION} — последняя версия`);
+  const [updateStatus, setUpdateStatus] = useState(
+    () => `Версия ${APP_VERSION}. Проверю, нет ли на сайте свежей сборки.`
+  );
+  const [forceReset, setForceReset] = useState(false);
   const [watchStatus, setWatchStatus] = useState('Часы с зеркалом рядом не найдены. Проверь Bluetooth и что приложение стоит на часах.');
 
   const [clockEnabled, setClockEnabled] = useState(() => getString('splash_clock_enabled', '1') !== '0');
@@ -242,19 +245,76 @@ export function SettingsPage() {
     previewSignal();
   };
 
-  const checkUpdate = () => {
-    const url = updateUrl.trim();
-    if (!url) {
-      setUpdateStatus('Введите адрес update.json');
+  // Сброс кеша веб-версии: снимаем service worker, чистим CacheStorage
+  // (localStorage с данными не трогаем) и открываем страницу заново.
+  const hardReload = async () => {
+    setUpdateStatus('Сбрасываю кеш и перезагружаю…');
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+    } catch {
+      // Не смогли почистить — всё равно перезагружаемся, это лучше, чем застрять.
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.set('v', String(Date.now()));
+    window.location.replace(url.toString());
+  };
+
+  // «Проверить обновления» для веба: сначала штатное обновление service worker
+  // (без потери офлайн-кеша), а если его нет — предлагаем принудительный сброс.
+  const checkUpdate = async () => {
+    setForceReset(false);
+    if (!('serviceWorker' in navigator)) {
+      setUpdateStatus('Браузер не умеет офлайн-обновление. Перезагружаю без кеша…');
+      await hardReload();
       return;
     }
-    if (!url.startsWith('https://')) {
-      setUpdateStatus('Адрес должен начинаться с https://');
-      return;
+    setUpdateStatus('Проверяю обновления…');
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (!reg) {
+        setUpdateStatus(`Страница открыта напрямую, кеша нет. Версия ${APP_VERSION}.`);
+        return;
+      }
+      let applied = false;
+      const applyWaiting = () => {
+        if (applied) return;
+        applied = true;
+        const worker = reg.waiting || reg.installing;
+        if (worker) worker.postMessage('skipWaiting');
+        setUpdateStatus('Найдено обновление — применяю и перезагружаю…');
+      };
+      reg.addEventListener('updatefound', () => {
+        const worker = reg.installing;
+        if (!worker) return;
+        worker.addEventListener('statechange', () => {
+          if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+            applyWaiting();
+          }
+        });
+      });
+      const onController = () => window.location.reload();
+      navigator.serviceWorker.addEventListener('controllerchange', onController, { once: true });
+      await reg.update();
+      if (reg.waiting) {
+        applyWaiting();
+      }
+      await new Promise(r => window.setTimeout(r, 1200));
+      if (!applied) {
+        navigator.serviceWorker.removeEventListener('controllerchange', onController);
+        setUpdateStatus(`Обновлений нет: ${APP_VERSION} — последняя версия.`);
+        setForceReset(true);
+      }
+    } catch {
+      setUpdateStatus('Не удалось проверить обновления. Можно сбросить кеш принудительно.');
+      setForceReset(true);
     }
-    setString('update_url', url);
-    setUpdateStatus('Проверяю…');
-    window.setTimeout(() => setUpdateStatus(`Обновлений нет: ${APP_VERSION} — последняя версия`), 1200);
   };
 
   const findWatch = () => {
@@ -571,16 +631,9 @@ export function SettingsPage() {
 
         <div className="mt-4 text-[13px] font-bold" style={labelSecondary}>Обновления</div>
         <div className="mt-1 text-[12px] leading-snug" style={secondary}>
-          Адрес файла с информацией о версии. Приложение скачает новую версию и предложит её установить.
-          Проверяется подпись файла и его целостность — чужое обновление не установится.
+          Веб-версия обновляется сама, но если что-то залипло — проверьте вручную. Кнопка
+          переустановит свежую сборку, не трогая ваши данные.
         </div>
-        <Field
-          className="mt-2"
-          value={updateUrl}
-          onChange={setUpdateUrl}
-          placeholder="Адрес update.json (https://…)"
-          inputMode="text"
-        />
         <div className="mt-2 text-[13px]" style={labelMain}>{updateStatus}</div>
         <button
           onClick={checkUpdate}
@@ -589,33 +642,58 @@ export function SettingsPage() {
         >
           Проверить обновления
         </button>
+        {forceReset && (
+          <button
+            onClick={hardReload}
+            className="fg-btn fg-btn-ghost w-full mt-2"
+            style={{ height: 44, borderRadius: 22, fontSize: 13 }}
+          >
+            Сбросить кеш и перезагрузить
+          </button>
+        )}
 
         <div className="mt-4 text-[13px] font-bold" style={labelSecondary}>Часы и датчики</div>
-        <div className="mt-1 text-[13px] leading-snug" style={labelMain}>{watchStatus}</div>
-        <div className="mt-2 flex gap-2">
-          <button
-            onClick={findWatch}
-            className="fg-btn fg-btn-primary flex-1"
-            style={{ height: 44, borderRadius: 22, fontSize: 13 }}
-          >
-            Найти часы
-          </button>
-          <button
-            onClick={() => showToast('Сначала нажми «Найти часы»')}
-            className="fg-btn fg-btn-primary flex-1"
-            style={{ height: 44, borderRadius: 22, fontSize: 13 }}
-          >
-            Это мои часы
-          </button>
+        <div className="mt-2 flex items-center gap-2">
+          <div className="flex-1 text-[14px]" style={labelMain}>Зеркало на часах</div>
+          <Switch
+            checked={watchEnabled}
+            label="Зеркало на часах"
+            onChange={v => { setWatchEnabled(v); setString('watch_enabled', v ? '1' : '0'); }}
+          />
         </div>
-        <div className="mt-1.5 text-[12px] leading-snug" style={secondary}>
-          Начни тренировку на телефоне — часы с зеркалом подхватят сами: упражнение, подходы,
-          отдых с вибрацией. Без часов рядом всё работает как раньше.
+        <div className="mt-0.5 text-[12px] leading-snug" style={secondary}>
+          Показывать блок часов и искать их. Нет часов — выключите, лишние строки исчезнут.
         </div>
-        <div className="mt-1.5 text-[12px] leading-snug" style={secondary}>
-          Как поставить зеркало на часы. Важно: передать файл по Bluetooth НЕ получится — часы не
-          появляются в списке «Поделиться». Пока программа не стоит на часах, они не видны и здесь.
-        </div>
+
+        {watchEnabled && (
+          <>
+            <div className="mt-2 text-[13px] leading-snug" style={labelMain}>{watchStatus}</div>
+            <div className="mt-2 flex gap-2">
+              <button
+                onClick={findWatch}
+                className="fg-btn fg-btn-primary flex-1"
+                style={{ height: 44, borderRadius: 22, fontSize: 13 }}
+              >
+                Найти часы
+              </button>
+              <button
+                onClick={() => showToast('Сначала нажми «Найти часы»')}
+                className="fg-btn fg-btn-primary flex-1"
+                style={{ height: 44, borderRadius: 22, fontSize: 13 }}
+              >
+                Это мои часы
+              </button>
+            </div>
+            <div className="mt-1.5 text-[12px] leading-snug" style={secondary}>
+              Начни тренировку на телефоне — часы с зеркалом подхватят сами: упражнение, подходы,
+              отдых с вибрацией. Без часов рядом всё работает как раньше.
+            </div>
+            <div className="mt-1.5 text-[12px] leading-snug" style={secondary}>
+              Как поставить зеркало на часы. Важно: передать файл по Bluetooth НЕ получится — часы не
+              появляются в списке «Поделиться». Пока программа не стоит на часах, они не видны и здесь.
+            </div>
+          </>
+        )}
 
         <div className="mt-4 text-[13px] font-bold" style={labelSecondary}>Напоминания</div>
         <div className="mt-1 text-[12px] leading-snug" style={secondary}>

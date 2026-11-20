@@ -307,6 +307,8 @@ export function CoachPage() {
 
   const [remOn, setRemOn] = useState(() => getString('coach_reminder_on', '') === '1');
   const [remTime, setRemTime] = useState(() => getString('coach_reminder_time', '18:00') || '18:00');
+  // Рубильник зеркала на часах: выключен — блока «Часы и датчики» в тренере нет.
+  const [watchEnabled] = useState(() => getString('watch_enabled', '1') !== '0');
 
   useEffect(() => {
     if (!toast) return;
@@ -779,13 +781,13 @@ export function CoachPage() {
     );
   })();
 
-  const watchSection = (
+  const watchSection = watchEnabled ? (
     <>
       <Section title="Часы и датчики" />
       <Line secondary>Часы не подключены.</Line>
       <Btn onClick={() => navigate('/settings')}>Настроить часы</Btn>
     </>
-  );
+  ) : null;
 
   const reminderSection = (
     <>
