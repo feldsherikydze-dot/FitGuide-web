@@ -369,30 +369,22 @@ export function HubPage() {
         onClick={openWeather}
         style={{ background: labels, border: `1px solid ${outline}`, borderRadius: '16px', color: 'var(--p-on-labels)' }}>
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-[36px] font-bold leading-none" style={{ color: 'var(--p-on-labels)' }}>
-              {timeStr}
-            </div>
-            <div className="mt-0.5 text-[13px]" style={{ color: 'var(--p-on-labels-soft)' }}>
-              {dateStr}
-            </div>
+          <div className="text-[36px] font-bold leading-none" style={{ color: 'var(--p-on-labels)' }}>
+            {timeStr}
           </div>
-          <div className="text-right flex-shrink-0 flex-col items-end gap-1">
-            {weather.loading ? (
-              <span className="text-[26px]">·</span>
-            ) : weather.temp !== null ? (
-              <>
-                <span className="text-[26px] font-bold" style={{ color: 'var(--p-on-labels)' }}>
-                  {weather.temp > 0 ? '+' : ''}{Math.round(weather.temp)}°C
-                </span>
-                <span className="text-[26px]">{weather.emoji}</span>
-              </>
-            ) : null}
-            {weather.city && (
-              <div className="text-[12px]" style={{ color: 'var(--p-on-labels-soft)' }}>
-                {weather.city}
-              </div>
-            )}
+          <div className="text-[26px] font-bold leading-none text-right flex-shrink-0"
+            style={{ color: 'var(--p-on-labels)' }}>
+            {weather.loading || weather.temp === null
+              ? '·'
+              : `${weather.temp > 0 ? '+' : ''}${Math.round(weather.temp)}°C${weather.emoji ? `  ${weather.emoji}` : ''}`}
+          </div>
+        </div>
+        <div className="mt-0.5 flex items-start justify-between gap-3">
+          <div className="text-[13px]" style={{ color: 'var(--p-on-labels-soft)' }}>
+            {dateStr}
+          </div>
+          <div className="text-[12px] text-right flex-shrink-0" style={{ color: 'var(--p-on-labels-soft)' }}>
+            {weather.loading ? 'Погода загружается…' : weather.city || ''}
           </div>
         </div>
 
@@ -546,13 +538,13 @@ export function HubPage() {
       {weatherOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-6"
           onClick={() => setWeatherOpen(false)}>
-          <div className="w-full max-w-md rounded-2xl p-5 max-h-[85vh] overflow-y-auto"
+          <div className="w-full max-w-md rounded-[20px] p-5 max-h-[85vh] overflow-y-auto"
             style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)' }}
             onClick={e => e.stopPropagation()}>
-            <h3 className="text-[18px] font-bold mb-2" style={{ color: 'var(--p-labels-text)' }}>
+            <h3 className="text-[20px] font-bold mb-2" style={{ color: 'var(--p-on-labels)' }}>
               Погода на неделю
             </h3>
-            <div className="text-[15px] leading-relaxed whitespace-pre-line" style={{ color: 'var(--p-labels-text)' }}>
+            <div className="text-[15px] leading-normal whitespace-pre-line" style={{ color: 'var(--p-on-labels)' }}>
               {week === null
                 ? 'Погода загружается…'
                 : week.length === 0
@@ -564,17 +556,17 @@ export function HubPage() {
               onChange={e => setWeatherCity(e.target.value)}
               placeholder="Красноярск"
               className="mt-3 w-full px-3 py-3 rounded-xl border text-[15px]"
-              style={{ background: 'var(--p-labels)', borderColor: 'var(--p-outline)', color: 'var(--p-labels-text)' }}
+              style={{ background: 'var(--p-labels)', borderColor: 'var(--p-outline)', color: 'var(--p-on-labels)' }}
             />
-            <div className="flex gap-2 mt-4">
+            <div className="flex justify-end gap-2 mt-4">
               <button onClick={() => setWeatherOpen(false)}
-                className="flex-1 rounded-xl border font-semibold py-3"
+                className="px-4 py-2 rounded-xl border font-semibold text-[13px] uppercase tracking-wide"
                 style={{ borderColor: 'var(--p-outline)', color: 'var(--p-labels-text)' }}>
                 Отмена
               </button>
               <button onClick={applyWeatherCity}
-                className="flex-1 rounded-xl border font-semibold py-3"
-                style={{ background: 'var(--p-circle)', borderColor: 'var(--p-circle)', color: 'var(--p-on-circle)' }}>
+                className="px-4 py-2 rounded-xl border font-semibold text-[13px] uppercase tracking-wide"
+                style={{ borderColor: 'var(--p-outline)', color: 'var(--p-labels-text)' }}>
                 Обновить
               </button>
             </div>
