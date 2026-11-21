@@ -355,6 +355,19 @@ check('расход: мало дней еды — честный отказ',
 check('расход: вердикт говорит о факте',
   td.adaptiveTdeeVerdict(flat).includes('ккал/день'));
 
+// --- Сопоставление имён упражнений (объём по мышцам не должен молча пустеть).
+const exB = await bundleModule('src/core/exercises.ts', 'ex');
+const ex = exB.mod;
+check('имя: регистр, «ё» и лишние пробелы не мешают',
+  ex.normalizeExerciseKey('  Жим  ШТАНГИ ЛЕЖА  классический ') === 'жим штанги лежа классический');
+check('имя: «подъём» и «подъем» — один ключ',
+  ex.normalizeExerciseKey('Подъём на носки') === ex.normalizeExerciseKey('подъем на носки'));
+const nameKeys = new Set(db.exercises.map(e => ex.normalizeExerciseKey(e.name)));
+check('имя: в базе нет дублей после нормализации', nameKeys.size === db.exercises.length,
+  `(${nameKeys.size} из ${db.exercises.length})`);
+check('имя: каждое упражнение базы находится по своему ключу',
+  db.exercises.every(e => nameKeys.has(ex.normalizeExerciseKey(e.name))));
+
 console.log(`\n=== ИТОГ: ${pass} OK, ${fail} FAIL ===\n`);
 try { fs.unlinkSync(out); } catch { /* временный файл могли уже убрать */ }
 for (const b of [cardioB, waB, tdB]) { try { fs.unlinkSync(b.file); } catch { /* см. выше */ } }

@@ -13,6 +13,7 @@ import {
 import {
   Card, Hint, PrimaryButton, Toast,
 } from './common';
+import { normalizeExerciseKey } from '../../core/exercises';
 
 const PERIOD_DAYS = [7, 30, 90];
 
@@ -87,9 +88,11 @@ export function AnalysisTab() {
   // отдельному упражнению (4 упражнения на грудь по 4 подхода — это 16, норма).
   const groupOf = useMemo(() => {
     const groupName = new Map(muscleGroups.map(g => [g.id, g.name]));
-    const exGroup = new Map(exercises.map(e => [e.name, e.muscleGroup]));
+    const exGroup = new Map(exercises.map(e => [normalizeExerciseKey(e.name), e.muscleGroup]));
     return (name: string): string | null => {
-      const gid = exGroup.get(name);
+      // Имя из программы может отличаться регистром/«ё»/двойным пробелом —
+      // без нормализации такое упражнение молча выпадало из объёма.
+      const gid = exGroup.get(normalizeExerciseKey(name));
       return gid ? (groupName.get(gid) || null) : null;
     };
   }, [exercises, muscleGroups]);
@@ -98,9 +101,9 @@ export function AnalysisTab() {
   // шаги — не «повторы» в обычном смысле. Без этого анализ советует планке
   // «добавь вес» и считает «1 с на повтор».
   const kindOf = useMemo(() => {
-    const exReps = new Map(exercises.map(e => [e.name, e.reps || '']));
+    const exReps = new Map(exercises.map(e => [normalizeExerciseKey(e.name), e.reps || '']));
     return (name: string): ExKind | null => {
-      const reps = exReps.get(name);
+      const reps = exReps.get(normalizeExerciseKey(name));
       // «3×30–60 сек», «3×макс. время», «удержание» — статика без повторов.
       if (reps != null && /сек|время|удерж/i.test(reps)) return 'static';
       if (reps != null && /шаг/i.test(reps)) return 'steps';

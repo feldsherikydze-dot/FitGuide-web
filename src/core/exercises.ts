@@ -3,27 +3,43 @@
 import type { Exercise, MuscleGroup, ExercisesDB } from '../data/types';
 
 let exercisesCache: ExercisesDB | null = null;
+let exercisesInFlight: Promise<ExercisesDB> | null = null;
 
 export async function loadExercisesDB(): Promise<ExercisesDB> {
   if (exercisesCache) return exercisesCache;
 
-  try {
-    // Путь ОТНОСИТЕЛЬНЫЙ: приложение может лежать в подпапке
-    // (https://user.github.io/repo/) — абсолютный '/exercises.json' даёт 404.
-    const res = await fetch(`${import.meta.env.BASE_URL}exercises.json`);
-    if (!res.ok) throw new Error(`exercises.json: HTTP ${res.status}`);
-    exercisesCache = await res.json();
-    return exercisesCache!;
-  } catch (e) {
-    console.error('Failed to load exercises:', e);
-    // Fallback minimal data
-    exercisesCache = {
-      version: 3,
-      muscleGroups: [],
-      exercises: [],
-    };
-    return exercisesCache;
-  }
+  // Несколько экранов могут запросить базу одновременно (анализ, программы,
+  // база упражнений) — держим один запрос, а не три.
+  if (exercisesInFlight) return exercisesInFlight;
+
+  exercisesInFlight = (async () => {
+    try {
+      // Путь ОТНОСИТЕЛЬНЫЙ: приложение может лежать в подпапке
+      // (https://user.github.io/repo/) — абсолютный '/exercises.json' даёт 404.
+      const res = await fetch(`${import.meta.env.BASE_URL}exercises.json`);
+      if (!res.ok) throw new Error(`exercises.json: HTTP ${res.status}`);
+      exercisesCache = await res.json();
+      return exercisesCache!;
+    } catch (e) {
+      console.error('Failed to load exercises:', e);
+      // Пустую базу НЕ кэшируем: иначе один сбой сети кладёт анализ объёма
+      // до перезапуска приложения. Следующий экран попробует ещё раз.
+      return { version: 3, muscleGroups: [], exercises: [] };
+    } finally {
+      exercisesInFlight = null;
+    }
+  })();
+
+  return exercisesInFlight;
+}
+
+/**
+ * Ключ сопоставления упражнения с базой: регистр, «ё», лишние пробелы.
+ * Программы приходят из Android, из старых бэкапов и из ручных правок —
+ * «Жим  штанги ЛЕЖА» и «жим штанги лежа» должны найти одну карточку.
+ */
+export function normalizeExerciseKey(name: string): string {
+  return String(name || '').toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
 }
 
 export function getAllExercises(db: ExercisesDB): Exercise[] {
