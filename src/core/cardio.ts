@@ -5,11 +5,30 @@
 // чтобы Android и веб давали одинаковые настройки.
 
 import type { Exercise } from '../data/types';
+import { GOALS, normalizeGoal } from './goals';
 
 export const CARDIO_GROUP = 'g17';
-/** 20 минут — рабочий дефолт для дорожки, велотренажёра и т. п. */
+/** 20 минут — дефолт, когда цель не известна. */
 export const CARDIO_WORK_SEC = 20 * 60;
 export const CARDIO_REPS = '20 мин';
+
+/**
+ * Доза кардио по умолчанию под цель: на массе и силе кардио только для
+ * здоровья (10–15 мин), на сушке и похудении — рабочий инструмент дефицита
+ * (30–35), на выносливости — основной объём (45). Цифры — стартовая точка:
+ * слот всё равно редактируется вручную.
+ */
+export function cardioMinutes(goal?: string | null): number {
+  switch (normalizeGoal(goal)) {
+    case GOALS.MASS: return 15;
+    case GOALS.STRENGTH: return 10;
+    case GOALS.CUT: return 30;
+    case GOALS.LOSE: return 35;
+    case GOALS.RECOMP: return 25;
+    case GOALS.ENDURANCE: return 45;
+    default: return 20;
+  }
+}
 
 export interface CardioPatch {
   sets: number;
@@ -24,15 +43,16 @@ export function isCardioExercise(ex?: Exercise | null): boolean {
   return !!ex && (ex.bundle === 'cardio' || ex.muscleGroup === CARDIO_GROUP);
 }
 
-/** Настройки слота под кардио: один «подход» на 20 минут. */
-export function cardioDefaults(): CardioPatch {
+/** Настройки слота под кардио: один «подход» на дозу под цель (по умолчанию 20 мин). */
+export function cardioDefaults(goal?: string | null): CardioPatch {
+  const workSec = cardioMinutes(goal) * 60;
   return {
     sets: 1,
-    reps: CARDIO_REPS,
+    reps: workLabel(workSec),
     rest: '0 сек',
     restEx: '60 сек',
     startWeight: 0,
-    workSec: CARDIO_WORK_SEC,
+    workSec,
   };
 }
 

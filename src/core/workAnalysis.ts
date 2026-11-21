@@ -4,6 +4,7 @@
 // рабочий вес, динамику по неделям, отклонения и советы. Экран только рисует.
 
 import type { Session } from '../data/types';
+import { GOALS, goalLabel, normalizeGoal } from './goals';
 
 export const TUT_FLOOR_SEC = 10;
 export const TUT_CEIL_SEC = 60;
@@ -11,22 +12,73 @@ export const TUT_TOO_LONG_SEC = 90;
 export const TEMPO_FAST_SEC = 1.5;
 
 /**
- * Норма недельного объёма зависит от размера группы. Большим (грудь, спина,
- * ноги, ягодицы, плечи) нужно 10–20 подходов в неделю, малым (руки, икры,
- * пресс, трапеции, поясница, предплечья, приводящие, шея) — 6–12: им хватает
- * меньше, и флаг «мало» на 8 подходах бицепса был ложным.
- *
- * Нижняя граница больших групп — 10, а не 12: генератор для новичка даёт
- * 10–11 подходов на грудь и квадрицепс (MAV × 0,7, но не ниже 10), и «Анализ»
- * ставил «мало» на собственной программе приложения. MEV груди — 6–8,
- * так что 10 подходов у новичка — норма, а не дефицит.
+ * Базовые недельные нормы объёма для гипертрофии, подходов на мышцу.
+ * Одна норма на все группы не работает: ромбовидные живут за счёт тяг на
+ * широчайшие, а плечи — за счёт жимов, и нижняя граница 6 давала им ложный
+ * флаг «мало» на собственных программах приложения. Потолок «Плечи» 16 —
+ * передняя дельта и так добирает от груди.
  */
-const LARGE_GROUPS = new Set([
-  'Грудь', 'Широчайшие', 'Квадрицепс', 'Бицепс бедра', 'Ягодицы', 'Плечи',
-]);
+const BASE_NORMS: Record<string, [number, number]> = {
+  'Грудь': [10, 20],
+  'Широчайшие': [12, 20],
+  'Квадрицепс': [10, 20],
+  'Бицепс бедра': [8, 16],
+  'Ягодицы': [8, 16],
+  'Плечи': [6, 16],
+  'Бицепс': [6, 12],
+  'Трицепс': [6, 12],
+  'Икры': [6, 12],
+  'Пресс': [6, 12],
+  'Трапеции': [4, 12],
+  'Поясница': [3, 10],
+  'Предплечья': [4, 12],
+  'Приводящие': [4, 12],
+  'Шея': [2, 8],
+  'Ромбовидные': [2, 10],
+};
 
-export function volumeNorm(group: string): { lo: number; hi: number } {
-  return LARGE_GROUPS.has(group) ? { lo: 10, hi: 20 } : { lo: 6, hi: 12 };
+/**
+ * Норма недельного объёма под цель. Сила живёт на меньшем объёме при большей
+ * интенсивности — нижняя граница на 20% ниже, иначе силовой план получал бы
+ * «мало» за законные 8 подходов на бицепс бедра. Выносливость — наоборот:
+ * планка чуть ниже (объём размазан по многим упражнениям), а потолок выше.
+ * Дефицит норму не снижает: на сушке объём — то, что держит мышцу.
+ */
+export function volumeNorm(group: string, goal?: string | null): { lo: number; hi: number } {
+  const base = BASE_NORMS[group] || [6, 12];
+  const g = normalizeGoal(goal);
+  if (g === GOALS.STRENGTH) {
+    return { lo: Math.max(2, Math.round(base[0] * 0.8)), hi: Math.max(4, Math.round(base[1] * 0.8)) };
+  }
+  if (g === GOALS.ENDURANCE) {
+    return { lo: Math.max(2, Math.round(base[0] * 0.9)), hi: Math.round(base[1] * 1.15) };
+  }
+  return { lo: base[0], hi: base[1] };
+}
+
+/** Почему именно такая норма — для текста флага. */
+function volumeWhy(goal?: string | null): string {
+  const g = normalizeGoal(goal);
+  if (g === GOALS.STRENGTH) return 'для силы';
+  if (g === GOALS.ENDURANCE) return 'для выносливости';
+  if (g === GOALS.LOSE || g === GOALS.CUT) return 'в дефиците для сохранения мышц';
+  return 'для роста массы обычно';
+}
+
+/** Подпись под таблицей объёма: по какой цели считаны нормы. */
+export function volumeNormNote(goal?: string | null): string {
+  const g = normalizeGoal(goal);
+  const label = goalLabel(g);
+  if (g === GOALS.STRENGTH) {
+    return `Нормы объёма — под цель «${label}»: силовым планам хватает меньшего объёма.`;
+  }
+  if (g === GOALS.ENDURANCE) {
+    return `Нормы объёма — под цель «${label}»: планка ниже, потолок выше — объём размазан по упражнениям.`;
+  }
+  if (g === GOALS.LOSE || g === GOALS.CUT) {
+    return `Нормы объёма — под цель «${label}»: объём не режем — им держится мышца.`;
+  }
+  return `Нормы объёма — под цель «${label}».`;
 }
 
 /**
@@ -126,6 +178,8 @@ export interface Report {
   sets: number;
   planPct: number;
   tonnage: number;
+  /** Цель, под которую считаны нормы объёма (для подписи и флагов). */
+  goal: string | null;
   byExercise: Map<string, ExStat>;
   /** Объём по мышечным группам: именно он сравнивается с нормой по размеру группы. */
   byMuscle: Map<string, MuscleStat>;
@@ -173,10 +227,11 @@ export function buildReport(
   toMs: number,
   groupOf?: (exercise: string) => string | null,
   kindOf?: (exercise: string) => ExKind | null,
+  goal?: string | null,
 ): Report {
   const r: Report = {
     workouts: 0, totalDurationSec: 0, workedSec: 0, workSharePct: 0,
-    sets: 0, planPct: 0, tonnage: 0,
+    sets: 0, planPct: 0, tonnage: 0, goal: goal || null,
     byExercise: new Map(), byMuscle: new Map(), weeks: [], flags: [], tips: [],
     isEmpty: () => r.workouts === 0,
   };
@@ -422,14 +477,14 @@ function buildFlags(r: Report) {
     // Разгрузочные недели сюда не идут: там объём снижен намеренно.
     const normalSets = m.sets - m.setsDeload;
     const perWeek = Math.round(m.setsPerWeek);
-    const norm = volumeNorm(m.group);
+    const norm = volumeNorm(m.group, r.goal);
     // Сравниваем то же число, что показываем: 9,8 — это «10 подходов»,
     // и совет «нужно 10–20» при своих же 10 выглядел бы ошибкой.
     if (normalSets >= 3 && perWeek < norm.lo) {
       r.flags.push({
         exercise: m.group, code: 'under',
         text: `${m.group}: ${perWeek} ${setsWord(perWeek)} в неделю — `
-          + `для роста массы обычно нужно ${norm.lo}–${norm.hi} на мышцу. `
+          + `${volumeWhy(r.goal)} нужно ${norm.lo}–${norm.hi} на мышцу. `
           + 'Добавь упражнение или подход.',
       });
     }

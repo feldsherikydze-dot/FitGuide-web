@@ -12,7 +12,7 @@ import { useAssessmentStore, useBodyLogStore, useCoachStore, useOneRmStore, useP
 import { useExercises, useKnowledge, usePicker } from '../hooks/useExercises';
 import {
   adherePercent, avgSleep, conflictsWithLimits, currentWeekIndex, currentWeekStart,
-  cycleNumber, dailyPlan, dayKey, dropWeight, e1rmSeries, estimateOneRepMax, lastReps, lastWeight,
+  cycleNumber, dailyPlan, dayKey, dropWeight, e1rmSeries, estimateOneRepMax, isMassGoal, lastReps, lastWeight,
   maxReps, missedStreak, missedWeeks, nextDay, nextDayIndex, progressStalled, readinessScore,
   plural,
   sessionCount, sessionsThisWeek, suggestWeight, tonnage, tonnageInWeekIndex, topExercises,
@@ -1200,7 +1200,7 @@ export function CoachPage() {
             const last = lastWeight(sessions, ex);
             const repsRange = slotRepsFor(ex);
             const missed = missedStreak(sessions, ex);
-            const mass = program.goal === 'mass';
+            const mass = isMassGoal(program.goal);
             let text: string;
             if (last <= 0) {
               const seeded = slotStartWeightFor(ex);

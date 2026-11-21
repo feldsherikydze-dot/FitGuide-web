@@ -8,7 +8,7 @@ import { useCoachStore, useProfileStore } from '../../core/store';
 import { finishedSessions } from '../../core/coach';
 import { useExercises } from '../../hooks/useExercises';
 import {
-  buildReport, fmtDur, fmtNum, fmtTonnage, kindByName, type ExKind,
+  buildReport, fmtDur, fmtNum, fmtTonnage, kindByName, volumeNormNote, type ExKind,
 } from '../../core/workAnalysis';
 import {
   Card, Hint, PrimaryButton, Toast,
@@ -110,8 +110,8 @@ export function AnalysisTab() {
   }, [exercises]);
 
   const report = useMemo(
-    () => buildReport(sessions || [], fromMs, toMs, groupOf, kindOf),
-    [sessions, fromMs, toMs, groupOf, kindOf],
+    () => buildReport(sessions || [], fromMs, toMs, groupOf, kindOf, profile?.goal),
+    [sessions, fromMs, toMs, groupOf, kindOf, profile?.goal],
   );
   const empty = report.isEmpty();
 
@@ -311,6 +311,9 @@ export function AnalysisTab() {
               </div>
               <div className="mt-2 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
                 подходов в неделю
+              </div>
+              <div className="mt-1 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
+                {volumeNormNote(profile?.goal)}
               </div>
               {/* Колонки фиксированной ширины: иначе заголовок «осн. недели»
                   шире числа, и grid в каждой строке считает свою ширину —

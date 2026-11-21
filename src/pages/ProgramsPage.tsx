@@ -533,7 +533,7 @@ export function ProgramDetailPage() {
     const group = ex ? (groupNameById()[ex.muscleGroup] || slot.group) : slot.group;
     let patch: Partial<Slot> = {};
     if (isCardioExercise(ex)) {
-      patch = cardioDefaults();
+      patch = cardioDefaults(program.goal);
     } else if (isCardioExercise(prev)) {
       patch = strengthDefaults();
     }
@@ -610,7 +610,7 @@ export function ProgramDetailPage() {
         sets,
         role: 'secondary',
       };
-      return isCardioExercise(ex) ? { ...base, ...cardioDefaults() } : base;
+      return isCardioExercise(ex) ? { ...base, ...cardioDefaults(program.goal) } : base;
     });
     saveProgram({
       ...program,

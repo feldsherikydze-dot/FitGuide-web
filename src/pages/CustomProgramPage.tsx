@@ -80,9 +80,9 @@ interface BlockDraft {
   days: DayDraft[];
 }
 
-function emptySlot(exercise: string, ex?: Exercise | null): SlotDraft {
+function emptySlot(exercise: string, ex?: Exercise | null, goal?: string | null): SlotDraft {
   const base: SlotDraft = { exercise, reps: '8–12', rest: '60–90 сек', restEx: '2–3 мин', sets: 3, startWeight: 0, workSec: 0 };
-  return isCardioExercise(ex) ? { ...base, ...cardioDefaults() } : base;
+  return isCardioExercise(ex) ? { ...base, ...cardioDefaults(goal) } : base;
 }
 
 function emptyDay(title: string): DayDraft {
@@ -202,7 +202,7 @@ export function CustomProgramPage() {
   const addSlots = (bi: number, di: number, names: string[]) => {
     setBlocks(list => list.map((b, i) => i === bi
       ? { ...b, days: b.days.map((d, d2) => d2 === di
-        ? { ...d, slots: [...d.slots, ...names.map(name => emptySlot(name, findExercise(name)))] } : d) }
+        ? { ...d, slots: [...d.slots, ...names.map(name => emptySlot(name, findExercise(name), b.goal))] } : d) }
       : b));
     setPickFor(null);
   };

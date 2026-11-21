@@ -23,6 +23,25 @@ await build({
 const gen = await import(pathToFileURL(out).href);
 const db = JSON.parse(fs.readFileSync(path.join(root, 'public/exercises.json'), 'utf8'));
 
+// Модули расчётов — тем же бандлом, что уходит в приложение: проверяем
+// настоящие функции, а не их копию в тесте.
+async function bundleModule(entry, tag) {
+  const file = path.join(process.env.TEMP || '.', `fg-${tag}-${process.pid}.mjs`);
+  await build({
+    entryPoints: [path.join(root, entry)],
+    bundle: true,
+    format: 'esm',
+    platform: 'node',
+    outfile: file,
+    logLevel: 'error',
+  });
+  return { mod: await import(pathToFileURL(file).href), file };
+}
+const cardioB = await bundleModule('src/core/cardio.ts', 'cardio');
+const waB = await bundleModule('src/core/workAnalysis.ts', 'wa');
+const cardio = cardioB.mod;
+const wa = waB.mod;
+
 let pass = 0;
 let fail = 0;
 function check(name, cond, extra = '') {
@@ -183,6 +202,77 @@ for (const [level, days, female] of [
   }
 }
 
+// --- Цель меняет программу, а не только подпись. До 1.61 установка влияла
+// на питание и сезон, а повторы/объём/кардио оставались «массовыми».
+console.log('\n=== ЦЕЛЬ МЕНЯЕТ ПРОГРАММУ (4 дня, сплит, средний) ===');
+function makeGoalProgram(goal) {
+  return gen.generateProgram({
+    name: 'Цель', goal, level: 'intermediate', daysPerWeek: 4, weeks: 8,
+    place: 'gym', style: 'any', periodType: 0, type: 'split', equipment: [],
+    age: 30, female: false, emphasis: 'balanced', focus: '',
+  }, db);
+}
+const goalProgs = {
+  mass: makeGoalProgram('mass'),
+  strength: makeGoalProgram('strength'),
+  cut: makeGoalProgram('cut'),
+  lose: makeGoalProgram('lose'),
+  endurance: makeGoalProgram('endurance'),
+};
+const allReps = (p) => p.phases[0].days.flatMap(d => d.slots).map(s => s.reps);
+const hasReps = (p, reps) => allReps(p).includes(reps);
+const totalSets = (p) => [...weeklySets(p).values()].reduce((a, b) => a + b, 0);
+
+check('сила: есть день «Верх · сила»',
+  goalProgs.strength.phases[0].days.some(d => d.title.includes('сила')),
+  goalProgs.strength.phases[0].days.map(d => d.title).join(', '));
+check('сила: база на 3–5 повторов', hasReps(goalProgs.strength, '3–5'));
+check('сила: в силовом дне нет массовых 6–10',
+  !goalProgs.strength.phases[0].days
+    .filter(d => d.title.includes('сила'))
+    .flatMap(d => d.slots).some(s => s.reps === '6–10'));
+check('сила: в день объёма идёт гипертрофия 6–10',
+  goalProgs.strength.phases[0].days
+    .filter(d => d.title.includes('объём'))
+    .flatMap(d => d.slots).some(s => s.reps === '6–10'));
+check('масса: база на 6–10 повторов', hasReps(goalProgs.mass, '6–10'));
+check('масса: нет силовых 3–5', !hasReps(goalProgs.mass, '3–5'));
+check('рельеф: база на 10–12 повторов', hasReps(goalProgs.cut, '10–12'));
+check('рельеф: нет массовых 6–10', !hasReps(goalProgs.cut, '6–10'));
+check('похудение: база на 12–15 повторов', hasReps(goalProgs.lose, '12–15'));
+check('выносливость: база на 12–15 повторов', hasReps(goalProgs.endurance, '12–15'));
+check('выносливость: объём недели больше массы',
+  totalSets(goalProgs.endurance) > totalSets(goalProgs.mass),
+  `(${totalSets(goalProgs.endurance)} vs ${totalSets(goalProgs.mass)})`);
+
+// --- Нормы «Анализа» и доза кардио — те же функции, что в приложении.
+console.log('\n=== ЦЕЛЬ МЕНЯЕТ НОРМЫ И КАРДИО ===');
+const normOf = (g, goal) => wa.volumeNorm(g, goal);
+check('норма груди: масса 10–20', normOf('Грудь', null).lo === 10 && normOf('Грудь', null).hi === 20);
+check('норма груди: сила 8–16',
+  normOf('Грудь', 'strength').lo === 8 && normOf('Грудь', 'strength').hi === 16,
+  `(${normOf('Грудь', 'strength').lo}–${normOf('Грудь', 'strength').hi})`);
+check('норма груди: выносливость 9–23',
+  normOf('Грудь', 'endurance').lo === 9 && normOf('Грудь', 'endurance').hi === 23,
+  `(${normOf('Грудь', 'endurance').lo}–${normOf('Грудь', 'endurance').hi})`);
+check('норма груди: дефицит не режет', normOf('Грудь', 'cut').lo === 10);
+check('норма ромбовидных: 2–10',
+  normOf('Ромбовидные', null).lo === 2 && normOf('Ромбовидные', null).hi === 10);
+check('норма плеч: 6–16', normOf('Плечи', null).lo === 6 && normOf('Плечи', null).hi === 16);
+check('«масса,сила» считается как сила', normOf('Грудь', 'mass,strength').lo === 8);
+check('подпись нормы под цель не пустая',
+  typeof wa.volumeNormNote('cut') === 'string' && wa.volumeNormNote('cut').length > 10);
+
+const cardioCases = [['mass', 15], ['strength', 10], ['cut', 30], ['lose', 35],
+  ['recomp', 25], ['endurance', 45], [null, 20]];
+for (const [goal, min] of cardioCases) {
+  const patch = cardio.cardioDefaults(goal);
+  check(`кардио ${goal || 'без цели'}: ${min} мин`,
+    cardio.cardioMinutes(goal) === min && patch.workSec === min * 60,
+    `(${cardio.cardioMinutes(goal)} мин, ${patch.workSec} с)`);
+}
+
 console.log(`\n=== ИТОГ: ${pass} OK, ${fail} FAIL ===\n`);
 try { fs.unlinkSync(out); } catch { /* временный файл могли уже убрать */ }
+for (const b of [cardioB, waB]) { try { fs.unlinkSync(b.file); } catch { /* см. выше */ } }
 process.exit(fail > 0 ? 1 : 0);
