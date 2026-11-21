@@ -460,6 +460,37 @@ export function createSession(
 }
 
 /**
+ * Замена упражнения в слоте программы (мутация объекта, без сохранения).
+ *
+ * Зеркало ProgramGenerator.replaceSlot в APK. Без этого замена в окне
+ * тренировки жила только до её конца: к следующему разу день снова предлагал
+ * прежнее упражнение.
+ *
+ * @param index позиция упражнения в тренировке: если по ней лежит то же имя,
+ *              берём её — так замена не заденет второй такой же слот в дне.
+ */
+export function replaceSlotIn(
+  program: Program | null, week: number, dayTitle: string, index: number,
+  oldName: string, newName: string, newGroup?: string,
+): boolean {
+  if (!program || !oldName || !newName || oldName === newName) return false;
+  const phase = phaseForWeek(program, week);
+  if (!phase) return false;
+  const day = phase.days.find(d => d.title === dayTitle);
+  if (!day) return false;
+  const hinted = index >= 0 ? day.slots[index] : undefined;
+  const slot = hinted && hinted.exercise === oldName
+    ? hinted
+    : day.slots.find(s => s.exercise === oldName);
+  if (!slot) return false;
+  slot.exercise = newName;
+  if (newGroup) slot.group = newGroup;
+  // Стартовый вес старой техники к новой не относится: тренер предложит заново.
+  slot.startWeight = 0;
+  return true;
+}
+
+/**
  * Ход на следующий раз по отметке «как зашло».
  * Легко — +5%, тяжело — −5%, «в самый раз» — без изменений.
  * Без веса (своё тело) двигаем повторы.

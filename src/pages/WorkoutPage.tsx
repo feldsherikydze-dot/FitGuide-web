@@ -10,7 +10,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { ChevronLeft } from 'lucide-react';
 import { useCoachStore, useProgramsStore, useOneRmStore, useProfileStore } from '../core/store';
-import { createSession, applyFeelProgression, loadFeel, setDelta, readinessScore, dayKey, estimateOneRepMax, planReps } from '../core/coach';
+import { createSession, applyFeelProgression, loadFeel, setDelta, readinessScore, dayKey, estimateOneRepMax, planReps, replaceSlotIn, suggestWeight } from '../core/coach';
 import { playSignal } from '../core/signal';
 import { isCardioExercise, workLabel } from '../core/cardio';
 import { useExercises } from '../hooks/useExercises';
@@ -89,7 +89,7 @@ export function WorkoutPage() {
   const { programs, getById, save: savePrograms } = useProgramsStore();
   const oneRm = useOneRmStore();
   const { profile } = useProfileStore();
-  const { exercises } = useExercises();
+  const { exercises, groupNameById } = useExercises();
 
   const adHocNames = (searchParams.get('names') || '').split('|').map(s => s.trim()).filter(Boolean);
   const adHoc = adHocNames.length > 0;
@@ -584,11 +584,38 @@ export function WorkoutPage() {
 
   const swapTo = (name: string) => {
     if (!session || !curItem) return;
+    const oldName = curItem.exercise;
+    // Вес старой техники к новой не относится: подсказываем заново, как в APK
+    // (WorkoutSession.swapTo сбрасывает вес и спрашивает тренера).
+    const suggested = suggestWeight({
+      sessions: coach.sessions,
+      exercise: name,
+      goal: program?.goal,
+      repRange: curSlot?.reps,
+      e1rm: oneRm.get(name) || 0,
+    });
     const items = [...session.items];
-    items[idx] = { ...curItem, exercise: name, sets: 0, feel: undefined, setFeels: [], setReps: [] };
+    items[idx] = {
+      ...curItem,
+      exercise: name,
+      weightKg: suggested,
+      sets: 0,
+      feel: undefined,
+      setFeels: [],
+      setReps: [],
+    };
     const next = { ...session, items };
     setSession(next);
     coach.updateSession(next.id, { items });
+    // Замена в окне тренировки правит и программу: иначе к следующему разу
+    // день снова предлагал прежнее упражнение (как в APK с 1.65).
+    if (!adHoc && storedProgram) {
+      const fresh = exercises.find(e => e.name === name);
+      const groupName = fresh ? (groupNameById()[fresh.muscleGroup] || '') : '';
+      if (replaceSlotIn(storedProgram, week, dayTitle, idx, oldName, name, groupName)) {
+        savePrograms(programs.map(p => (p.id === storedProgram.id ? storedProgram : p)));
+      }
+    }
     setSwapOpen(false);
     setToast('Упражнение заменено');
   };

@@ -418,6 +418,62 @@ check('видео: короткая база скобки сохраняет',
 check('видео: длинная база скобки убирает',
   vl.videoQuery('Жим гантелей на наклонной скамье (30–45°)') === 'Жим гантелей на наклонной скамье техника выполнения');
 
+// --- Замена упражнения в окне тренировки правит программу (как в APK 1.65).
+const cb = await bundleModule('src/core/coach.ts', 'cb');
+const cch = cb.mod;
+function makeSwapProgram() {
+  const slot = (exercise, group = 'Плечи', startWeight = 12) => ({
+    exercise, group, reps: '12–15', rest: '60–90 сек', sets: 3, role: 'isolation', startWeight,
+  });
+  return {
+    id: 'p1', name: 'Сплит', goal: 'mass', level: 'intermediate', daysPerWeek: 4, weeks: 8,
+    phases: [
+      { weekStart: 1, weekEnd: 4, label: '1', scheme: '3×8–12', deload: false, days: [
+        { title: 'День A', slots: [slot('Жим лёжа', 'Грудь', 60), slot('Тяга блока', 'Спина', 45)] },
+        { title: 'День D', slots: [slot('Махи гантелью в наклоне'), slot('Жим', 'Плечи'), slot('Махи гантелью в наклоне')] },
+      ] },
+      { weekStart: 5, weekEnd: 8, label: '2', scheme: '4×6–10', deload: false, days: [
+        { title: 'День A', slots: [slot('Присед', 'Ноги', 80)] },
+      ] },
+    ],
+  };
+}
+{
+  const p = makeSwapProgram();
+  const ok = cch.replaceSlotIn(p, 2, 'День A', 0, 'Жим лёжа', 'Жим в Хаммере', 'Грудь');
+  const s = p.phases[0].days[0].slots[0];
+  check('замена в тренировке: слот переименован', ok === true && s.exercise === 'Жим в Хаммере');
+  check('замена в тренировке: стартовый вес старой техники сброшен', s.startWeight === 0, `(${s.startWeight})`);
+  check('замена в тренировке: подходы и повторы не тронуты', s.sets === 3 && s.reps === '12–15');
+  check('замена в тренировке: группа обновилась', s.group === 'Грудь');
+  check('замена в тренировке: соседний слот цел',
+    p.phases[0].days[0].slots[1].exercise === 'Тяга блока');
+  check('замена в тренировке: после замены прогрессия находит новый слот',
+    cch.applyFeelProgression(p, 2, 'День A', 'Жим в Хаммере', 40, 8, 3) !== null
+    && Math.abs(p.phases[0].days[0].slots[0].startWeight - 42.5) < 0.01,
+    `(${p.phases[0].days[0].slots[0].startWeight})`);
+  check('замена в тренировке: старого имени в программе больше нет',
+    cch.applyFeelProgression(p, 2, 'День A', 'Жим лёжа', 40, 8, 3) === null);
+}
+{
+  const p = makeSwapProgram();
+  check('замена в тренировке: то же имя — без изменений',
+    cch.replaceSlotIn(p, 2, 'День A', 0, 'Жим лёжа', 'Жим лёжа') === false);
+  check('замена в тренировке: неизвестное имя — без изменений',
+    cch.replaceSlotIn(p, 2, 'День A', 0, 'Скручивания', 'Планка') === false);
+  check('замена в тренировке: неделя выбирает свою фазу',
+    cch.replaceSlotIn(p, 6, 'День A', 0, 'Присед', 'Фронтальный присед') === true
+    && p.phases[1].days[0].slots[0].exercise === 'Фронтальный присед'
+    && p.phases[0].days[0].slots[0].exercise === 'Жим лёжа');
+}
+{
+  const p = makeSwapProgram();
+  check('замена в тренировке: позиция упражнения различает дубли',
+    cch.replaceSlotIn(p, 2, 'День D', 2, 'Махи гантелью в наклоне', 'Обратные разведения') === true
+    && p.phases[0].days[1].slots[2].exercise === 'Обратные разведения'
+    && p.phases[0].days[1].slots[0].exercise === 'Махи гантелью в наклоне');
+}
+
 console.log(`\n=== ИТОГ: ${pass} OK, ${fail} FAIL ===\n`);
 try { fs.unlinkSync(out); } catch { /* временный файл могли уже убрать */ }
 for (const b of [cardioB, waB, tdB]) { try { fs.unlinkSync(b.file); } catch { /* см. выше */ } }
