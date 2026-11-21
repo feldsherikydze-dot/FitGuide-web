@@ -3,9 +3,10 @@
 // как в Android: заголовок, подзаголовок, цель, поля, кнопка, список дней.
 
 import { useCallback, useMemo, useState } from 'react';
-import { useProfileStore } from '../../core/store';
+import { useBodyLogStore, useProfileStore } from '../../core/store';
 import { getJSON, setJSON, KEYS } from '../../core/storage';
-import { dailyCalories, goalList, goalLabel, proteinPerKg, proteinWeight } from '../../core/goals';
+import { caloriesFor, goalList, goalLabel, proteinPerKg, proteinWeight } from '../../core/goals';
+import { effectiveTdee } from '../../core/adaptiveTdee';
 import { week } from '../../core/nutrition';
 import type { Day } from '../../core/nutrition';
 import { Field, PrimaryButton, Toast } from '../progress/common';
@@ -19,8 +20,11 @@ interface MenuState {
 
 export function KitchenTab() {
   const { profile } = useProfileStore();
+  const { logs } = useBodyLogStore();
   const [state, setState] = useState<MenuState>(() => {
-    const calc = Math.round(dailyCalories(profile)) || 2200;
+    const entries = getJSON<{ day: string; kcal: number }[]>(KEYS.DIARY_ENTRIES, []) || [];
+    const tdee = effectiveTdee(profile, logs, entries).tdee;
+    const calc = Math.round(caloriesFor(tdee, profile?.goal || '', profile?.gender)) || 2200;
     return { kcal: String(calc), favs: '', dislikes: '', menu: null };
   });
   const [toast, setToast] = useState<string | null>('');

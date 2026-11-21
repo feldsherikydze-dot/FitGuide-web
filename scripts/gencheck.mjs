@@ -39,8 +39,10 @@ async function bundleModule(entry, tag) {
 }
 const cardioB = await bundleModule('src/core/cardio.ts', 'cardio');
 const waB = await bundleModule('src/core/workAnalysis.ts', 'wa');
+const tdB = await bundleModule('src/core/adaptiveTdee.ts', 'td');
 const cardio = cardioB.mod;
 const wa = waB.mod;
+const td = tdB.mod;
 
 let pass = 0;
 let fail = 0;
@@ -272,7 +274,88 @@ for (const [goal, min] of cardioCases) {
     `(${cardio.cardioMinutes(goal)} мин, ${patch.workSec} с)`);
 }
 
+// --- Недельная норма кардио: не путать дозу на тренировку с недельной.
+console.log('\n=== КАРДИО НА НЕДЕЛЮ ===');
+const weeklyCases = [
+  ['mass', 90, 150], ['strength', 75, 150], ['recomp', 120, 200],
+  ['cut', 150, 250], ['lose', 180, 300], ['endurance', 240, 420], [null, 150, 300],
+];
+for (const [goal, min, max] of weeklyCases) {
+  const n = cardio.cardioWeeklyNorm(goal);
+  check(`недельная норма ${goal || 'без цели'}: ${min}–${max}`,
+    n.min === min && n.max === max, `(${n.min}–${n.max})`);
+}
+check('текст недельной нормы содержит диапазон',
+  cardio.cardioWeeklyTip('lose').includes('180–300')
+    && cardio.cardioWeeklyTip(null).includes('150–300'));
+
+// --- Авторегуляция объёма: совет по факту, а не календарю.
+console.log('\n=== АВТОРЕГУЛЯЦИЯ ОБЪЁМА ===');
+const DAY = 86400000;
+const nowT = Date.now();
+const exName = 'Жим штанги на горизонтальной скамье';
+function sessionAt(ts, weightKg, planReps, actualReps, feel) {
+  return {
+    id: 's' + ts, programId: 'p', week: 1, dayTitle: 'День', ts,
+    items: [{ exercise: exName, weightKg, reps: planReps, sets: 3, targetSets: 3, feel }],
+    setFacts: Array.from({ length: 3 }, () => ({
+      exercise: exName, weightKg, reps: actualReps, feel, actualSec: 30, plannedSec: 30,
+    })),
+  };
+}
+const groupOf = (ex) => ex === exName ? 'Грудь' : null;
+const stall = [];
+for (let i = 0; i < 8; i++) {
+  stall.push(sessionAt(nowT - 28 * DAY + i * 3 * DAY, 60, 10, 8, 1));
+}
+const stallReport = wa.buildReport(stall, nowT - 28 * DAY, nowT, groupOf, null, 'mass');
+check('авторегуляция: вес стоит + повторы ниже плана → минус подход',
+  stallReport.tips.some(t => t.title.includes('пора разгрузить')),
+  stallReport.tips.map(t => t.title).join(' | '));
+const grow = [];
+for (let i = 0; i < 8; i++) {
+  grow.push(sessionAt(nowT - 28 * DAY + i * 3 * DAY, 60 + i * 0.7, 10, 10, 3));
+}
+const growReport = wa.buildReport(grow, nowT - 28 * DAY, nowT, groupOf, null, 'mass');
+check('авторегуляция: вес растёт + повторы держатся + легко → плюс подход',
+  growReport.tips.some(t => t.title.includes('можно добавить объём')),
+  growReport.tips.map(t => t.title).join(' | '));
+check('совет по кардио есть в отчёте',
+  stallReport.tips.some(t => t.title === 'Кардио на неделю'));
+check('без цели авторегуляция не выдумывает рост',
+  !wa.buildReport(stall, nowT - 7 * DAY, nowT, groupOf, null, 'mass')
+    .tips.some(t => t.title.includes('можно добавить объём')));
+
+// --- Расход по факту: вес + дневник, а не только формула Миффлина.
+console.log('\n=== РАСХОД ПО ФАКТУ ===');
+const dayKey = (ms) => {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const flatWeights = [];
+for (let i = 0; i < 8; i++) flatWeights.push({ date: nowT - 27 * DAY + i * 3 * DAY, weightKg: 80 });
+const flatFood = [];
+for (let i = 0; i < 28; i++) flatFood.push({ day: dayKey(nowT - i * DAY), kcal: 2500 });
+const flat = td.adaptiveTdee(flatWeights, flatFood, 2500, nowT, 28);
+check('расход: вес стоит, приход 2500 → факт ~2500',
+  flat.status === 'ok' && Math.abs(flat.estimate - 2500) <= 60, `(${flat.estimate})`);
+check('расход: хватает взвешиваний и дней еды', flat.weighIns >= 4 && flat.foodDays >= 7,
+  `(${flat.weighIns} взвеш., ${flat.foodDays} дн.)`);
+check('расход: тренд веса около нуля', Math.abs(flat.trendKgWeek) < 0.05, `(${flat.trendKgWeek})`);
+
+const loseWeights = [];
+for (let i = 0; i < 8; i++) loseWeights.push({ date: nowT - 27 * DAY + i * 3 * DAY, weightKg: 80 - i * 0.214 });
+const lose = td.adaptiveTdee(loseWeights, flatFood.map(f => ({ ...f, kcal: 2000 })), 2000, nowT, 28);
+check('расход: минус 0,5 кг/нед при 2000 ккал → ~2550',
+  lose.status === 'ok' && Math.abs(lose.estimate - 2550) <= 90, `(${lose.estimate})`);
+check('расход: мало взвешиваний — честный отказ',
+  td.adaptiveTdee(flatWeights.slice(0, 3), flatFood, 2500, nowT, 28).status === 'few-weights');
+check('расход: мало дней еды — честный отказ',
+  td.adaptiveTdee(flatWeights, flatFood.slice(0, 5), 2500, nowT, 28).status === 'few-food');
+check('расход: вердикт говорит о факте',
+  td.adaptiveTdeeVerdict(flat).includes('ккал/день'));
+
 console.log(`\n=== ИТОГ: ${pass} OK, ${fail} FAIL ===\n`);
 try { fs.unlinkSync(out); } catch { /* временный файл могли уже убрать */ }
-for (const b of [cardioB, waB]) { try { fs.unlinkSync(b.file); } catch { /* см. выше */ } }
+for (const b of [cardioB, waB, tdB]) { try { fs.unlinkSync(b.file); } catch { /* см. выше */ } }
 process.exit(fail > 0 ? 1 : 0);

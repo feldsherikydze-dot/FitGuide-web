@@ -5,6 +5,7 @@
 
 import type { Session } from '../data/types';
 import { GOALS, goalLabel, normalizeGoal } from './goals';
+import { cardioWeeklyTip } from './cardio';
 
 export const TUT_FLOOR_SEC = 10;
 export const TUT_CEIL_SEC = 60;
@@ -407,7 +408,8 @@ export function buildReport(
   for (const w of r.weeks) w.planPct = w.sets > 0 ? w.planPct / w.sets : 0;
 
   buildFlags(r);
-  buildTips(r);
+  const periodDays = Math.max(0, Math.round((toMs - fromMs) / DAY_MS));
+  buildTips(r, periodDays, groupOf);
   return r;
 }
 
@@ -503,7 +505,7 @@ function setsWord(v: number): string {
   return 'подходов';
 }
 
-function buildTips(r: Report) {
+function buildTips(r: Report, periodDays: number, groupOf?: (exercise: string) => string | null) {
   if (r.isEmpty() || r.sets === 0) return;
   if (r.planPct >= 120) {
     r.tips.push({
@@ -637,6 +639,36 @@ function buildTips(r: Report) {
           + 'Если это не замысел — вернись к прежнему и добавь подход.',
       });
     }
+
+    // Авторегуляция объёма: две недели без прогресса — минус подход, три
+    // недели роста с запасом — плюс подход. Совет, а не автомат: программа
+    // не переписывается без решения человека.
+    if (st.kind === 'dynamic' && st.weightLast > 0 && st.days >= 3 && st.sets >= 6) {
+      const repsRatio = st.repsSets > 0 ? st.repsDone / st.repsPlan : 1;
+      if (periodDays >= 14 && st.weightDeltaPct > -5 && st.weightDeltaPct < 5
+        && repsRatio < 0.98 && st.feelHard > st.feelEasy) {
+        r.tips.push({
+          title: `${st.exercise}: пора разгрузить`,
+          text: 'Вес стоит, повторы ниже плана, чаще «до отказа». На 1–2 недели убери 1 подход — '
+            + 'объём вернётся, когда пойдёт прогресс.',
+        });
+      }
+      if (periodDays >= 21 && st.weightDeltaPct >= 2.5 && repsRatio >= 1 && st.feelEasy > st.feelHard) {
+        const group = groupOf ? groupOf(st.exercise) : null;
+        const ms = group ? r.byMuscle.get(group) : null;
+        if (group && ms) {
+          const norm = volumeNorm(group, r.goal);
+          const now = Math.round(ms.setsPerWeek);
+          if (now + 1 <= norm.hi) {
+            r.tips.push({
+              title: `${st.exercise}: можно добавить объём`,
+              text: `Вес вырос на ${Math.round(st.weightDeltaPct)}%, повторы держатся, чаще «легко». `
+                + `«${group}» сейчас ${now} подходов/нед при потолке ${norm.hi} — можно +1 подход.`,
+            });
+          }
+        }
+      }
+    }
   }
   if (r.workSharePct > 0 && r.workSharePct < 30) {
     r.tips.push({
@@ -645,6 +677,10 @@ function buildTips(r: Report) {
         + 'попробуй сократить его до 60–90 секунд.',
     });
   }
+  r.tips.push({
+    title: 'Кардио на неделю',
+    text: cardioWeeklyTip(r.goal),
+  });
 }
 
 function fmtWeight(kg: number): string {

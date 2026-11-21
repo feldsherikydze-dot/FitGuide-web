@@ -150,12 +150,13 @@ export function activityFactor(level: string | null | undefined): number {
 }
 
 /**
- * Норма калорий из профиля — порт Profile.getDailyCalories():
- * BMR по Миффлину × коэффициент активности → поправка на цель.
+ * Расход по формуле: BMR по Миффлину × коэффициент активности.
+ * Это база для сравнения с фактическим расходом (adaptiveTdee) и для нормы,
+ * когда фактов ещё мало.
  */
-export function dailyCalories(profile: {
+export function formulaTdee(profile: {
   weightKg?: number; heightCm?: number; age?: number;
-  gender?: string; activityLevel?: string; goal?: string;
+  gender?: string; activityLevel?: string;
 } | null | undefined): number {
   if (!profile) return 0;
   const w = profile.weightKg || 0;
@@ -164,7 +165,18 @@ export function dailyCalories(profile: {
   if (w <= 0 || h <= 0 || a <= 0) return 0;
   const sex = profile.gender === 'male' ? 5 : profile.gender === 'female' ? -161 : -78;
   const bmr = Math.max(0, 10 * w + 6.25 * h - 5 * a + sex);
-  return caloriesFor(bmr * activityFactor(profile.activityLevel), profile.goal || '', profile.gender);
+  return bmr * activityFactor(profile.activityLevel);
+}
+
+/**
+ * Норма калорий из профиля — порт Profile.getDailyCalories():
+ * расход по формуле → поправка на цель (или по факту, см. DiaryTab).
+ */
+export function dailyCalories(profile: {
+  weightKg?: number; heightCm?: number; age?: number;
+  gender?: string; activityLevel?: string; goal?: string;
+} | null | undefined): number {
+  return caloriesFor(formulaTdee(profile), profile?.goal || '', profile?.gender);
 }
 
 /** Нормы белка, г на кг массы тела. */

@@ -30,6 +30,46 @@ export function cardioMinutes(goal?: string | null): number {
   }
 }
 
+/**
+ * Недельная норма кардио, минут умеренного темпа. Доза на тренировку и норма
+ * на неделю — разные вещи: 15 минут на массе не значит «15 в неделю».
+ * Диапазоны держатся вокруг рекомендации ACSM для взрослых (150–300 мин),
+ * с поправкой на цель: силе и массе хватает нижней половины, дефициту и
+ * выносливости — верхней.
+ */
+export interface CardioWeeklyNorm {
+  min: number;
+  max: number;
+  /** Почему именно столько — для подписи. */
+  note: string;
+}
+
+export function cardioWeeklyNorm(goal?: string | null): CardioWeeklyNorm {
+  switch (normalizeGoal(goal)) {
+    case GOALS.STRENGTH:
+      return { min: 75, max: 150, note: 'минимум для сердца; больше — только если не мешает восстановлению' };
+    case GOALS.MASS:
+      return { min: 90, max: 150, note: 'фон для сердца, не больше — иначе кардио съедает восстановление' };
+    case GOALS.RECOMP:
+      return { min: 120, max: 200, note: 'жиросжигание без ущерба для мышц' };
+    case GOALS.CUT:
+      return { min: 150, max: 250, note: 'рабочий инструмент дефицита' };
+    case GOALS.LOSE:
+      return { min: 180, max: 300, note: 'основной инструмент дефицита' };
+    case GOALS.ENDURANCE:
+      return { min: 240, max: 420, note: 'основной объём подготовки' };
+    default:
+      return { min: 150, max: 300, note: 'норма для здоровья' };
+  }
+}
+
+/** Одна строка для экрана «Анализ»: сколько кардио нужно на неделю. */
+export function cardioWeeklyTip(goal?: string | null): string {
+  const n = cardioWeeklyNorm(goal);
+  return `Норма кардио на неделю: ${n.min}–${n.max} мин умеренного темпа — ${n.note}. `
+    + 'Дели как удобно: 3–5 занятий.';
+}
+
 export interface CardioPatch {
   sets: number;
   reps: string;

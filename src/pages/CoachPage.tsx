@@ -22,7 +22,8 @@ import { CHECKPOINT_DAYS, checkpointDue, daysSinceAssessment } from '../core/che
 import { findTip, rotateTip } from '../core/knowledge';
 import { blockFor, COMP_PHASE_LABELS, compPhaseForDays, daysToComp, shouldRotate } from '../core/seasonPlan';
 import { compCatLabel, offseasonKg, stageWeightKg } from '../core/compCategory';
-import { dailyCalories, goalLabel, proteinPerKg, proteinWeight, recommendDays } from '../core/goals';
+import { caloriesFor, goalLabel, proteinPerKg, proteinWeight, recommendDays } from '../core/goals';
+import { effectiveTdee } from '../core/adaptiveTdee';
 import { generateProgram } from '../core/generator';
 import { analyzePhase } from '../core/planAdvisor';
 import { getJSON, getString, setString, KEYS } from '../core/storage';
@@ -647,7 +648,8 @@ export function CoachPage() {
   const menuKcal = todayMenu ? todayMenu.meals.reduce((s, m) => s + m.dishes.reduce((x, d) => x + d.kcal, 0), 0) : 0;
   const menuProtein = todayMenu ? todayMenu.meals.reduce((s, m) => s + m.dishes.reduce((x, d) => x + d.p, 0), 0) : 0;
 
-  const kcalTarget = dailyCalories(profile);
+  const kcalTarget = caloriesFor(
+    effectiveTdee(profile, bodyLogs, diary).tdee, profile?.goal || '', profile?.gender);
   const proteinTarget = profile && profile.weightKg > 0 ? proteinWeight(profile) * proteinPerKg(profile.goal) : 0;
   const desiredWeight = parseFloat(getString('kbju_desired_weight', '').replace(',', '.'));
 

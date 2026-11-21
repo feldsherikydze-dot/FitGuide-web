@@ -4,9 +4,10 @@
 
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useProfileStore } from '../../core/store';
-import { getString } from '../../core/storage';
-import { dailyCalories, GOALS_ALL, GOAL_LABELS, goalLabel, normalizeGoal, proteinPerKg, proteinWeight } from '../../core/goals';
+import { useBodyLogStore, useProfileStore } from '../../core/store';
+import { getJSON, getString, KEYS } from '../../core/storage';
+import { caloriesFor, GOALS_ALL, GOAL_LABELS, goalLabel, normalizeGoal, proteinPerKg, proteinWeight } from '../../core/goals';
+import { effectiveTdee } from '../../core/adaptiveTdee';
 import { additivesForProfile } from '../../core/additives';
 import type { Additive } from '../../core/additives';
 import { Toast } from '../progress/common';
@@ -39,6 +40,10 @@ export function SportPitTab() {
   const weight = profile?.weightKg || 0;
   const age = profile?.age || 0;
   const complete = !!profile && age > 0 && (profile.heightCm || 0) > 0 && weight > 0;
+  const { logs } = useBodyLogStore();
+  const diary = getJSON<{ day: string; kcal: number }[]>(KEYS.DIARY_ENTRIES, []) || [];
+  const kcalFact = Math.round(caloriesFor(
+    effectiveTdee(profile, logs, diary).tdee, profile?.goal || '', profile?.gender));
 
   const calculate = useCallback(() => {
     const list = additivesForProfile({
@@ -121,7 +126,7 @@ export function SportPitTab() {
           <p className="text-[13px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
             {complete
               ? `Ваш профиль: ${weight.toFixed(0)} кг · ${age} лет · ${goalLabel(goal)} — `
-                + `${dailyCalories(profile).toFixed(0)} ккал/сутки, белок ~${(proteinWeight(profile) * proteinPerKg(goal)).toFixed(0)} г`
+                + `${kcalFact} ккал/сутки, белок ~${(proteinWeight(profile) * proteinPerKg(goal)).toFixed(0)} г`
               : 'Дозировки рассчитаны приблизительно — заполните профиль (вес, возраст, пол, цель), чтобы подобрать точнее.'}
           </p>
 

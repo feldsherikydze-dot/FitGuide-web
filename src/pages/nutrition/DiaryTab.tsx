@@ -2,9 +2,10 @@
 // Учёт съеденного по дням с нормой из профиля и средним за неделю.
 
 import { useCallback, useMemo, useState } from 'react';
-import { useProfileStore } from '../../core/store';
+import { useBodyLogStore, useProfileStore } from '../../core/store';
 import { getJSON, setJSON, KEYS } from '../../core/storage';
-import { dailyCalories, proteinPerKg, proteinWeight } from '../../core/goals';
+import { caloriesFor, proteinPerKg, proteinWeight } from '../../core/goals';
+import { adaptiveTdeeVerdict, effectiveTdee } from '../../core/adaptiveTdee';
 import { Dialog, DialogAction, Field, Toast, parseInt10, parseNum } from '../progress/common';
 import type { Day } from '../../core/nutrition';
 import { searchFoods, foodPortion } from '../../data/foods';
@@ -68,6 +69,7 @@ interface MenuDish {
 
 export function DiaryTab() {
   const { profile } = useProfileStore();
+  const { logs: bodyLogs } = useBodyLogStore();
   const [dayOffset, setDayOffset] = useState(0);
   const [entries, setEntries] = useState<DiaryEntry[]>(() => getJSON<DiaryEntry[]>(KEYS.DIARY_ENTRIES, []));
   const [toast, setToast] = useState<string | null>('');
@@ -85,8 +87,18 @@ export function DiaryTab() {
     window.setTimeout(() => setToast(null), 2500);
   };
 
+  // Расход по факту: вес из замеров тела + калории из дневника. Формула
+  // Миффлина не знает NEAT и реальной активности, поэтому при достаточных
+  // данных и расхождении больше 150 ккал/день считаем норму от факта.
+  const effective = useMemo(
+    () => effectiveTdee(profile, bodyLogs, entries),
+    [profile, bodyLogs, entries],
+  );
+  const adaptive = effective.adaptive;
+  const useFactTdee = effective.useFact;
+
   // Норма — из профиля, её же считает КБЖУ-калькулятор (Profile.getDailyCalories).
-  const kcalTarget = Math.round(dailyCalories(profile));
+  const kcalTarget = Math.round(caloriesFor(effective.tdee, profile?.goal || '', profile?.gender));
   const ready = !!profile && (profile.weightKg || 0) > 0 && kcalTarget > 0;
   const proteinTarget = ready ? proteinWeight(profile) * proteinPerKg(profile!.goal) : 0;
 
@@ -310,6 +322,10 @@ export function DiaryTab() {
         {weekAvg.count === 0
           ? 'Итоги за неделю появятся, когда отметишь питание.'
           : `Средний факт за ${weekAvg.count} дн.: ${weekAvg.kcal} ккал · белок ${format1(weekAvg.protein)} г`}
+      </div>
+      <div className="mt-1 text-[12px] leading-snug" style={{ color: 'var(--color-text-secondary)' }}>
+        {adaptiveTdeeVerdict(adaptive)}
+        {useFactTdee && ' Норма калорий считается по фактическому расходу.'}
       </div>
 
       {/* Выбор блюда из меню кухни */}
