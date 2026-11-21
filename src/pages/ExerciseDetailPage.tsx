@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useExercises } from '../hooks/useExercises';
 import { humanMuscle, isBasicExercise } from '../core/exercises';
+import { VIDEO_SOURCES, videoSearchUrl } from '../core/videoLinks';
 import { slotColor, contrastOn, darken } from '../core/palette';
 
 function blend(from: string, to: string, t: number): string {
@@ -231,6 +232,28 @@ export function ExerciseDetailPage() {
             </div>
           </>
         )}
+
+        {/* Техника: видео — подборка по названию упражнения (VK / YouTube).
+            Текст 1:1 с Android: строка подсказки дословно та же. */}
+        <div className="rounded-[18px] p-[18px]" style={cardStyle}>
+          <div style={labelStyle}>Техника: видео</div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {VIDEO_SOURCES.map((s, i) => (
+              <a
+                key={s.key}
+                href={videoSearchUrl(s.key, ex.name)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`fg-btn ${i === 0 ? 'fg-btn-primary' : 'fg-btn-ghost'} px-4 py-2.5`}
+              >
+                {s.label}
+              </a>
+            ))}
+          </div>
+          <div className="mt-2 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
+            Откроется подборка по названию упражнения.
+          </div>
+        </div>
 
         {/* Техника выполнения */}
         {ex.steps?.length > 0 && (

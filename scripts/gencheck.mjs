@@ -368,6 +368,25 @@ check('имя: в базе нет дублей после нормализаци
 check('имя: каждое упражнение базы находится по своему ключу',
   db.exercises.every(e => nameKeys.has(ex.normalizeExerciseKey(e.name))));
 
+// --- Видео техники: VK первый, YouTube второй, запрос по имени.
+const vlB = await bundleModule('src/core/videoLinks.ts', 'vl');
+const vl = vlB.mod;
+check('видео: источников два, первый VK',
+  vl.VIDEO_SOURCES.length === 2 && vl.VIDEO_SOURCES[0].key === 'vk'
+  && vl.VIDEO_SOURCES[0].label === 'VK Видео' && vl.VIDEO_SOURCES[1].label === 'YouTube');
+check('видео: запрос — название упражнения + техника',
+  vl.videoQuery('Приседания') === 'Приседания техника выполнения');
+const vkVid = vl.videoSearchUrl('vk', 'Жим штанги лежа классический');
+check('видео: VK-ссылка с кодированным названием',
+  vkVid.startsWith('https://vk.com/video?section=search&q=') && vkVid.includes('%D0%96')
+  && !vkVid.includes('+'), `(${vkVid})`);
+check('видео: YouTube-ссылка отдельная',
+  vl.videoSearchUrl('youtube', 'Приседания').startsWith('https://www.youtube.com/results?search_query='));
+check('видео: неизвестный источник ведёт в VK',
+  vl.videoSearchUrl('rutube', 'Приседания').startsWith('https://vk.com/video?'));
+check('видео: скобки в названии не ломают адрес',
+  !vl.videoSearchUrl('vk', 'Подъём на носки (стоя)').includes('('));
+
 console.log(`\n=== ИТОГ: ${pass} OK, ${fail} FAIL ===\n`);
 try { fs.unlinkSync(out); } catch { /* временный файл могли уже убрать */ }
 for (const b of [cardioB, waB, tdB]) { try { fs.unlinkSync(b.file); } catch { /* см. выше */ } }
