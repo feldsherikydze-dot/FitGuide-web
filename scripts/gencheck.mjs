@@ -387,6 +387,37 @@ check('видео: неизвестный источник ведёт в VK',
 check('видео: скобки в названии не ломают адрес',
   !vl.videoSearchUrl('vk', 'Подъём на носки (стоя)').includes('('));
 
+// Пакетная проверка всех 323 упражнений: обе ссылки на каждое.
+const videoUrls = [];
+for (const e of db.exercises) {
+  for (const s of ['vk', 'youtube']) videoUrls.push({ source: s, name: e.name, url: vl.videoSearchUrl(s, e.name) });
+}
+check('видео: у всех 323 запросов есть хвост «техника выполнения»',
+  db.exercises.every(e => vl.videoQuery(e.name).endsWith('техника выполнения')));
+check('видео: все 646 ссылок — валидные URL с нужным хостом',
+  videoUrls.every(({ source, url }) => {
+    try {
+      const u = new URL(url);
+      const host = source === 'vk' ? 'vk.com' : 'www.youtube.com';
+      const q = u.searchParams.get(source === 'vk' ? 'q' : 'search_query') || '';
+      return u.protocol === 'https:' && u.host === host && q.length > 10;
+    } catch { return false; }
+  }), `(${videoUrls.length} ссылок)`);
+check('видео: ни в одной ссылке нет пробела или «+»',
+  videoUrls.every(({ url }) => !url.includes(' ') && !url.includes('+')),
+  `(${videoUrls.filter(x => x.url.includes(' ') || x.url.includes('+')).length} плохих)`);
+check('видео: ссылки короче 1000 символов',
+  videoUrls.every(({ url }) => url.length < 1000),
+  `(макс. ${Math.max(...videoUrls.map(x => x.url.length))})`);
+const simplified = db.exercises.filter(e =>
+  vl.videoQuery(e.name) !== `${e.name.replace(/\s+/g, ' ').trim()} техника выполнения`).length;
+check('видео: скобки-уточнения убраны из большинства длинных запросов',
+  simplified > 100, `(упрощено ${simplified} из ${db.exercises.length})`);
+check('видео: короткая база скобки сохраняет',
+  vl.videoQuery('Подъём на носки (стоя)') === 'Подъём на носки (стоя) техника выполнения');
+check('видео: длинная база скобки убирает',
+  vl.videoQuery('Жим гантелей на наклонной скамье (30–45°)') === 'Жим гантелей на наклонной скамье техника выполнения');
+
 console.log(`\n=== ИТОГ: ${pass} OK, ${fail} FAIL ===\n`);
 try { fs.unlinkSync(out); } catch { /* временный файл могли уже убрать */ }
 for (const b of [cardioB, waB, tdB]) { try { fs.unlinkSync(b.file); } catch { /* см. выше */ } }

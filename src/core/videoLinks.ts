@@ -21,7 +21,14 @@ export const VIDEO_SOURCES: VideoSourceDef[] = [
 
 /** Поисковый запрос: название упражнения как в базе + «техника выполнения». */
 export function videoQuery(name: string): string {
-  return `${String(name || '').trim()} техника выполнения`;
+  const trimmed = String(name || '').replace(/\s+/g, ' ').trim();
+  // Скобки — это уточнения для карточки («30–45°», «Hammer Shoulder Press»).
+  // В поиске они только сужают выдачу, поэтому убираем — но лишь если
+  // осмысленная часть остаётся не короче 20 символов: «Подъём на носки (стоя)»
+  // без «стоя» уже другое упражнение, его не трогаем.
+  const stripped = trimmed.replace(/\s*\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
+  const base = stripped.length >= 20 ? stripped : trimmed;
+  return `${base} техника выполнения`.trim();
 }
 
 /** encodeURIComponent оставляет скобки и апострофы — в адресе они лишние. */
