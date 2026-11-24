@@ -21,7 +21,7 @@ import { generateProgram, buildProgramName, PERIOD_LINEAR, PERIOD_NONE, PERIOD_W
 import { analyzePhase } from '../core/planAdvisor';
 import { shortExerciseName } from '../core/exercises';
 import { GOALS, GOALS_ALL, GOAL_LABELS, GOAL_DESCRIPTIONS, normalizeGoal, recommendDays } from '../core/goals';
-import { currentWeek, phaseForWeek, plural } from '../core/coach';
+import { currentWeek, phaseForWeek, plural, removeDayCycle, renameDayCycle, swapDayCycle } from '../core/coach';
 import { focusLabel } from '../core/focus';
 import type { Program, Phase, Day, Slot } from '../data/types';
 import {
@@ -356,6 +356,11 @@ export function ProgramDetailPage() {
   } | null>(null);
   const [replacing, setReplacing] = useState<{ day: Day; slot: Slot } | null>(null);
   const [deleting, setDeleting] = useState<{ day: Day; slot: Slot } | null>(null);
+  const [deletingDay, setDeletingDay] = useState<Day | null>(null);
+  const [editingParams, setEditingParams] = useState<{ goal: string; level: string; weeks: string } | null>(null);
+  const [copyingDay, setCopyingDay] = useState<Day | null>(null);
+  const [clearingDay, setClearingDay] = useState<Day | null>(null);
+  const [applyingDays, setApplyingDays] = useState(false);
   const [addingTo, setAddingTo] = useState<Day | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -431,6 +436,16 @@ export function ProgramDetailPage() {
     update(next);
   };
 
+  /** «+ Добавить день»: пустой день в конце фазы, дальше — упражнения из пикера. */
+  const addDay = (phase: Phase) => {
+    const day: Day = { title: `День ${phase.days.length + 1}`, slots: [] };
+    const phases = program.phases.map(p =>
+      p === phase ? { ...p, days: [...p.days, day] } : p
+    );
+    const daysPerWeek = Math.max(program.daysPerWeek, phase.days.length + 1);
+    saveProgram({ ...program, phases, daysPerWeek });
+  };
+
   const formatDate = (ts: number) =>
     new Date(ts).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
@@ -479,6 +494,7 @@ export function ProgramDetailPage() {
         };
       }),
     });
+    renameDayCycle(program.id, renamingDay.day.title, title);
     setRenamingDay(null);
   };
 
@@ -574,6 +590,129 @@ export function ProgramDetailPage() {
     setDeleting(null);
   };
 
+  /* ---------- дни: перестановка, копия, удаление ---------- */
+  const moveDay = (day: Day, dir: -1 | 1) => {
+    const idx = phase.days.indexOf(day);
+    const to = idx + dir;
+    if (idx < 0 || to < 0 || to >= phase.days.length) return;
+    const days = [...phase.days];
+    days.splice(idx, 1);
+    days.splice(to, 0, day);
+    const neighbour = days[idx];
+    if (neighbour) swapDayCycle(program.id, day.title, neighbour.title);
+    saveProgram({
+      ...program,
+      phases: program.phases.map(ph => (ph === phase ? { ...ph, days } : ph)),
+    });
+  };
+
+  const copyTitleIn = (days: Day[], title: string) => {
+    const base = `${title} (копия)`;
+    let out = base;
+    let n = 2;
+    while (days.some(d => d.title === out)) out = `${base} ${n++}`;
+    return out;
+  };
+
+  const copyDayTitle = (title: string) => copyTitleIn(phase.days, title);
+
+  const duplicateDay = (day: Day) => {
+    const copy: Day = {
+      title: copyDayTitle(day.title),
+      slots: day.slots.map(s => ({ ...s })),
+    };
+    const days = [...phase.days];
+    days.splice(phase.days.indexOf(day) + 1, 0, copy);
+    saveProgram({
+      ...program,
+      phases: program.phases.map(ph => (ph === phase ? { ...ph, days } : ph)),
+      daysPerWeek: Math.max(program.daysPerWeek, days.length),
+    });
+    setToast('День скопирован.');
+  };
+
+  const openDeleteDay = (day: Day) => {
+    if (phase.days.length <= 1) {
+      setToast('Нельзя удалить последний день программы.');
+      return;
+    }
+    setDeletingDay(day);
+  };
+
+  const applyDeleteDay = () => {
+    if (!deletingDay) return;
+    const days = phase.days.filter(d => d !== deletingDay);
+    const daysPerWeek = Math.max(1, ...program.phases.map(ph => (ph === phase ? days.length : ph.days.length)));
+    removeDayCycle(program.id, deletingDay.title);
+    saveProgram({
+      ...program,
+      phases: program.phases.map(ph => (ph === phase ? { ...ph, days } : ph)),
+      daysPerWeek,
+    });
+    setDeletingDay(null);
+  };
+
+  /* ---------- параметры программы ---------- */
+  const openParams = () => setEditingParams({
+    goal: normalizeGoal(program.goal),
+    level: program.level,
+    weeks: String(program.weeks),
+  });
+
+  const applyParams = () => {
+    if (!editingParams) return;
+    const weeks = Math.max(1, Math.min(52, parseInt(editingParams.weeks, 10) || program.weeks));
+    const oldWeeks = Math.max(1, program.weeks);
+    const phases = program.phases.map(ph => {
+      if (weeks === oldWeeks) return ph;
+      const start = Math.max(1, Math.min(weeks, Math.round((ph.weekStart - 1) * weeks / oldWeeks) + 1));
+      const end = Math.max(start, Math.min(weeks, Math.round(ph.weekEnd * weeks / oldWeeks)));
+      return { ...ph, weekStart: start, weekEnd: end };
+    });
+    saveProgram({ ...program, goal: editingParams.goal, level: editingParams.level, weeks, phases });
+    setEditingParams(null);
+    setToast('Параметры сохранены.');
+  };
+
+  /* ---------- копия дня в другую фазу ---------- */
+  const applyCopyDay = (target: Phase) => {
+    if (!copyingDay) return;
+    const copy: Day = {
+      title: copyTitleIn(target.days, copyingDay.title),
+      slots: copyingDay.slots.map(s => ({ ...s })),
+    };
+    saveProgram({
+      ...program,
+      phases: program.phases.map(ph => (ph === target ? { ...ph, days: [...ph.days, copy] } : ph)),
+    });
+    setCopyingDay(null);
+    setToast(`День скопирован в «${phaseRange(target.weekStart, target.weekEnd)}».`);
+  };
+
+  /* ---------- очистка дня ---------- */
+  const applyClearDay = () => {
+    if (!clearingDay) return;
+    saveProgram({
+      ...program,
+      phases: program.phases.map(ph => (ph === phase
+        ? { ...ph, days: ph.days.map(d => (d === clearingDay ? { ...d, slots: [] } : d)) }
+        : ph)),
+    });
+    setClearingDay(null);
+  };
+
+  /* ---------- дни одной фазы — на все фазы ---------- */
+  const applyDaysToAllPhases = () => {
+    saveProgram({
+      ...program,
+      phases: program.phases.map(ph => (ph === phase
+        ? ph
+        : { ...ph, days: phase.days.map(d => ({ ...d, title: copyTitleIn(ph.days, d.title), slots: d.slots.map(s => ({ ...s })) })) })),
+    });
+    setApplyingDays(false);
+    setToast('Дни применены ко всем фазам.');
+  };
+
   /* ---------- перемещение подхода ---------- */
   const moveSlot = (day: Day, slot: Slot, dir: -1 | 1) => {
     const idx = day.slots.indexOf(slot);
@@ -634,7 +773,13 @@ export function ProgramDetailPage() {
 
       <div className="max-w-4xl mx-auto space-y-4 px-4 pb-30 w-full max-w-full">
         {/* Название программы — отдельной строкой, 22sp, переносится */}
-        <div className="text-[22px] font-bold leading-tight pt-2" style={{ color: 'var(--color-text-main)' }}>
+        <div
+          className="text-[22px] font-bold leading-tight pt-2 cursor-pointer"
+          style={{ color: 'var(--color-text-main)' }}
+          onClick={openRenameProgram}
+          role="button"
+          tabIndex={0}
+        >
           {program.name}
         </div>
         <div className="text-[13px] leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
@@ -680,6 +825,24 @@ export function ProgramDetailPage() {
           <div style={{ color: labelsText, fontWeight: 700, fontSize: '15px', marginBottom: '8px' }}>
             Фазы
           </div>
+          {editMode && (
+            <>
+              <div
+                onClick={openRenameProgram}
+                className="cursor-pointer mb-1"
+                style={{ color: labelsText, fontWeight: 700, fontSize: '13px', padding: '6px 8px' }}
+              >
+                Название программы
+              </div>
+              <div
+                onClick={openParams}
+                className="cursor-pointer mb-1"
+                style={{ color: labelsText, fontWeight: 700, fontSize: '13px', padding: '6px 8px' }}
+              >
+                Параметры программы
+              </div>
+            </>
+          )}
           <div className="space-y-2">
             {program.phases.map((ph, i) => {
               const sel = i === selectedPhase;
@@ -780,7 +943,7 @@ export function ProgramDetailPage() {
             )}
 
             {/* Дни фазы */}
-            {phase.days.map((day) => (
+            {phase.days.map((day, di) => (
               <div key={day.title} className="mt-5">
                 <div style={{ borderTop: `1px solid ${withAlpha(outline, 0.44)}`, paddingTop: '10px' }} />
                 <div
@@ -789,13 +952,70 @@ export function ProgramDetailPage() {
                   role="button"
                   tabIndex={0}
                 >
-                  <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--color-text-main)' }}>
-                    {day.title}
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--color-text-main)' }}>
+                      {day.title}
+                    </div>
+                    {day.slots.length === 0 && (
+                      <div style={{ color: 'var(--color-text-secondary)', fontSize: '11px' }}>Нет упражнений</div>
+                    )}
                   </div>
                   <div style={{ color: labelsText, fontSize: '13px', fontWeight: 600 }}>
                     {editMode ? 'Переименовать' : 'Начать тренировку'}
                   </div>
                 </div>
+                {editMode && (
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); moveDay(day, -1); }}
+                      disabled={di === 0}
+                      className="text-xs px-2"
+                      style={{ color: di === 0 ? 'var(--color-text-secondary)' : labelsText }}
+                    >
+                      ▲
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); moveDay(day, +1); }}
+                      disabled={di === phase.days.length - 1}
+                      className="text-xs px-2"
+                      style={{ color: di === phase.days.length - 1 ? 'var(--color-text-secondary)' : labelsText }}
+                    >
+                      ▼
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); duplicateDay(day); }}
+                      className="text-[12px] underline underline-offset-2"
+                      style={{ color: labelsText }}
+                    >
+                      Дублировать
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); openDeleteDay(day); }}
+                      className="text-[12px] underline underline-offset-2"
+                      style={{ color: 'var(--color-text-secondary)' }}
+                    >
+                      Удалить
+                    </button>
+                    {program.phases.length > 1 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setCopyingDay(day); }}
+                        className="text-[12px] underline underline-offset-2"
+                        style={{ color: labelsText }}
+                      >
+                        В другую фазу
+                      </button>
+                    )}
+                    {day.slots.length > 0 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setClearingDay(day); }}
+                        className="text-[12px] underline underline-offset-2"
+                        style={{ color: 'var(--color-text-secondary)' }}
+                      >
+                        Очистить
+                      </button>
+                    )}
+                  </div>
+                )}
                 <div className="mt-2 space-y-2">
                   {day.slots.map((slot, si) => (
                     <div key={si} className="py-1.5">
@@ -863,6 +1083,24 @@ export function ProgramDetailPage() {
                 </div>
               </div>
             ))}
+            {editMode && (
+              <div
+                onClick={(e) => { e.stopPropagation(); addDay(phase); }}
+                className="cursor-pointer mt-4"
+                style={{ color: labelsText, fontWeight: 700, fontSize: '13px', padding: '6px 8px' }}
+              >
+                + Добавить день
+              </div>
+            )}
+            {editMode && program.phases.length > 1 && (
+              <div
+                onClick={() => setApplyingDays(true)}
+                className="cursor-pointer mt-2"
+                style={{ color: labelsText, fontWeight: 700, fontSize: '13px', padding: '6px 8px' }}
+              >
+                Применить дни ко всем фазам
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -970,6 +1208,92 @@ export function ProgramDetailPage() {
       )}
 
       {/* Диалог удаления подхода */}
+      {editingParams && (
+        <Dialog title="Параметры программы" onClose={() => setEditingParams(null)}
+          actions={
+            <>
+              <DialogAction onClick={() => setEditingParams(null)}>Отмена</DialogAction>
+              <DialogAction strong onClick={applyParams}>Сохранить</DialogAction>
+            </>
+          }>
+          <div className="mb-3">
+            <div style={{ color: 'var(--color-text-secondary)', fontSize: '13px', fontWeight: 700, marginBottom: '6px' }}>Цель</div>
+            <select
+              style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)', color: 'var(--color-text-main)', width: '100%', padding: '12px 14px', borderRadius: '14px', fontSize: '15px' }}
+              value={editingParams.goal}
+              onChange={e => setEditingParams({ ...editingParams, goal: e.target.value })}
+            >
+              {GOALS_ALL.map(g => <option key={g} value={g}>{GOAL_LABELS[g]}</option>)}
+            </select>
+          </div>
+          <div className="mb-3">
+            <div style={{ color: 'var(--color-text-secondary)', fontSize: '13px', fontWeight: 700, marginBottom: '6px' }}>Уровень</div>
+            <select
+              style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)', color: 'var(--color-text-main)', width: '100%', padding: '12px 14px', borderRadius: '14px', fontSize: '15px' }}
+              value={editingParams.level}
+              onChange={e => setEditingParams({ ...editingParams, level: e.target.value })}
+            >
+              <option value="beginner">Новичок</option>
+              <option value="intermediate">Средний</option>
+              <option value="advanced">Продвинутый</option>
+            </select>
+          </div>
+          <div>
+            <div style={{ color: 'var(--color-text-secondary)', fontSize: '13px', fontWeight: 700, marginBottom: '6px' }}>Недель в программе</div>
+            <input
+              style={{ background: 'var(--p-labels)', border: '1px solid var(--p-outline)', color: 'var(--color-text-main)', width: '100%', padding: '12px 14px', borderRadius: '14px', fontSize: '15px' }}
+              type="number"
+              min={1}
+              max={52}
+              value={editingParams.weeks}
+              onChange={e => setEditingParams({ ...editingParams, weeks: e.target.value })}
+            />
+          </div>
+        </Dialog>
+      )}
+
+      {copyingDay && (
+        <Dialog title="Копировать день в фазу" onClose={() => setCopyingDay(null)}
+          actions={<DialogAction onClick={() => setCopyingDay(null)}>Отмена</DialogAction>}>
+          <div>
+            {program.phases.filter(ph => ph !== phase).map((ph, i) => (
+              <div
+                key={i}
+                onClick={() => applyCopyDay(ph)}
+                className="cursor-pointer py-2"
+                style={{ color: labelsText, fontSize: '15px' }}
+              >
+                {phaseRange(ph.weekStart, ph.weekEnd)}{ph.label ? ` · ${ph.label}` : ''}
+              </div>
+            ))}
+          </div>
+        </Dialog>
+      )}
+
+      {clearingDay && (
+        <ConfirmDialog title="Очистить день?"
+          message={`Все упражнения дня «${clearingDay.title}» будут удалены. Тренировки в истории останутся.`}
+          onConfirm={applyClearDay}
+          onClose={() => setClearingDay(null)}
+        />
+      )}
+
+      {applyingDays && (
+        <ConfirmDialog title="Применить ко всем фазам?"
+          message={`Дни фазы «${phaseRange(phase.weekStart, phase.weekEnd)}» заменят дни в остальных фазах программы. Текущие упражнения там будут перезаписаны.`}
+          onConfirm={applyDaysToAllPhases}
+          onClose={() => setApplyingDays(false)}
+        />
+      )}
+
+      {deletingDay && (
+        <ConfirmDialog title="Удалить день?"
+          message={`День «${deletingDay.title}» исчезнет из программы. Тренировки этого дня останутся в истории.`}
+          onConfirm={applyDeleteDay}
+          onClose={() => setDeletingDay(null)}
+        />
+      )}
+
       {deleting && (
         <ConfirmDialog title="Удалить упражнение?"
           message="Упражнение будет убрано из этого дня. Изменение сохранится сразу."

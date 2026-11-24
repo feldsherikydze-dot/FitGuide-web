@@ -11,6 +11,7 @@
 
 import type { Program, Session, SessionItem, Checkin, CoachState, Phase, Day, Slot } from '../data/types';
 import { GOALS } from './goals';
+import { getString, setString } from './storage';
 
 // ---------------------------------------------------------------- утилиты
 
@@ -212,15 +213,187 @@ export function lastDayTitle(sessions: Session[], programId: string | null): str
   return null;
 }
 
-/** Индекс следующей тренировки в списке дней фазы (0..size-1); −1 — нет данных. */
-export function nextDayIndex(sessions: Session[], program: Program | null, phase: Phase | null): number {
-  if (!program || !phase || !phase.days.length) return -1;
-  const last = lastDayTitle(sessions, program.id);
-  if (last === null) return 0;
-  for (let i = 0; i < phase.days.length; i++) {
-    if (last === phase.days[i].title) return (i + 1) % phase.days.length;
+// ---------------------------------------------------------------- порядок дней круга
+//
+// Ручной выбор дня не вычёркивает дни, а переставляет их: выбранный день встаёт
+// на место текущего, пропущенный текущий уходит в конец круга. Выполненные дни
+// не трогаются, а когда круг закрыт — следующий начинается с первого дня программы.
+
+const DAY_CYCLE_PREFIX = 'coach_day_cycle_';
+
+interface DayCycleState { since: number; titles: string[] }
+
+function loadDayCycle(programId: string): DayCycleState | null {
+  const raw = getString(DAY_CYCLE_PREFIX + programId);
+  if (!raw) return null;
+  try {
+    const o = JSON.parse(raw) as { since?: unknown; titles?: unknown };
+    if (!Array.isArray(o.titles)) return null;
+    return {
+      since: Number(o.since) || 0,
+      titles: o.titles.filter((t): t is string => typeof t === 'string'),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveDayCycle(programId: string, since: number, titles: string[]): void {
+  setString(DAY_CYCLE_PREFIX + programId, JSON.stringify({ since, titles }));
+}
+
+/** Дни поменяли местами — меняем их же в порядке круга, чтобы пагер совпал с программой. */
+export function swapDayCycle(programId: string, a: string, b: string): void {
+  if (!programId || !a || !b || a === b) return;
+  const state = loadDayCycle(programId);
+  if (!state) return;
+  const titles = state.titles.slice();
+  const ia = titles.indexOf(a);
+  const ib = titles.indexOf(b);
+  if (ia < 0 || ib < 0) return;
+  titles[ia] = b;
+  titles[ib] = a;
+  saveDayCycle(programId, state.since, titles);
+}
+
+/** День удалён — убираем его из порядка круга. */
+export function removeDayCycle(programId: string, title: string): void {
+  if (!programId || !title) return;
+  const state = loadDayCycle(programId);
+  if (!state) return;
+  saveDayCycle(programId, state.since, state.titles.filter(t => t !== title));
+}
+
+/** День переименовали — в порядке круга меняем название, чтобы позиция не слетела. */
+export function renameDayCycle(programId: string, oldTitle: string, newTitle: string): void {
+  if (!programId || !oldTitle || !newTitle || oldTitle === newTitle) return;
+  const state = loadDayCycle(programId);
+  if (!state) return;
+  saveDayCycle(programId, state.since, state.titles.map(t => (t === oldTitle ? newTitle : t)));
+}
+
+/** Сброс порядка дней: после «Сбросить прогресс» новый круг идёт с первого дня. */
+export function resetDayCycles(): void {
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.includes(DAY_CYCLE_PREFIX));
+    keys.forEach(k => localStorage.removeItem(k));
+  } catch {
+    // ignore
+  }
+}
+
+function baseDayTitles(phase: Phase): string[] {
+  return phase.days.map(d => d.title);
+}
+
+function dayIndexByTitle(phase: Phase, title: string): number {
+  return phase.days.findIndex(d => d.title === title);
+}
+
+/** Порядок круга: сохранённый, дополненный днями программы, которых в нём нет. */
+function dayCycleQueue(state: DayCycleState | null, phase: Phase): string[] {
+  const out: string[] = [];
+  if (state) {
+    for (const t of state.titles) {
+      if (dayIndexByTitle(phase, t) >= 0 && !out.includes(t)) out.push(t);
+    }
+  }
+  for (const t of baseDayTitles(phase)) if (!out.includes(t)) out.push(t);
+  return out;
+}
+
+/** Начало круга, если порядок ещё не записан: последний закрытый круг по обычному порядку. */
+/** Текущий порядок круга: названия дней с учётом ручных перестановок. */
+export function dayCycleOrder(sessions: Session[], program: Program | null,
+                              phase: Phase | null): string[] {
+  if (!program || !phase || !phase.days.length) return [];
+  let state = loadDayCycle(program.id);
+  if (!state) {
+    saveDayCycle(program.id, cycleInitSince(sessions, program.id, phase), baseDayTitles(phase));
+    state = loadDayCycle(program.id);
+  }
+  return dayCycleQueue(state, phase);
+}
+
+function cycleInitSince(sessions: Session[], programId: string, phase: Phase): number {
+  const lastTitle = phase.days[phase.days.length - 1].title;
+  for (const s of sessions) {
+    if (s.programId === programId && s.dayTitle === lastTitle) return s.ts;
   }
   return 0;
+}
+
+function doneTitles(sessions: Session[], programId: string, since: number): Set<string> {
+  const done = new Set<string>();
+  for (const s of sessions) {
+    if (s.programId === programId && s.ts > since && s.dayTitle) done.add(s.dayTitle);
+  }
+  return done;
+}
+
+/**
+ * Индекс следующей тренировки в списке дней фазы (0..size-1); −1 — нет данных.
+ * Берём первый невыполненный день круга: пропущенный день не теряется, а ждёт
+ * своей очереди. Когда весь круг закрыт, следующий начинается с первого дня.
+ */
+export function nextDayIndex(sessions: Session[], program: Program | null, phase: Phase | null): number {
+  if (!program || !phase || !phase.days.length) return -1;
+  let state = loadDayCycle(program.id);
+  if (!state) {
+    saveDayCycle(program.id, cycleInitSince(sessions, program.id, phase), baseDayTitles(phase));
+    state = loadDayCycle(program.id);
+  }
+  const queue = dayCycleQueue(state, phase);
+  const since = state?.since ?? 0;
+  const done = doneTitles(sessions, program.id, since);
+  if (queue.length && queue.every(t => done.has(t))) {
+    // Круг закрыт — новый начинается с первого дня программы.
+    let lastTs = since;
+    for (const s of sessions) {
+      if (s.programId === program.id && s.ts > lastTs) lastTs = s.ts;
+    }
+    saveDayCycle(program.id, lastTs, baseDayTitles(phase));
+    return 0;
+  }
+  for (const t of queue) {
+    if (!done.has(t)) {
+      const idx = dayIndexByTitle(phase, t);
+      if (idx >= 0) return idx;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Перестановка дней круга: выбранный день встаёт на место текущего, а пропущенный
+ * текущий уходит в конец круга. Выполненные дни не трогаются. Если круг ещё не
+ * начат, выбранный день просто становится первым — остальные сохраняют порядок.
+ */
+export function shiftDayCycle(sessions: Session[], program: Program | null,
+                              phase: Phase | null, chosenTitle: string): void {
+  if (!program || !phase) return;
+  const dueIdx = nextDayIndex(sessions, program, phase);
+  if (dueIdx < 0) return;
+  const due = phase.days[dueIdx].title;
+  if (chosenTitle === due) return;
+  const state = loadDayCycle(program.id);
+  if (!state) return;
+  const done = doneTitles(sessions, program.id, state.since);
+  // Уже сделан в этом круге — порядок не трогаем, день просто повторяется.
+  if (done.has(chosenTitle)) return;
+  const queue = dayCycleQueue(state, phase);
+  const out: string[] = [];
+  if (done.size === 0) {
+    out.push(chosenTitle);
+    for (const t of queue) if (t !== chosenTitle) out.push(t);
+  } else {
+    for (const t of queue) {
+      if (t === due) out.push(chosenTitle);
+      else if (t !== chosenTitle) out.push(t);
+    }
+    out.push(due);
+  }
+  saveDayCycle(program.id, state.since, out);
 }
 
 /** Следующая тренировка: день после последнего выполненного, по кругу. */

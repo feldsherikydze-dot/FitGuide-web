@@ -13,9 +13,9 @@ import { useExercises, useKnowledge, usePicker } from '../hooks/useExercises';
 import {
   adherePercent, avgSleep, conflictsWithLimits, currentWeekIndex, currentWeekStart,
   cycleNumber, dailyPlan, dayKey, dropWeight, e1rmSeries, estimateOneRepMax, isMassGoal, lastReps, lastWeight,
-  maxReps, missedStreak, missedWeeks, nextDay, nextDayIndex, progressStalled, readinessScore,
+  dayCycleOrder, maxReps, missedStreak, missedWeeks, nextDay, nextDayIndex, progressStalled, readinessScore,
   plural,
-  sessionCount, sessionsThisWeek, suggestWeight, tonnage, tonnageInWeekIndex, topExercises,
+  resetDayCycles, sessionCount, sessionsThisWeek, shiftDayCycle, suggestWeight, tonnage, tonnageInWeekIndex, topExercises,
   weekSetsByGroup, weeksOnPlan, weeksSinceStart, type DailyPlan,
 } from '../core/coach';
 import { CHECKPOINT_DAYS, checkpointDue, daysSinceAssessment } from '../core/checkpoint';
@@ -167,6 +167,14 @@ export function CoachPage() {
   const { byName, groupNameById, db } = useExercises();
   const { ready: knowledgeReady } = useKnowledge();
   const picker = usePicker();
+  // День можно выбрать вручную: прогрессия считается по названию последнего
+  // выполненного дня, поэтому старт с другого дня её не ломает.
+  // Хуки объявлены здесь, до ранних return: иначе при смене программы
+  // меняется их число и React падает (#310).
+  const [dayConfirm, setDayConfirm] = useState<ProgramDay | null>(null);
+  // Выбранный в пагере день: −1 — «по умолчанию», то есть день по графику.
+  const [dayIdx, setDayIdx] = useState<number>(-1);
+  useEffect(() => { setDayIdx(-1); }, [coach.activeProgramId]);
 
   const now = Date.now();
   const program = coach.activeProgramId ? getById(coach.activeProgramId) : null;
@@ -454,6 +462,7 @@ export function CoachPage() {
           <button
             onClick={() => {
               if (!window.confirm('Тренер забудет проведённые тренировки, замеры, план сезона и программу, которую собрал сам. Начнёт путь заново: день 1, неделя 1, прогрессия с нуля. Профиль, свои программы и записи дневника сохранятся. Сбросить?')) return;
+              resetDayCycles();
               coach.resetCoach();
               setToast('Память тренера очищена. Начинаем заново!');
             }}
@@ -522,14 +531,30 @@ export function CoachPage() {
     navigate(`/workout?program=${program.id}&week=${week}&day=${encodeURIComponent(day.title)}`);
   };
 
-  // День можно выбрать вручную: прогрессия считается по названию последнего
-  // выполненного дня, поэтому старт с другого дня её не ломает.
-  const [dayConfirm, setDayConfirm] = useState<ProgramDay | null>(null);
+  // Порядок дней — текущий круг: ручная перестановка видна и в пагере.
+  const cycleOrder = phase && program ? dayCycleOrder(sessions, program, phase) : [];
+  const cycleDays = phase
+    ? cycleOrder
+        .map(t => phase.days.find(d => d.title === t))
+        .filter((d): d is ProgramDay => !!d)
+    : [];
+  const schedIdx = next ? cycleDays.findIndex(d => d.title === next.title) : -1;
+  const curDayIdx = cycleDays.length
+    ? (dayIdx >= 0 && dayIdx < cycleDays.length ? dayIdx : (schedIdx >= 0 ? schedIdx : 0))
+    : 0;
+  const pickedDay = cycleDays.length ? cycleDays[curDayIdx] : null;
+  const cyclePos = next ? cycleOrder.indexOf(next.title) + 1 : 0;
 
   const pickDay = (day: ProgramDay) => {
     if (!phase) return;
+    // Пустой день (добавили и ещё не наполнили) — не запускаем тренировку вслепую.
+    if (!day.slots || day.slots.length === 0) {
+      setToast('В этом дне пока нет упражнений.');
+      return;
+    }
     // Черновик этого же дня — не выбрасываем, а продолжаем.
     if (draft && draft.dayTitle === day.title) {
+      shiftDayCycle(sessions, program, phase, day.title);
       startWorkout(true, day);
       return;
     }
@@ -542,6 +567,7 @@ export function CoachPage() {
       setDayConfirm(day);
       return;
     }
+    shiftDayCycle(sessions, program, phase, day.title);
     startWorkout(false, day);
   };
 
@@ -755,26 +781,42 @@ export function CoachPage() {
     </>
   );
 
-  const dayPicker = phase && phase.days.length > 1 ? (
-    <div className="mt-3">
-      <Line secondary size={13}>Какой день тренируем?</Line>
-      <div className="mt-1.5 flex flex-wrap gap-2">
-        {phase.days.map(d => {
-          const sched = !!next && d.title === next.title;
-          return (
-            <button
-              key={d.title}
-              onClick={() => pickDay(d)}
-              className={`fg-chip ${sched ? 'fg-chip-on' : ''}`}
-            >
-              {d.title}
-            </button>
-          );
-        })}
+  const dayPicker = cycleDays.length > 1 ? (() => {
+    const days = cycleDays;
+    const step = (dir: number) => setDayIdx((curDayIdx + dir + days.length) % days.length);
+    return (
+      <div className="mt-3">
+        <Line secondary size={13}>Какой день тренируем?</Line>
+        <div className="mt-1.5 flex items-stretch gap-2">
+          <button
+            type="button"
+            aria-label="Предыдущий день"
+            onClick={() => step(-1)}
+            className="shrink-0 w-12 rounded-xl border text-[13px]"
+            style={{ background: 'var(--p-labels)', borderColor: 'var(--p-outline)', color: 'var(--p-labels-text)' }}
+          >◀</button>
+          <div
+            className="flex-1 min-w-0 rounded-xl border px-3 py-2 text-center text-[15px] font-semibold break-words flex items-center justify-center"
+            style={{ background: 'var(--p-labels)', borderColor: 'var(--p-outline)', color: 'var(--p-labels-text)' }}
+          >
+            {pickedDay?.title}
+          </div>
+          <button
+            type="button"
+            aria-label="Следующий день"
+            onClick={() => step(1)}
+            className="shrink-0 w-12 rounded-xl border text-[13px]"
+            style={{ background: 'var(--p-labels)', borderColor: 'var(--p-outline)', color: 'var(--p-labels-text)' }}
+          >▶</button>
+        </div>
+        <Line secondary size={12}>
+          {curDayIdx === schedIdx
+            ? `День ${curDayIdx + 1} из ${days.length}. По графику.`
+            : `День ${curDayIdx + 1} из ${days.length}. Прогрессия пойдёт с него.`}
+        </Line>
       </div>
-      <Line secondary size={12}>Подсвечен день по графику. Начнёте с другого — прогрессия пойдёт с него.</Line>
-    </div>
-  ) : null;
+    );
+  })() : null;
 
   const startBlock = (() => {
     if (plan.kind === 'nocheckin') return null;
@@ -800,7 +842,7 @@ export function CoachPage() {
             {plan.restLine && <Line secondary>{plan.restLine}</Line>}
             {next && (
               <>
-                <Btn onClick={() => startWorkout(hasDraft)}>{hasDraft ? 'Продолжить тренировку' : 'Тренироваться сверх плана'}</Btn>
+                <Btn onClick={() => (pickedDay ? pickDay(pickedDay) : startWorkout(hasDraft))}>{hasDraft ? 'Продолжить тренировку' : 'Тренироваться сверх плана'}</Btn>
                 <Line secondary size={12}>Если есть силы — тренер зачтёт дополнительную тренировку и учтёт её в объёме.</Line>
                 {dayPicker}
               </>
@@ -810,12 +852,12 @@ export function CoachPage() {
           <>
             {plan.canStart && next && (
               <>
-                <Btn onClick={() => startWorkout(hasDraft)}>{hasDraft ? 'Продолжить тренировку' : 'Начать тренировку'}</Btn>
+                <Btn onClick={() => (pickedDay ? pickDay(pickedDay) : startWorkout(hasDraft))}>{hasDraft ? 'Продолжить тренировку' : 'Начать тренировку'}</Btn>
                 {hasDraft && <Btn onClick={() => startWorkout(false)}>Начать заново</Btn>}
               </>
             )}
-            {phase && next && nextIdx >= 0 && (
-              <Line secondary>День {nextIdx + 1} из {phase.days.length}</Line>
+            {next && cycleOrder.length > 0 && (
+              <Line secondary>День {cyclePos} из {cycleOrder.length}</Line>
             )}
             {cycle > 1 && nextIdx === 0 && (
               <Line secondary size={12}>Новый круг — вес и повторы тренер подберёт сам</Line>
@@ -1468,6 +1510,7 @@ export function CoachPage() {
                   coach.removeSession(draft.id);
                   const day = dayConfirm;
                   setDayConfirm(null);
+                  if (phase) shiftDayCycle(sessions, program ?? null, phase, day.title);
                   startWorkout(false, day);
                 }}
                 className="flex-1 rounded-xl border font-semibold py-3"
