@@ -33,9 +33,8 @@ export function cardioMinutes(goal?: string | null): number {
 /**
  * Недельная норма кардио, минут умеренного темпа. Доза на тренировку и норма
  * на неделю — разные вещи: 15 минут на массе не значит «15 в неделю».
- * Диапазоны держатся вокруг рекомендации ACSM для взрослых (150–300 мин),
- * с поправкой на цель: силе и массе хватает нижней половины, дефициту и
- * выносливости — верхней.
+ * Нижняя граница — 150 мин, рекомендация ACSM/ВОЗ для взрослых; выше — по
+ * цели: силе и массе достаточно 150–180, дефициту и выносливости — больше.
  */
 export interface CardioWeeklyNorm {
   min: number;
@@ -47,17 +46,17 @@ export interface CardioWeeklyNorm {
 export function cardioWeeklyNorm(goal?: string | null): CardioWeeklyNorm {
   switch (normalizeGoal(goal)) {
     case GOALS.STRENGTH:
-      return { min: 75, max: 150, note: 'минимум для сердца; больше — только если не мешает восстановлению' };
+      return { min: 150, max: 180, note: 'минимум ACSM для сердца; больше — только если не мешает восстановлению' };
     case GOALS.MASS:
-      return { min: 90, max: 150, note: 'фон для сердца, не больше — иначе кардио съедает восстановление' };
+      return { min: 150, max: 180, note: 'минимум для здоровья; больше — если не мешает восстановлению' };
     case GOALS.RECOMP:
-      return { min: 120, max: 200, note: 'жиросжигание без ущерба для мышц' };
+      return { min: 150, max: 240, note: 'жиросжигание без ущерба для мышц' };
     case GOALS.CUT:
-      return { min: 150, max: 250, note: 'рабочий инструмент дефицита' };
+      return { min: 150, max: 300, note: 'рабочий инструмент дефицита' };
     case GOALS.LOSE:
       return { min: 180, max: 300, note: 'основной инструмент дефицита' };
     case GOALS.ENDURANCE:
-      return { min: 240, max: 420, note: 'основной объём подготовки' };
+      return { min: 300, max: 420, note: 'основной объём подготовки' };
     default:
       return { min: 150, max: 300, note: 'норма для здоровья' };
   }

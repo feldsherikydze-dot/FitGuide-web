@@ -258,13 +258,39 @@ console.log('url:', man.result?.url);
 console.log('errors:', JSON.stringify(man.result?.errors || []));
 console.log('data:', (man.result?.data || '').slice(0, 400));
 
-// Функциональная проверка: открываем раздел упражнений и считаем карточки
-await evaluate(`(async () => { location.hash = '#/exercises'; await new Promise(r => setTimeout(r, 1500)); })()`);
-await sleep(3500);
+// Функциональная проверка: открываем раздел упражнений и ждём отрисовку.
+// Фиксированный sleep здесь врал: при первом визите приложение ещё грузит
+// базу и успевает показать пустой экран, хотя через секунду всё на месте.
+async function waitForText(needle, timeoutMs = 20000) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeoutMs) {
+    const ok = await evaluate(`document.body.textContent.includes(${JSON.stringify(needle)})`);
+    if (ok === true) return true;
+    await sleep(500);
+  }
+  return false;
+}
+
+// Проверки разделов имеют смысл только для «залогиненного» пользователя:
+// до онбординга роутер держит сплэш и на #/exercises не пускает.
+await evaluate(`(() => {
+  localStorage.setItem('fitguide_web_user_profile', JSON.stringify({
+    name: 'Алексей', gender: 'male', age: 35, heightCm: 180, weightKg: 82,
+    activityLevel: 'moderate', goal: 'mass', trainStyle: 'any',
+    bodyFatPercent: 14, workoutsPerWeek: 4, bio: '', country: 'Россия',
+    city: 'Красноярск', level: 'intermediate', equipment: [], place: 'gym'
+  }));
+  localStorage.setItem('fitguide_web_splash_enabled', 'false');
+  return true;
+})()`);
+await send('Page.reload', { ignoreCache: false });
+await sleep(4000);
+
+await evaluate(`(async () => { location.hash = '#/exercises'; return true; })()`);
+const exercisesReady = await waitForText('База упражнений');
 const app = await evaluate(`(() => {
-  const text = document.body.innerText;
+  const text = document.body.textContent || '';
   const m = text.match(/(\\d+)\\s+упражнений/);
-  const cards = document.querySelectorAll('button, div').length;
   return {
     hash: location.hash,
     headerFound: m ? m[0] : null,
@@ -273,21 +299,25 @@ const app = await evaluate(`(() => {
     textLen: text.length,
   };
 })()`);
+app.readyByPoll = exercisesReady;
 console.log('\n=== ПРИЛОЖЕНИЕ (раздел «Упражнения») ===');
 console.log(JSON.stringify(app, null, 2));
 
-// И раздел «Знания» — вторая база
-await evaluate(`(async () => { location.hash = '#/knowledge'; await new Promise(r => setTimeout(r, 1500)); })()`);
-await sleep(3500);
+// И раздел «Знания» — вторая база. На вебе он называется «Библиотека».
+await evaluate(`(async () => { location.hash = '#/knowledge'; return true; })()`);
+const knowledgeReady = await waitForText('Библиотека');
 const kb = await evaluate(`(() => {
-  const text = document.body.innerText;
+  const text = document.body.textContent || '';
   const m = text.match(/(\\d+)\\s+глав/);
   return {
     hash: location.hash,
     chaptersFound: m ? m[0] : null,
-    hasRendered: text.includes('База знаний'),
+    hasRendered: text.includes('Библиотека'),
+    hasFirstChapter: text.includes('Что такое бодибилдинг'),
+    textLen: text.length,
   };
 })()`);
+kb.readyByPoll = knowledgeReady;
 console.log('\n=== ПРИЛОЖЕНИЕ (раздел «Знания») ===');
 console.log(JSON.stringify(kb, null, 2));
 

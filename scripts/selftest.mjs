@@ -21,7 +21,7 @@ function check(name, cond, extra = '') {
 function epley(w, r) { if (w <= 0 || r <= 0) return 0; if (r === 1) return w; return w * (1 + Math.min(r, 12) / 30); }
 function brzycki(w, r) { if (w <= 0 || r <= 0) return 0; if (r === 1) return w; return w * 36 / (37 - Math.min(r, 12)); }
 function safeE1rm(w, r) { const e = epley(w, r), b = brzycki(w, r); if (e <= 0) return b; if (b <= 0) return e; return Math.min(e, b); }
-function startWeight(e1rm) { if (e1rm <= 0) return 0; return Math.floor(e1rm * 0.85 / 2.5) * 2.5; }
+function startWeight(e1rm) { if (e1rm <= 0) return 0; return Math.floor(e1rm * 0.75 / 2.5) * 2.5; }
 function siri(d) { return d <= 0 ? 0 : 495 / d - 450; }
 function bodyDensityMale3(c, a, t, age) { const s = c + a + t; return 1.10938 - 0.0008267 * s + 0.0000016 * s * s - 0.0002574 * age; }
 function navyMale(waist, neck, height) { if (waist <= neck || height <= 0) return 0; const v = 86.010 * Math.log10(waist - neck) - 70.041 * Math.log10(height) + 36.76; return v < 3 ? 0 : (v > 60 ? 60 : v); }
@@ -51,9 +51,9 @@ console.log('\n=== ФОРМУЛЫ (AssessmentFormulas) ===');
 check('epley 100×5 = 116.7', Math.abs(epley(100, 5) - 116.667) < 0.01);
 check('brzycki 100×5 = 112.5', Math.abs(brzycki(100, 5) - 112.5) < 0.01);
 check('safeE1rm = минимум двух', safeE1rm(100, 5) === Math.min(epley(100, 5), brzycki(100, 5)));
-check('startWeight(100) = 85 (вниз до 2,5)', startWeight(100) === 85);
-check('startWeight(103) = 87.5 (вниз до 2,5)', startWeight(103) === 87.5);
-check('startWeight(120) = 100', startWeight(120) === 100);
+check('startWeight(100) = 75 (75% e1RM, вниз до 2,5)', startWeight(100) === 75);
+check('startWeight(103) = 75 (вниз до 2,5)', startWeight(103) === 75);
+check('startWeight(120) = 90', startWeight(120) === 90);
 check('siri(1.09) ≈ 4.2%', Math.abs(siri(1.09) - 4.13) < 0.2);
 check('navyMale(90,38,180) в 3..60', navyMale(90, 38, 180) > 3 && navyMale(90, 38, 180) < 60);
 check('navyMale(талия≤шея) = 0', navyMale(30, 40, 180) === 0);
@@ -80,10 +80,16 @@ function readinessScore(c) { return c ? c.sleep + c.sore + c.energy : 0; }
 function maxReps(range) {
   if (!range) return 0;
   const s = range.trim().replace(/,/g, '–').replace(/-/g, '–').replace(/\.\./g, '–');
-  const dash = s.indexOf('–');
-  const max = dash >= 0 ? s.substring(dash + 1).trim() : s.trim();
-  const n = parseInt(max.replace(/[^0-9]/g, ''), 10);
-  return isNaN(n) ? 0 : n;
+  const x = s.lastIndexOf('×');
+  const body = x >= 0 ? s.slice(x + 1).trim() : s;
+  if (/сек|мин|макс|время|намотк/i.test(body)) return 0;
+  let max = 0;
+  for (const m of body.matchAll(/(\d{1,3})(?:\s*–\s*(\d{1,3}))?/g)) {
+    const a = parseInt(m[1], 10);
+    const b = m[2] ? parseInt(m[2], 10) : a;
+    max = Math.max(max, a, b);
+  }
+  return max;
 }
 check('готовность 3..9', readinessScore({ sleep: 1, sore: 1, energy: 1 }) === 3);
 check('готовность без отметки = 0', readinessScore(null) === 0);
@@ -91,6 +97,10 @@ check('maxReps("3–5") = 5', maxReps('3–5') === 5);
 check('maxReps("10–12") = 12', maxReps('10–12') === 12);
 check('maxReps("5") = 5', maxReps('5') === 5);
 check('maxReps("до отказа") = 0', maxReps('до отказа') === 0);
+check('maxReps("4×8–12") = 12 (префикс подходов)', maxReps('4×8–12') === 12);
+check('maxReps("3–4×10–12") = 12 (не 41012)', maxReps('3–4×10–12') === 12);
+check('maxReps("3×30–60 сек") = 0 (статика)', maxReps('3×30–60 сек') === 0);
+check('maxReps("макс. время") = 0', maxReps('макс. время') === 0);
 
 function loadFactor(deload, score) {
   let f = 1;
@@ -190,6 +200,11 @@ function pregnancyAllows(name) {
   if (n.includes('скручиван') || n.includes('подъем ног') || n.includes('подъём ног')
     || n.includes('велосипед') || n.includes('вакуум') || n.includes('твист')
     || n.includes('дровосек') || n.includes('наклон в сторону')) return false;
+  const supine = n.includes('лёжа') || n.includes('лежа')
+    || ((n.includes('скамье') || n.includes('скамью')) && n.includes('горизонт'));
+  if (supine && !n.includes('наклонн')
+    && (n.includes('жим') || n.includes('развед') || n.includes('сведен')
+      || n.includes('пуловер'))) return false;
   const barbell = n.includes('штанг') || n.includes('смита');
   if (barbell && (n.includes('присед') || n.includes('станов') || n.includes('тяга')
     || n.includes('жим стоя') || n.includes('выпад') || n.includes('на плеч'))) return false;
@@ -198,7 +213,11 @@ function pregnancyAllows(name) {
 check('беременность: скручивания убраны', !pregnancyAllows('Скручивания на полу'));
 check('беременность: присед со штангой убран', !pregnancyAllows('Приседания со штангой на плечах'));
 check('беременность: прыжки убраны', !pregnancyAllows('Прыжки на скакалке'));
-check('беременность: жим гантелей остаётся', pregnancyAllows('Жим гантелей на наклонной скамье (30–45°)'));
+check('беременность: жим лёжа убран', !pregnancyAllows('Жим штанги лежа классический'));
+check('беременность: жим на горизонтальной скамье убран',
+  !pregnancyAllows('Жим гантелей на горизонтальной скамье'));
+check('беременность: жим на наклонной скамье остаётся',
+  pregnancyAllows('Жим гантелей на наклонной скамье (30–45°)'));
 check('беременность: тяга блока остаётся', pregnancyAllows('Тяга верхнего блока к груди'));
 const neutralBmr = (w, h, a) => Math.round(10 * w + 6.25 * h - 5 * a - 78);
 check('нейтральный пол: BMR — середина мужской и женской', neutralBmr(80, 180, 30) === 1697);

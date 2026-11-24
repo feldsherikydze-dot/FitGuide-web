@@ -400,6 +400,20 @@ export function ProgramDetailPage() {
     );
   };
 
+  // Хук обязан вызываться до любого раннего return — иначе порядок хуков
+  // ломается при переходе «программа есть → программы нет».
+  const phase = program ? program.phases[selectedPhase] : undefined;
+  const week = phase ? phase.weekStart : 1;
+
+  const report = useMemo(() => {
+    if (!program || !phase) return null;
+    return analyzePhase(phase, {
+      picker,
+      groupNameById: groupNameById(),
+      byName: byName(),
+    });
+  }, [program, phase, picker, groupNameById, byName]);
+
   if (!program) {
     return (
       <div className="max-w-2xl mx-auto text-center py-12 w-full max-w-full">
@@ -414,17 +428,20 @@ export function ProgramDetailPage() {
     );
   }
 
-  const phase = program.phases[selectedPhase];
-  const week = phase ? phase.weekStart : 1;
-
-  const report = useMemo(() => {
-    if (!program || !phase) return null;
-    return analyzePhase(phase, {
-      picker,
-      groupNameById: groupNameById(),
-      byName: byName(),
-    });
-  }, [program, phase, picker, groupNameById, byName]);
+  // Фаза могла исчезнуть после правки программы — не роняем экран.
+  if (!phase) {
+    return (
+      <div className="max-w-2xl mx-auto text-center py-12 w-full max-w-full">
+        <h2 className="text-xl font-semibold mb-4" style={{ color: labelsText }}>
+          Фаза не найдена
+        </h2>
+        <button onClick={() => setSelectedPhase(0)}
+          className="fg-btn-primary px-4 py-2 rounded-lg text-sm font-medium">
+          К первой фазе
+        </button>
+      </div>
+    );
+  }
 
   const setActive = () => {
     coach.setActiveProgram(program.id);

@@ -19,6 +19,15 @@ export function pregnancyAllows(ex: Named | null | undefined): boolean {
     || n.includes('велосипед') || n.includes('вакуум') || n.includes('твист')
     || n.includes('дровосек') || n.includes('наклон в сторону')) return false;
 
+  // После первого триместра не рекомендуют лежать на спине: матка давит на
+  // нижнюю полую вену. Жимы и разведения на горизонтальной скамье убираем,
+  // наклонная скамья с приподнятым торсом остаётся.
+  const supine = n.includes('лёжа') || n.includes('лежа')
+    || ((n.includes('скамье') || n.includes('скамью')) && n.includes('горизонт'));
+  if (supine && !n.includes('наклонн')
+    && (n.includes('жим') || n.includes('развед') || n.includes('сведен')
+      || n.includes('пуловер'))) return false;
+
   const barbell = n.includes('штанг') || n.includes('смита');
   if (barbell && (n.includes('присед') || n.includes('станов') || n.includes('тяга')
     || n.includes('жим стоя') || n.includes('выпад') || n.includes('на плеч'))) return false;

@@ -277,8 +277,8 @@ for (const [goal, min] of cardioCases) {
 // --- Недельная норма кардио: не путать дозу на тренировку с недельной.
 console.log('\n=== КАРДИО НА НЕДЕЛЮ ===');
 const weeklyCases = [
-  ['mass', 90, 150], ['strength', 75, 150], ['recomp', 120, 200],
-  ['cut', 150, 250], ['lose', 180, 300], ['endurance', 240, 420], [null, 150, 300],
+  ['mass', 150, 180], ['strength', 150, 180], ['recomp', 150, 240],
+  ['cut', 150, 300], ['lose', 180, 300], ['endurance', 300, 420], [null, 150, 300],
 ];
 for (const [goal, min, max] of weeklyCases) {
   const n = cardio.cardioWeeklyNorm(goal);
@@ -387,14 +387,14 @@ check('видео: неизвестный источник ведёт в VK',
 check('видео: скобки в названии не ломают адрес',
   !vl.videoSearchUrl('vk', 'Подъём на носки (стоя)').includes('('));
 
-// Пакетная проверка всех 323 упражнений: обе ссылки на каждое.
+// Пакетная проверка всех упражнений каталога: обе ссылки на каждое.
 const videoUrls = [];
 for (const e of db.exercises) {
   for (const s of ['vk', 'youtube']) videoUrls.push({ source: s, name: e.name, url: vl.videoSearchUrl(s, e.name) });
 }
-check('видео: у всех 323 запросов есть хвост «техника выполнения»',
+check(`видео: у всех ${db.exercises.length} запросов есть хвост «техника выполнения»`,
   db.exercises.every(e => vl.videoQuery(e.name).endsWith('техника выполнения')));
-check('видео: все 646 ссылок — валидные URL с нужным хостом',
+check(`видео: все ${videoUrls.length} ссылок — валидные URL с нужным хостом`,
   videoUrls.every(({ source, url }) => {
     try {
       const u = new URL(url);

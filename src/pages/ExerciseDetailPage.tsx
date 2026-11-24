@@ -62,7 +62,7 @@ export function ExerciseDetailPage() {
   }
   const levelBg = blend(labels, circle, levelT);
 
-  const setsText = `${ex.sets}${ex.sets > 1 ? ' подходов' : ''} × ${ex.reps}`;
+  const setsText = `${ex.sets} × ${ex.reps}`;
 
   const train = () => {
     const sets = ex.sets > 0 ? ex.sets : 3;

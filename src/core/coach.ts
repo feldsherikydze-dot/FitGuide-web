@@ -27,15 +27,25 @@ export function roundHalf(v: number): number {
   return v <= 0 ? 0 : Math.round(v * 2) / 2;
 }
 
-/** Верхняя граница диапазона повторов: "3–5" → 5, "10–12" → 12, "5" → 5. */
+/**
+ * Верхняя граница диапазона повторов: "3-5" → 5, "10-12" → 12, "5" → 5,
+ * "3×12-15" → 15, "3-4×10-12" → 12. Старые данные с префиксом подходов
+ * ("4×8-12") раньше склеивались в 41012 — теперь берём часть после
+ * последнего «×». Для статики и времени ("3×30-60 сек") повторов нет.
+ */
 export function maxReps(repRange: string | null | undefined): number {
   if (!repRange) return 0;
   const s = repRange.trim().replace(/,/g, '–').replace(/-/g, '–').replace(/\.\./g, '–');
-  const dash = s.indexOf('–');
-  const max = dash >= 0 ? s.substring(dash + 1).trim() : s.trim();
-  const digits = max.replace(/[^0-9]/g, '');
-  const n = parseInt(digits, 10);
-  return isNaN(n) ? 0 : n;
+  const x = s.lastIndexOf('×');
+  const body = x >= 0 ? s.slice(x + 1).trim() : s;
+  if (/сек|мин|макс|время|намотк/i.test(body)) return 0;
+  let max = 0;
+  for (const m of body.matchAll(/(\d{1,3})(?:\s*–\s*(\d{1,3}))?/g)) {
+    const a = parseInt(m[1], 10);
+    const b = m[2] ? parseInt(m[2], 10) : a;
+    max = Math.max(max, a, b);
+  }
+  return max;
 }
 
 /**

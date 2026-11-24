@@ -667,9 +667,10 @@ function weeklyTargetSets(muscle: string, goal: string, level: string, phaseInde
                           deload: boolean, senior: boolean, female: boolean, focus = ''): number {
   let mav: number;
   if (female) {
-    // женская ветка: акцент низ и спина, грудь и руки поддерживающе
+    // женская ветка: акцент низ и спина; грудь — не ниже MEV, иначе
+    // «Анализ» ругает собственную программу за 6 подходов
     switch (muscle) {
-      case 'Грудь': mav = 6; break;       // женский шаблон: грудь поддерживающе
+      case 'Грудь': mav = 12; break;
       case 'Широчайшие': mav = 13; break;
       case 'Ромбовидные': mav = 6; break;
       case 'Плечи': mav = 8; break;
@@ -716,8 +717,8 @@ function weeklyTargetSets(muscle: string, goal: string, level: string, phaseInde
   if (deload) return Math.max(4, weekly);   // разгрузка — исключение из нижней границы
   const cap = focusMaxWeeklySets(focus, muscle);
   // Нижняя граница — MEV, а не «10 на всё»: ромбовидным и прессу 10 подходов
-  // не нужны и не влезают в день рядом с базой. Порог не выше 80 % цели:
-  // иначе для женской груди (MAV 6) граница 10 была бы недостижима.
+  // не нужны и не влезают в день рядом с базой. Порог не выше 80 % цели,
+  // чтобы маленькие группы не получали недостижимую планку.
   const floor = Math.min(LARGE_GROUPS.has(muscle) ? 10 : 6, Math.round(mav * 0.8));
   // новичку при акценте даём чуть больше, но не «взрослый» объём
   if (level === 'beginner') {
@@ -1164,7 +1165,6 @@ function buildDaySlots(p: BuildDayParams): Slot[] {
     if (powerDay && fullbody && spec.role === ROLE_MAIN) {
       sets = beginner ? 5 : Math.max(4, Math.min(5, sets));
     }
-    if (p.female && s.group === 'Грудь' && !isFocus(p.focus, 'Грудь')) sets = Math.min(sets, 3);
     if (p.pregnant) sets = pregnancyAdjustSets(sets);
     s.sets = sets;
   }

@@ -2,7 +2,7 @@
 //
 // Порядок как в разметке Android:
 //   Пол → Возраст/Рост/Вес в один ряд → Желаемый вес → Уровень активности →
-//   Цель питания → Формула расчёта → Распределение БЖУ → Процент жира →
+//   Цель питания → Формула расчёта → Белок г/кг + жиры/углеводы → Процент жира →
 //   «Заполнить из профиля» (44dp, outlined) → «Рассчитать» (50dp, primary).
 // Результат: плашка bg_result с 42sp калориями, три колонки БЖУ 24sp,
 // строки ИМТ/BMR/TDEE/Вода/Идеал/Желаемый вес и блок «Расчёт на целевой вес».
@@ -11,7 +11,8 @@ import { useCallback, useState } from 'react';
 import { useProfileStore } from '../../core/store';
 import { getString, setString } from '../../core/storage';
 import {
-  caloriesFor, goalLabel, GOALS_ALL, GOAL_LABELS, normalizeGoal,
+  caloriesFor, fatsPerKg, goalLabel, GOALS_ALL, GOAL_LABELS, normalizeGoal,
+  proteinPerKg, proteinWeight,
 } from '../../core/goals';
 import { Field, Toast, parseInt10, parseNum } from '../progress/common';
 
@@ -35,11 +36,33 @@ const FORMULAS = [
   { value: 'who', label: 'ВОЗ (по весу)' },
 ];
 const MACROS = [
-  { value: 'balanced', label: 'Сбалансированное (30/30/40)', p: 0.30, f: 0.30, c: 0.40 },
-  { value: 'lowcarb', label: 'Низкоуглеводное (40/35/25)', p: 0.40, f: 0.35, c: 0.25 },
-  { value: 'highpro', label: 'Высокобелковое (40/30/30)', p: 0.40, f: 0.30, c: 0.30 },
-  { value: 'keto', label: 'Кето (25/50/25)', p: 0.25, f: 0.50, c: 0.25 },
+  { value: 'balanced', label: 'Сбалансированное', fatShare: 0.15 },
+  { value: 'lowcarb', label: 'Низкоуглеводное', fatShare: 0.35 },
+  { value: 'highpro', label: 'Высокобелковое', fatShare: 0.05 },
+  { value: 'keto', label: 'Кето', fatShare: 0.75 },
 ];
+
+/**
+ * БЖУ: белок — единая норма г/кг, а не доля калорий. Жиры — минимум г/кг
+ * плюс доля свободных калорий по пресету, углеводы забирают остаток.
+ * Так КБЖУ и «Цели» не дают двух разных норм белка.
+ */
+function macrosFor(
+  goal: string, weightKg: number, heightCm: number, bodyFat: number,
+  kcal: number, fatShare: number,
+) {
+  const pw = proteinWeight({ weightKg, heightCm, bodyFatPercent: bodyFat });
+  let protein = Math.round(proteinPerKg(goal) * pw);
+  const maxProtein = Math.round(kcal * 0.45 / 4);
+  if (maxProtein > 0 && protein > maxProtein) protein = maxProtein;
+  const rest = Math.max(0, kcal - protein * 4);
+  const fatMin = Math.round(fatsPerKg(goal) * pw);
+  const extra = Math.max(0, rest - fatMin * 9);
+  let fat = Math.round(fatMin + extra * fatShare / 9);
+  if (fat * 9 > rest) fat = Math.floor(rest / 9);
+  const carbs = Math.max(0, Math.round((rest - fat * 9) / 4));
+  return { protein: Math.max(0, protein), fat: Math.max(0, fat), carbs };
+}
 
 /** Формулы BMR — точь-в-точь KbjuFragment.bmrFor. Пол не указан — середина. */
 function bmrFor(formula: string, gender: string, w: number, h: number, a: number, bodyFat: number): number {
@@ -176,9 +199,7 @@ export function KbjuTab() {
     const bmr = bmrFor(formula, gender, w, h, a, bf);
     const tdee = bmr * act.factor;
     const kcal = Math.max(0, caloriesFor(tdee, goal, gender));
-    const protein = Math.max(0, Math.round(kcal * m.p / 4));
-    const fat = Math.max(0, Math.round(kcal * m.f / 9));
-    const carbs = Math.max(0, Math.round(kcal * m.c / 4));
+    const { protein, fat, carbs } = macrosFor(goal, w, h, bf, kcal, m.fatShare);
     const bmi = w / Math.pow(h / 100, 2);
 
     // Желаемый вес: сохраняем и сравниваем с текущим.
@@ -206,11 +227,12 @@ export function KbjuTab() {
       const tTdee = tBmr * act.factor;
       const tCal = Math.max(0, caloriesFor(tTdee, goal, gender));
       const tBmi = desiredValue / Math.pow(h / 100, 2);
+      const tm = macrosFor(goal, desiredValue, h, bf, tCal, m.fatShare);
       target = {
         kcal: tCal,
-        protein: Math.max(0, Math.round(tCal * m.p / 4)),
-        fat: Math.max(0, Math.round(tCal * m.f / 9)),
-        carbs: Math.max(0, Math.round(tCal * m.c / 4)),
+        protein: tm.protein,
+        fat: tm.fat,
+        carbs: tm.carbs,
         bmi: `ИМТ: ${f1(tBmi)} · ${bmiCategory(tBmi)}`,
         water: `Вода: ${f0(desiredValue * 30)} мл/день`,
       };
@@ -294,7 +316,7 @@ export function KbjuTab() {
           ))}
         </div>
 
-        <Label>Распределение БЖУ (% калорий)</Label>
+        <Label>Белок — по норме г/кг; жиры и углеводы — остаток</Label>
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           {MACROS.map(m => (
             <button key={m.value} onClick={() => setMacro(m.value)} className={chip(macro === m.value)}>

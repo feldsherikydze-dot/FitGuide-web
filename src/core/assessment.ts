@@ -28,10 +28,10 @@ export function safeE1rm(weightKg: number, reps: number): number {
   return Math.min(e, b);
 }
 
-/** Стартовый рабочий вес мезоцикла: 85% e1RM, округление до 2,5 кг ВНИЗ. */
+/** Стартовый рабочий вес мезоцикла: 75% e1RM, округление до 2,5 кг ВНИЗ. */
 export function startWeight(e1rm: number): number {
   if (e1rm <= 0) return 0;
-  const raw = e1rm * 0.85;
+  const raw = e1rm * 0.75;
   return Math.floor(raw / 2.5) * 2.5;
 }
 
