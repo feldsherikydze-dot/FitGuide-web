@@ -30,7 +30,7 @@ import { getJSON, getString, setString, KEYS } from '../core/storage';
 import { EMPHASIS_LABELS, healthNotes } from '../core/genderPolicy';
 import { shortExerciseName } from '../core/exercises';
 import type { Day as MenuDay } from '../core/nutrition';
-import type { Phase, Session } from '../data/types';
+import type { Phase, Session, Day as ProgramDay } from '../data/types';
 
 const WEEKDAYS_RU = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
 
@@ -516,10 +516,33 @@ export function CoachPage() {
   const draft = coach.sessions.find(s => s.programId === program.id && s.durationSec == null);
   const hasDraft = !!draft;
 
-  const startWorkout = (resume: boolean) => {
-    if (!phase || !next) return;
+  const startWorkout = (resume: boolean, day: ProgramDay | null = next) => {
+    if (!phase || !day) return;
     if (!resume && draft) coach.removeSession(draft.id);
-    navigate(`/workout?program=${program.id}&week=${week}&day=${encodeURIComponent(next.title)}`);
+    navigate(`/workout?program=${program.id}&week=${week}&day=${encodeURIComponent(day.title)}`);
+  };
+
+  // День можно выбрать вручную: прогрессия считается по названию последнего
+  // выполненного дня, поэтому старт с другого дня её не ломает.
+  const [dayConfirm, setDayConfirm] = useState<ProgramDay | null>(null);
+
+  const pickDay = (day: ProgramDay) => {
+    if (!phase) return;
+    // Черновик этого же дня — не выбрасываем, а продолжаем.
+    if (draft && draft.dayTitle === day.title) {
+      startWorkout(true, day);
+      return;
+    }
+    // День по графику ведёт себя как главная кнопка старта.
+    if (next && day.title === next.title) {
+      startWorkout(hasDraft, day);
+      return;
+    }
+    if (draft) {
+      setDayConfirm(day);
+      return;
+    }
+    startWorkout(false, day);
   };
 
   const lastRecords = (() => {
@@ -732,6 +755,27 @@ export function CoachPage() {
     </>
   );
 
+  const dayPicker = phase && phase.days.length > 1 ? (
+    <div className="mt-3">
+      <Line secondary size={13}>Какой день тренируем?</Line>
+      <div className="mt-1.5 flex flex-wrap gap-2">
+        {phase.days.map(d => {
+          const sched = !!next && d.title === next.title;
+          return (
+            <button
+              key={d.title}
+              onClick={() => pickDay(d)}
+              className={`fg-chip ${sched ? 'fg-chip-on' : ''}`}
+            >
+              {d.title}
+            </button>
+          );
+        })}
+      </div>
+      <Line secondary size={12}>Подсвечен день по графику. Начнёте с другого — прогрессия пойдёт с него.</Line>
+    </div>
+  ) : null;
+
   const startBlock = (() => {
     if (plan.kind === 'nocheckin') return null;
     return (
@@ -748,6 +792,7 @@ export function CoachPage() {
               Минут пять: объёмы, тест силы и самочувствие. Веса подставлю из твоих тренировок — только поправь.
             </Line>
             {hasDraft && next && <Btn onClick={() => startWorkout(true)}>Продолжить тренировку</Btn>}
+            {hasDraft && dayPicker}
           </>
         ) : plan.kind === 'rest' ? (
           <>
@@ -757,6 +802,7 @@ export function CoachPage() {
               <>
                 <Btn onClick={() => startWorkout(hasDraft)}>{hasDraft ? 'Продолжить тренировку' : 'Тренироваться сверх плана'}</Btn>
                 <Line secondary size={12}>Если есть силы — тренер зачтёт дополнительную тренировку и учтёт её в объёме.</Line>
+                {dayPicker}
               </>
             )}
           </>
@@ -777,6 +823,7 @@ export function CoachPage() {
             <Line bold accent size={15}>{plan.title}</Line>
             {deload && <Line secondary size={12}>Разгрузка: веса −20 %, подходов меньше на один.</Line>}
             {plan.loadLine && <Line secondary>{plan.loadLine}</Line>}
+            {dayPicker}
           </>
         )}
       </>
@@ -1405,6 +1452,26 @@ export function CoachPage() {
               <button onClick={saveCheckin}
                 className="flex-1 rounded-xl border font-semibold py-3"
                 style={{ background: 'var(--p-circle)', borderColor: 'var(--p-circle)', color: 'var(--p-on-circle)' }}>Сохранить</button>
+            </div>
+          </Modal>
+        )}
+
+        {dayConfirm && draft && (
+          <Modal title="Какой день тренируем?" onClose={() => setDayConfirm(null)}>
+            <Line>Незаконченная тренировка будет удалена. Начать «{dayConfirm.title}»?</Line>
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setDayConfirm(null)}
+                className="flex-1 rounded-xl border font-semibold py-3"
+                style={{ borderColor: 'var(--p-outline)', color: 'var(--p-labels-text)' }}>Отмена</button>
+              <button
+                onClick={() => {
+                  coach.removeSession(draft.id);
+                  const day = dayConfirm;
+                  setDayConfirm(null);
+                  startWorkout(false, day);
+                }}
+                className="flex-1 rounded-xl border font-semibold py-3"
+                style={{ background: 'var(--p-circle)', borderColor: 'var(--p-circle)', color: 'var(--p-on-circle)' }}>Начать</button>
             </div>
           </Modal>
         )}

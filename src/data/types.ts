@@ -34,6 +34,9 @@ export interface Exercise {
   muscleGroup: string;      // e.g. "Плечи"
   subgroup: string;         // e.g. "Передняя дельта"
   type: string;             // "basic" | "изолирующее" | ...
+  /** Эффективность для целевой мышцы: 1.0–6.0, шаг 0.5 (нет — 0). */
+  rating?: number;
+  ratingWhy?: string;
   equipmentType: string;    // "штанга / Смит", "гантели", "блок", "свой вес", ...
   gender: string;           // "male" | "female" | "both"
   equipment: string;        // детали инвентаря

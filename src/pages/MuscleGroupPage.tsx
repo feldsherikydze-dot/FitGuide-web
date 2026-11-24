@@ -7,7 +7,7 @@ import { useNavigate, useParams, useSearchParams, useLocation } from 'react-rout
 import { PageHeader, MaskIcon, asset } from '../components/ui';
 import { useExercises } from '../hooks/useExercises';
 import { useProfileStore } from '../core/store';
-import { humanMuscle, isBasicExercise, isIsolationExercise } from '../core/exercises';
+import { humanMuscle, isBasicExercise, isIsolationExercise, ratingStars, ratingText } from '../core/exercises';
 import { slotColor, contrastOn } from '../core/palette';
 import {
   buildExerciseIndex, byGroupPrimary, secondaryForGroup, subgroupInGroup,
@@ -269,6 +269,15 @@ export function MuscleGroupPage() {
                         <span className="flex-1 min-w-0 text-[12px]" style={{ color: 'var(--color-text-secondary)' }}>
                           {ex.equipment}
                         </span>
+                        {!!ex.rating && (
+                          <span
+                            className="flex-shrink-0 text-[13px] tracking-[0.06em]"
+                            style={{ color: 'var(--p-labels-text)' }}
+                            aria-label={`${ratingText(ex.rating)} из 6`}
+                          >
+                            {ratingStars(ex.rating)}
+                          </span>
+                        )}
                       </div>
                     </button>
                   );

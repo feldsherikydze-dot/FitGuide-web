@@ -197,3 +197,24 @@ export function isIsolationExercise(ex: Exercise): boolean {
   const t = (ex.type || '').toLowerCase();
   return t.includes('изолир');
 }
+
+/**
+ * Звёзды рейтинга: шесть позиций, половина звезды — «½».
+ * Оценка эффективности идёт с шагом 0.5, поэтому половина допускается.
+ */
+export function ratingStars(rating: number): string {
+  const full = Math.floor(rating);
+  const half = rating - full >= 0.5;
+  let out = '';
+  for (let i = 0; i < 6; i++) {
+    if (i < full) out += '★';
+    else if (i === full && half) out += '½';
+    else out += '☆';
+  }
+  return out;
+}
+
+/** Оценка числом с запятой: «4,5». */
+export function ratingText(rating: number): string {
+  return Number.isInteger(rating) ? String(rating) : String(rating).replace('.', ',');
+}

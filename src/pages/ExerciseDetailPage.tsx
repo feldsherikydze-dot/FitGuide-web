@@ -5,7 +5,7 @@
 import { useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useExercises } from '../hooks/useExercises';
-import { humanMuscle, isBasicExercise } from '../core/exercises';
+import { humanMuscle, isBasicExercise, ratingStars, ratingText } from '../core/exercises';
 import { VIDEO_SOURCES, videoSearchUrl } from '../core/videoLinks';
 import { slotColor, contrastOn, darken } from '../core/palette';
 
@@ -140,6 +140,24 @@ export function ExerciseDetailPage() {
           <div className="mt-1.5 text-[15px]" style={{ color: 'var(--color-text-main)' }}>
             {humanMuscle(ex.target)}
           </div>
+          {!!ex.rating && (
+            <>
+              <div className="mt-4" style={labelStyle}>Эффективность для целевой мышцы</div>
+              <div className="mt-1.5 flex items-center gap-2">
+                <span className="text-[19px] tracking-[0.08em]" style={{ color: 'var(--p-labels-text)' }}>
+                  {ratingStars(ex.rating)}
+                </span>
+                <span className="text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
+                  {ratingText(ex.rating)} из 6
+                </span>
+              </div>
+              {!!ex.ratingWhy && (
+                <div className="mt-1 text-[13px]" style={{ color: 'var(--color-text-secondary)' }}>
+                  {ex.ratingWhy}
+                </div>
+              )}
+            </>
+          )}
           <div className="mt-4" style={labelStyle}>Вспомогательные мышцы</div>
           <div className="mt-1.5 text-[15px]" style={{ color: 'var(--color-text-main)' }}>
             {ex.secondaryMuscles?.length ? ex.secondaryMuscles.join(', ') : 'Нет'}
