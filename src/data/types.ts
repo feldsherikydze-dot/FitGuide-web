@@ -338,13 +338,43 @@ export interface ExercisesDB {
 }
 
 // --- Дневник ---
+/** Факт по одному подходу — как JournalEntry.SetFact в Android. */
+export interface JournalSetFact {
+  exercise: string;
+  /** План из программы, секунд (0 = режим повторов). */
+  plannedSec?: number;
+  /** Фактически отработано, секунд. */
+  actualSec?: number;
+  reps?: number;
+  weightKg?: number;
+  /** Средний пульс за подход, 0 = часы не считали. */
+  hrAvg?: number;
+  kcal?: number;
+  /** Отметка «как зашло»: 0 нет, 1 отказ, 2 в самый раз, 3 легко. */
+  feel?: number;
+}
+
 export interface JournalEntry {
   id: string;
   date: number;
   title: string;
   text: string;
   mood?: number;
-  items: { exercise: string; weightKg: number; reps: number }[];
+  /** Длительность тренировки, секунд (как JournalEntry.durationSec в Android). */
+  durationSec?: number;
+  /** Веса скорректированы (разгрузка / низкая готовность). */
+  adjusted?: boolean;
+  /** Плановая разгрузочная неделя программы. */
+  deload?: boolean;
+  items: {
+    exercise: string;
+    weightKg: number;
+    reps: number;
+    /** Сколько подходов выполнено (раньше терялось при переносе). */
+    sets?: number;
+  }[];
+  /** Факты по подходам: время под нагрузкой, пульс, калории. */
+  setFacts?: JournalSetFact[];
 }
 
 // --- Замеры тела ---

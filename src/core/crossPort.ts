@@ -187,7 +187,10 @@ function convertCoach(g: Record<string, Encoded>): CoachState {
 function convertJournal(g: Record<string, Encoded>): JournalEntry[] {
   return list<Record<string, unknown>>(g, 'journal').map((e, i) => {
     const id = String(e.id || e.date || i);
-    return {
+    // В Android-журнале факты по подходам лежат в ключе "sets" (короткий
+    // ключ ради размера prefs), а число подходов — в items[].sets.
+    const facts = Array.isArray(e.sets) ? e.sets : [];
+    const entry: JournalEntry = {
       id,
       date: Number(e.date) || 0,
       title: String(e.title || ''),
@@ -196,8 +199,26 @@ function convertJournal(g: Record<string, Encoded>): JournalEntry[] {
         exercise: String(it.exercise || ''),
         weightKg: Number(it.weightKg) || 0,
         reps: Number(it.reps) || 0,
+        sets: Number(it.sets) || 0,
       })),
     };
+    const duration = Number(e.durationSec) || 0;
+    if (duration > 0) entry.durationSec = duration;
+    if (e.adj === true || e.adjusted === true) entry.adjusted = true;
+    if (e.dl === true || e.deload === true) entry.deload = true;
+    if (facts.length) {
+      entry.setFacts = facts.map((f: Record<string, unknown>) => ({
+        exercise: String(f.e || f.exercise || ''),
+        plannedSec: Number(f.ps ?? f.plannedSec) || 0,
+        actualSec: Number(f.as ?? f.actualSec) || 0,
+        reps: Number(f.r ?? f.reps) || 0,
+        weightKg: Number(f.w ?? f.weightKg) || 0,
+        hrAvg: Number(f.hr ?? f.hrAvg) || 0,
+        kcal: Number(f.kc ?? f.kcal) || 0,
+        feel: Number(f.fl ?? f.feel) || 0,
+      }));
+    }
+    return entry;
   });
 }
 
@@ -384,7 +405,6 @@ export function convertAndroidBackup(root: unknown): TransferResult {
   if (journal.length) {
     storage.journal_entries = envelope({ entries: journal });
     done.push(`дневник тренировок: ${journal.length}`);
-    skipped.push('подходы в дневнике тренировок: веб-дневник их не хранит');
   }
 
   const assessments = convertAssessments(assessPrefs, profile);

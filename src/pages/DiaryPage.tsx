@@ -209,6 +209,20 @@ function JournalView() {
             </button>
           </div>
           {e.text && <p className="text-sm text-[var(--color-text-secondary)] mt-2 whitespace-pre-wrap">{e.text}</p>}
+          {e.durationSec ? (
+            <div className="text-xs text-[var(--color-text-secondary)] mt-2">
+              Длительность: {Math.floor(e.durationSec / 60)} мин
+            </div>
+          ) : null}
+          {e.items.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {e.items.map((it, i) => (
+                <div key={i} className="text-sm text-[var(--color-text-secondary)]">
+                  {it.exercise}: {it.sets || 1} × {it.reps} · {it.weightKg} кг
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ))}
     </div>
