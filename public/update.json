@@ -1,13 +1,13 @@
 {
-  "versionCode": 71,
-  "versionName": "1.71",
-  "apkUrl": "https://feldsherikydze-dot.github.io/FitGuide-web/downloads/FitGuide-1.71.apk",
+  "versionCode": 72,
+  "versionName": "1.72",
+  "apkUrl": "https://feldsherikydze-dot.github.io/FitGuide-web/downloads/FitGuide-1.72.apk",
   "force": false,
-  "sha256": "DDFEBD535BA16133B707167BD7DF154B425ABB76C591DF62811339614FED5",
+  "sha256": "C046ACEDE5FCC5D25C4758E5BACDA5764DE9F97C5F856E96870A31F6A187430F",
   "minSdk": 24,
   "changes": [
-    "Автобэкап: после завершения тренировки копия сохраняется сама в Download/FitGuide, хранятся последние 8 файлов. Переключатель и ручная копия — в Настройки → Данные.",
-    "Дневник: веб-версия теперь хранит подходы и длительность тренировки — перенос между веб и Android идёт без потерь.",
-    "Заставка: надписи, часы и кнопки подстраиваются под картинку — читаемы и на белом, и на тёмном фоне."
+    "Экспорт и импорт: файлы теперь называются по платформе — fitguide-android-… и fitguide-web-…, сразу видно, чья это версия.",
+    "Импорт в Android открывается в корне «Загрузок» — рядом лежит веб-файл и папка FitGuide с Android-копиями, искать по папкам больше не нужно.",
+    "В вебе при импорте добавлена подсказка, где лежит Android-файл."
   ]
 }

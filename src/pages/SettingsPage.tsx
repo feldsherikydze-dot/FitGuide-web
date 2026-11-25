@@ -770,6 +770,8 @@ export function SettingsPage() {
 
         <div className="mt-1.5 text-[12px] leading-snug" style={secondary}>
           Импорт заменяет текущие данные. Перед заменой автоматически сохраняется копия для отката.
+          <br />
+          Файл Android-версии обычно лежит в Download/FitGuide — в списке файлов зайдите в папку FitGuide.
         </div>
 
         {(goldenCounts.sessions > 0 || goldenCounts.programs > 0 || goldenBackup) && (

@@ -159,9 +159,9 @@ export function restoreSafetyBackup(): number {
   return written;
 }
 
-/** Имя файла по дате: fitguide-backup-2026-11-19.json */
+/** Имя файла по дате: fitguide-web-2026-11-19.json */
 export function backupFileName(): string {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `fitguide-backup-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.json`;
+  return `fitguide-web-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.json`;
 }
