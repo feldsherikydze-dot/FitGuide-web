@@ -411,6 +411,8 @@ export function ProgramDetailPage() {
       picker,
       groupNameById: groupNameById(),
       byName: byName(),
+      goal: program.goal,
+      level: program.level,
     });
   }, [program, phase, picker, groupNameById, byName]);
 

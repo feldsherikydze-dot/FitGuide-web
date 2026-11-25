@@ -113,8 +113,8 @@ export function AnalysisTab() {
   }, [exercises]);
 
   const report = useMemo(
-    () => buildReport(sessions || [], fromMs, toMs, groupOf, kindOf, profile?.goal),
-    [sessions, fromMs, toMs, groupOf, kindOf, profile?.goal],
+    () => buildReport(sessions || [], fromMs, toMs, groupOf, kindOf, profile?.goal, profile?.level),
+    [sessions, fromMs, toMs, groupOf, kindOf, profile?.goal, profile?.level],
   );
   const empty = report.isEmpty();
 

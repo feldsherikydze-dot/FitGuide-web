@@ -17,6 +17,7 @@ import { STYLE, GOAL } from '../data/types';
 import { GOALS, normalizeGoal, primaryGoal } from './goals';
 import { getEquipCategory, isBasicExercise } from './exercises';
 import { pregnancyAllows, pregnancyAdjustSets, pregnancyAdjustReps, pregnancyRestDelta } from './pregnancy';
+import { volumeNorm } from './volumeNorms';
 import {
   focusKeys, focusLabel, focusMaxWeeklySets, focusSpec, focusSpecMissing, focusSpecSecond, focusVolumeFactor,
   effectiveFocus, fitsDay, isFocus, missingInDay, normalizeFocus,
@@ -429,6 +430,9 @@ function fullbodyB(female: boolean): Spec[] {
     // с одной встречей в неделю, а у новичка — с нулём.
     plan.push(s('Бицепс бедра', 'hinge', ROLE_SECONDARY, 'румын;сгибан', 'гипер'));
   } else {
+    // Грудь и у женщин — второй раз за неделю: в 2-дневном A/B иначе остаётся
+    // одна встреча, и объём ниже нормы (аудит 1.69, D-01).
+    plan.push(s('Грудь', 'bench', ROLE_SECONDARY, 'наклон', 'вниз;обратным'));
     plan.push(s('Ягодицы', 'hinge', ROLE_SECONDARY, 'мост;хип-траст', ''));
     plan.push(s('Бицепс бедра', 'hinge', ROLE_SECONDARY, 'румын;сгибан', ''));
   }
@@ -439,13 +443,21 @@ function fullbodyB(female: boolean): Spec[] {
 function fullbodyBStrength(female: boolean): Spec[] {
   const plan: Spec[] = [
     s('Квадрицепс', 'squat', ROLE_MAIN, 'приседания со штангой;классические приседания', 'фронт;гакк'),
-    s('Плечи', 'press', ROLE_MAIN, 'армейский;жим гантелей сидя', 'махи;развед'),
-    // Становая 1×5 — осознанный выбор для силовой цели: тяжёлый одиночный
-    // подход даёт стимул без накопления усталости, объём добирается приседом.
-    sFix('Поясница', 'hinge', ROLE_MAIN, 'классич', 'румын;мёртв;мертв;гипер;сумо', 1, '5'),
   ];
   if (female) plan.push(s('Ягодицы', 'hinge', ROLE_SECONDARY, 'мост;хип-траст', ''));
-  plan.push(s('Бицепс', 'curl', ROLE_ISOLATION, 'сгибан;молот', ''));
+  else plan.push(s('Плечи', 'press', ROLE_MAIN, 'армейский;жим гантелей сидя', 'махи;развед'));
+  // Становая 1×5 — осознанный выбор для силовой цели: тяжёлый одиночный
+  // подход даёт стимул без накопления усталости, объём добирается приседом.
+  plan.push(
+    sFix('Поясница', 'hinge', ROLE_MAIN, 'классич', 'румын;мёртв;мертв;гипер;сумо', 1, '5'),
+    // Второй раз за неделю крупные группы: иначе 2-дневный силовой фулбоди
+    // оставлял грудь/спину/бицепс бедра с одной встречей и объём ниже нормы
+    // (аудит 1.69, D-01).
+    s('Грудь', 'bench', ROLE_SECONDARY, 'наклон', 'вниз;обратным'),
+    s('Широчайшие', 'row', ROLE_SECONDARY, 'подтягиван;блок', 'наклон'),
+    s('Бицепс бедра', 'hinge', ROLE_SECONDARY, 'румын;сгибан', 'гипер'),
+    s('Бицепс', 'curl', ROLE_ISOLATION, 'сгибан;молот', ''),
+  );
   return plan;
 }
 
@@ -718,8 +730,11 @@ function weeklyTargetSets(muscle: string, goal: string, level: string, phaseInde
   const cap = focusMaxWeeklySets(focus, muscle);
   // Нижняя граница — MEV, а не «10 на всё»: ромбовидным и прессу 10 подходов
   // не нужны и не влезают в день рядом с базой. Порог не выше 80 % цели,
-  // чтобы маленькие группы не получали недостижимую планку.
-  const floor = Math.min(LARGE_GROUPS.has(muscle) ? 10 : 6, Math.round(mav * 0.8));
+  // чтобы маленькие группы не получали недостижимую планку. Плюс общая норма
+  // анализа (volumeNorms): иначе генератор и разбор тренировок спорят о том,
+  // что считать недобором (аудит 1.69, D-01).
+  const mavFloor = Math.min(LARGE_GROUPS.has(muscle) ? 10 : 6, Math.round(mav * 0.8));
+  const floor = Math.max(mavFloor, volumeNorm(muscle, goal, level).lo);
   // новичку при акценте даём чуть больше, но не «взрослый» объём
   if (level === 'beginner') {
     return Math.max(floor, Math.min(Math.min(cap, isFocus(focus, muscle) ? 14 : 12), weekly));
@@ -735,7 +750,18 @@ function sessionSets(weeklyDays: Map<string, number>, goal: string, level: strin
   for (const [muscle, days] of weeklyDays) {
     const sessions = Math.max(1, days);
     const weekly = weeklyTargetSets(muscle, goal, level, phaseIndex, deload, senior, female, focus);
-    out.set(muscle, Math.max(2, Math.round(weekly / sessions)));
+    out.set(muscle, Math.max(2, Math.ceil(weekly / sessions)));
+  }
+  return out;
+}
+
+/** Нижняя граница нормы на одну встречу мышцы: защита от гардрейла дня. */
+function sessionFloors(weeklyDays: Map<string, number>, goal: string,
+                       level: string): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const [muscle, days] of weeklyDays) {
+    const sessions = Math.max(1, days);
+    out.set(muscle, Math.max(2, Math.ceil(volumeNorm(muscle, goal, level).lo / sessions)));
   }
   return out;
 }
@@ -846,10 +872,17 @@ function slotSetsFor(role: string, dayTarget: number, weightSum: number, senior:
   const w = role === ROLE_MAIN ? 3 : (role === ROLE_SECONDARY ? 2 : 1);
   let sets = Math.round(dayTarget * w / Math.max(1, weightSum));
   if (role === ROLE_MAIN) sets = Math.max(3, Math.min(6, sets));
-  else if (role === ROLE_SECONDARY) sets = Math.max(2, Math.min(5, sets));
-  else sets = Math.max(2, Math.min(focused ? 7 : 5, sets));
+  else if (role === ROLE_SECONDARY) sets = Math.max(2, Math.min(6, sets));
+  else sets = Math.max(2, Math.min(focused ? 7 : 6, sets));
   if (senior) sets = Math.max(2, sets - 1);
   return sets;
+}
+
+/** Потолок подхода на слот: тот же, что в slotSetsFor, но без senior-скидки. */
+function slotCap(role: string, focused = false): number {
+  if (role === ROLE_MAIN) return 6;
+  if (role === ROLE_SECONDARY) return 6;
+  return focused ? 7 : 6;
 }
 
 // ---------------------------------------------------------------- фазы
@@ -1102,6 +1135,8 @@ interface BuildDayParams {
   rest: string;
   exLimit: number;
   sessionSets: Map<string, number> | null;
+  /** Нижняя граница нормы на встречу мышцы — приоритет защиты в гардрейле. */
+  floorSets: Map<string, number> | null;
   phaseSets: number;
   restDelta: number;
   equipment: string[];
@@ -1148,6 +1183,37 @@ function buildDaySlots(p: BuildDayParams): Slot[] {
     return slots;
   }
 
+  // Дневные цели мышц могут в сумме не влезть в разумный объём тренировки:
+  // у 2-дневного фулбоди 6–7 групп по 4–6 подходов — это 30+ подходов за
+  // сессию. Срезаем цели выше нормы-пола, пока сумма не уложится в кап дня;
+  // недельный объём при этом остаётся не ниже нормы анализа, а план не
+  // обещает больше, чем сессия выдерживает (аудит 1.69, D-01).
+  const dayCap = beginner ? 24 : 34;
+  const dayTargets = new Map<string, number>();
+  for (let i = 0; i < slots.length; i++) {
+    if (taken[i].fixedSets > 0) continue;
+    const g = slots[i].group;
+    if (!dayTargets.has(g)) dayTargets.set(g, p.sessionSets!.get(g) ?? p.phaseSets);
+  }
+  let budget = 0;
+  for (let i = 0; i < slots.length; i++) {
+    if (taken[i].fixedSets > 0) budget += taken[i].fixedSets;
+  }
+  for (const t of dayTargets.values()) budget += t;
+  while (budget > dayCap) {
+    let bestGroup = '';
+    let bestSlack = 0;
+    for (const [g, t] of dayTargets) {
+      if (isFocus(p.focus, g) && bestGroup) continue;
+      const floor = p.floorSets?.get(g) ?? Math.min(t, p.phaseSets);
+      const slack = t - floor;
+      if (slack > bestSlack) { bestGroup = g; bestSlack = slack; }
+    }
+    if (!bestGroup) break;
+    dayTargets.set(bestGroup, dayTargets.get(bestGroup)! - 1);
+    budget--;
+  }
+
   // подходы: дневная норма мышцы делится между её слотами по весу роли
   const weightSum = new Map<string, number>();
   for (const spec of taken) {
@@ -1159,7 +1225,7 @@ function buildDaySlots(p: BuildDayParams): Slot[] {
     const s = slots[i];
     const spec = taken[i];
     if (spec.fixedSets > 0) { s.sets = spec.fixedSets; continue; }
-    const dayTarget = p.sessionSets!.get(s.group) ?? p.phaseSets;
+    const dayTarget = dayTargets.get(s.group) ?? p.sessionSets!.get(s.group) ?? p.phaseSets;
     let sets = slotSetsFor(spec.role, dayTarget, weightSum.get(s.group) ?? 1, p.senior,
       isFocus(p.focus, s.group));
     if (powerDay && fullbody && spec.role === ROLE_MAIN) {
@@ -1169,22 +1235,62 @@ function buildDaySlots(p: BuildDayParams): Slot[] {
     s.sets = sets;
   }
 
-  // гардрейл: подходов в день ≤28 (новичок ≤20). main неприкосновенен —
-  // режем только secondary/isolation, не ниже 2 подходов. Приоритетные группы
-  // режем последними: иначе акцент съедался бы собственным гардрейлом.
-  const dayCap = beginner ? 22 : 28;
+  // Доводим дневную норму группы до цели: округление и минимумы слотов
+  // могут оставить 1–2 подхода, и тогда недельный объём молча падает ниже
+  // нормы (аудит 1.69, D-01). Добираем в пределах кап роли.
+  for (const [group, target] of dayTargets) {
+    const idxs: number[] = [];
+    let current = 0;
+    for (let i = 0; i < slots.length; i++) {
+      if (slots[i].group !== group) continue;
+      current += slots[i].sets;
+      if (!(taken[i].fixedSets > 0)) idxs.push(i);
+    }
+    let guard = 0;
+    while (current < target && guard++ < 64) {
+      let best = -1;
+      let bestRoom = 0;
+      for (const i of idxs) {
+        const room = slotCap(taken[i].role, isFocus(p.focus, slots[i].group)) - slots[i].sets;
+        if (room > bestRoom) { best = i; bestRoom = room; }
+      }
+      if (best < 0) break;
+      slots[best].sets++;
+      current++;
+    }
+  }
+
+  // гардрейл: подходов в день ≤ кап дня. Режем только excess над дневной
+  // целью группы и не ниже нормы на встречу; main тоже режем в последнюю
+  // очередь (до 3 подходов), если иначе сессия не влезает.
+  // Приоритетные группы режем последними: иначе акцент съедался бы
+  // собственным гардрейлом.
+  const groupTotals = new Map<string, number>();
+  for (const s of slots) groupTotals.set(s.group, (groupTotals.get(s.group) || 0) + s.sets);
   let total = slots.reduce((sum, s) => sum + s.sets, 0);
-  while (total > dayCap) {
+  const pickVictim = (protectTarget: boolean): number => {
     let best = -1;
     for (let i = 0; i < slots.length; i++) {
       const sp = taken[i];
       const s = slots[i];
-      if (sp.fixedSets > 0 || sp.role === ROLE_MAIN || s.sets <= 2) continue;
+      const minSets = sp.role === ROLE_MAIN ? 3 : 2;
+      if (sp.fixedSets > 0 || s.sets <= minSets) continue;
+      if (protectTarget) {
+        const floor = p.floorSets?.get(s.group)
+          ?? dayTargets.get(s.group) ?? p.phaseSets;
+        if ((groupTotals.get(s.group) || 0) <= floor) continue;
+      }
       if (isFocus(p.focus, s.group) && best >= 0) continue;
       if (best < 0 || s.sets > slots[best].sets) best = i;
     }
+    return best;
+  };
+  while (total > dayCap) {
+    let best = pickVictim(true);
+    if (best < 0) best = pickVictim(false);
     if (best < 0) break;
     slots[best].sets--;
+    groupTotals.set(slots[best].group, (groupTotals.get(slots[best].group) || 0) - 1);
     total--;
   }
 
@@ -1258,7 +1364,8 @@ export function generateProgram(opts: GenerateOptions, db: ExercisesDB): Program
   const seed = settingsSeed(opts.name, opts.goal, opts.level, String(days), String(totalWeeks),
     resolvedType, style, opts.place, String(opts.periodType), equipment.join(','));
   const template = buildTemplate(days, resolvedType, power);
-  const exLimit = exercisesPerDay(opts.level, resolvedType);
+  const exLimit = exercisesPerDay(opts.level, resolvedType)
+    + (resolvedType === TYPE_FULLBODY ? 1 : 0);
 
   const age = opts.age || 0;
   const female = resolveGlutes(opts);
@@ -1329,6 +1436,8 @@ export function generateProgram(opts: GenerateOptions, db: ExercisesDB): Program
     const weeklyDays = weeklyFrequency(dayTitles, template.id, power, female, planFocus, exLimit);
     const daySets = circuit ? null
       : sessionSets(weeklyDays, opts.goal, opts.level, phaseIndex, deload, senior, female, planFocus);
+    const floorSets = circuit ? null
+      : sessionFloors(weeklyDays, opts.goal, opts.level);
 
     for (const dayTitle of dayTitles) {
       const day: Day = {
@@ -1336,7 +1445,7 @@ export function generateProgram(opts: GenerateOptions, db: ExercisesDB): Program
         slots: buildDaySlots({
           dayTitle, templateId: template.id, goal: opts.goal, phaseIndex, seed,
           level: opts.level, place: opts.place, style, power, female, senior, pregnant,
-          rest, exLimit, sessionSets: daySets, phaseSets: sets, restDelta,
+          rest, exLimit, sessionSets: daySets, floorSets, phaseSets: sets, restDelta,
           equipment, focus: planFocus, groupIdByName, exercisesOf,
         }),
       };

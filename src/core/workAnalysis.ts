@@ -6,56 +6,14 @@
 import type { Session } from '../data/types';
 import { GOALS, goalLabel, normalizeGoal } from './goals';
 import { cardioWeeklyTip } from './cardio';
+import { volumeNorm } from './volumeNorms';
+
+export { volumeNorm };
 
 export const TUT_FLOOR_SEC = 10;
 export const TUT_CEIL_SEC = 60;
 export const TUT_TOO_LONG_SEC = 90;
 export const TEMPO_FAST_SEC = 1.5;
-
-/**
- * Базовые недельные нормы объёма для гипертрофии, подходов на мышцу.
- * Одна норма на все группы не работает: ромбовидные живут за счёт тяг на
- * широчайшие, а плечи — за счёт жимов, и нижняя граница 6 давала им ложный
- * флаг «мало» на собственных программах приложения. Потолок «Плечи» 16 —
- * передняя дельта и так добирает от груди.
- */
-const BASE_NORMS: Record<string, [number, number]> = {
-  'Грудь': [10, 20],
-  'Широчайшие': [12, 20],
-  'Квадрицепс': [10, 20],
-  'Бицепс бедра': [8, 16],
-  'Ягодицы': [8, 16],
-  'Плечи': [6, 16],
-  'Бицепс': [6, 12],
-  'Трицепс': [6, 12],
-  'Икры': [6, 12],
-  'Пресс': [6, 12],
-  'Трапеции': [4, 12],
-  'Поясница': [3, 10],
-  'Предплечья': [4, 12],
-  'Приводящие': [4, 12],
-  'Шея': [2, 8],
-  'Ромбовидные': [2, 10],
-};
-
-/**
- * Норма недельного объёма под цель. Сила живёт на меньшем объёме при большей
- * интенсивности — нижняя граница на 20% ниже, иначе силовой план получал бы
- * «мало» за законные 8 подходов на бицепс бедра. Выносливость — наоборот:
- * планка чуть ниже (объём размазан по многим упражнениям), а потолок выше.
- * Дефицит норму не снижает: на сушке объём — то, что держит мышцу.
- */
-export function volumeNorm(group: string, goal?: string | null): { lo: number; hi: number } {
-  const base = BASE_NORMS[group] || [6, 12];
-  const g = normalizeGoal(goal);
-  if (g === GOALS.STRENGTH) {
-    return { lo: Math.max(2, Math.round(base[0] * 0.8)), hi: Math.max(4, Math.round(base[1] * 0.8)) };
-  }
-  if (g === GOALS.ENDURANCE) {
-    return { lo: Math.max(2, Math.round(base[0] * 0.9)), hi: Math.round(base[1] * 1.15) };
-  }
-  return { lo: base[0], hi: base[1] };
-}
 
 /** Почему именно такая норма — для текста флага. */
 function volumeWhy(goal?: string | null): string {
@@ -229,6 +187,7 @@ export function buildReport(
   groupOf?: (exercise: string) => string | null,
   kindOf?: (exercise: string) => ExKind | null,
   goal?: string | null,
+  level?: string | null,
 ): Report {
   const r: Report = {
     workouts: 0, totalDurationSec: 0, workedSec: 0, workSharePct: 0,
@@ -407,9 +366,9 @@ export function buildReport(
 
   for (const w of r.weeks) w.planPct = w.sets > 0 ? w.planPct / w.sets : 0;
 
-  buildFlags(r);
+  buildFlags(r, level);
   const periodDays = Math.max(0, Math.round((toMs - fromMs) / DAY_MS));
-  buildTips(r, periodDays, groupOf);
+  buildTips(r, periodDays, groupOf, level);
   return r;
 }
 
@@ -426,7 +385,7 @@ function weekFor(weeks: Week[], fromMs: number, dateMs: number): Week | null {
   return weeks[idx];
 }
 
-function buildFlags(r: Report) {
+function buildFlags(r: Report, level?: string | null) {
   for (const st of r.byExercise.values()) {
     if (st.tooLongSets > 0 && st.tooLongSets * 2 >= st.sets) {
       const advice = st.kind === 'static'
@@ -479,7 +438,7 @@ function buildFlags(r: Report) {
     // Разгрузочные недели сюда не идут: там объём снижен намеренно.
     const normalSets = m.sets - m.setsDeload;
     const perWeek = Math.round(m.setsPerWeek);
-    const norm = volumeNorm(m.group, r.goal);
+    const norm = volumeNorm(m.group, r.goal, level);
     // Сравниваем то же число, что показываем: 9,8 — это «10 подходов»,
     // и совет «нужно 10–20» при своих же 10 выглядел бы ошибкой.
     if (normalSets >= 3 && perWeek < norm.lo) {
@@ -505,7 +464,8 @@ function setsWord(v: number): string {
   return 'подходов';
 }
 
-function buildTips(r: Report, periodDays: number, groupOf?: (exercise: string) => string | null) {
+function buildTips(r: Report, periodDays: number, groupOf?: (exercise: string) => string | null,
+                   level?: string | null) {
   if (r.isEmpty() || r.sets === 0) return;
   if (r.planPct >= 120) {
     r.tips.push({
@@ -657,7 +617,7 @@ function buildTips(r: Report, periodDays: number, groupOf?: (exercise: string) =
         const group = groupOf ? groupOf(st.exercise) : null;
         const ms = group ? r.byMuscle.get(group) : null;
         if (group && ms) {
-          const norm = volumeNorm(group, r.goal);
+          const norm = volumeNorm(group, r.goal, level);
           const now = Math.round(ms.setsPerWeek);
           if (now + 1 <= norm.hi) {
             r.tips.push({

@@ -122,7 +122,7 @@ export function JournalTab() {
                         </div>
                         {detail && (
                           <div className="text-[12px]" style={{ color: 'var(--p-on-labels-soft)' }}>
-                            Подходы: {detail}
+                            Повторы: {detail}
                           </div>
                         )}
                       </div>

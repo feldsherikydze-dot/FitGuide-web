@@ -5,6 +5,7 @@
 // заполнен, он используется как запасной вариант.
 
 import type { Program, Phase, Exercise, PickerDB } from '../data/types';
+import { volumeNorm } from './volumeNorms';
 
 export interface PlanReport {
   /** Регион (Грудь, Спина, Ноги…) → подходы в неделю. */
@@ -59,7 +60,27 @@ export function pickerMuscleForGroup(groupName: string): string {
   return list && list.length ? list[0] : '';
 }
 
-/** Рекомендуемый диапазон подходов в неделю для ключевой мышцы (или null). */
+/** id мышцы дерева → наша группа, у которой есть норма объёма. */
+const PICKER_TO_GROUP: Record<string, string> = {
+  chest: 'Грудь',
+  lats: 'Широчайшие',
+  delts: 'Плечи',
+  quads: 'Квадрицепс',
+  hams: 'Бицепс бедра',
+  glutes: 'Ягодицы',
+  traps: 'Трапеции',
+  biceps: 'Бицепс',
+  triceps: 'Трицепс',
+  calves: 'Икры',
+  rectus: 'Пресс',
+  erectors: 'Поясница',
+  rhomboids: 'Ромбовидные',
+  forearm: 'Предплечья',
+  adductors: 'Приводящие',
+  neck: 'Шея',
+};
+
+/** Рекомендуемый диапазон подходов в неделю для мышцы, которой нет в общей таблице. */
 function range(muscleId: string): [number, number] | null {
   switch (muscleId) {
     case 'chest': return [8, 20];
@@ -83,6 +104,10 @@ export interface PlanAdvisorContext {
   groupNameById: Record<string, string>;
   /** id упражнения → само упражнение (для поиска по имени). */
   byName: Map<string, Exercise>;
+  /** Цель профиля — сдвигает нормы объёма (как в анализе тренировок). */
+  goal?: string | null;
+  /** Уровень профиля — нормы объёма как в анализе тренировок. */
+  level?: string | null;
 }
 
 /** Разбор фазы: объём по мышцам + подсказки. */
@@ -147,7 +172,7 @@ export function analyzePhase(phase: Phase | null, ctx: PlanAdvisorContext): Plan
   // Незнакомые упражнения — отдельной строкой, чтобы объём не терялся.
   for (const [label, v] of byLabel) r.muscleVolume.push([label, v]);
 
-  buildTips(r, picker, byMuscleId);
+  buildTips(r, picker, byMuscleId, ctx.goal, ctx.level);
   return r;
 }
 
@@ -158,7 +183,8 @@ export function parseSets(scheme: string): number {
   return m ? parseInt(m[1], 10) : 0;
 }
 
-function buildTips(r: PlanReport, picker: PickerDB | null, byMuscleId: Map<string, number>): void {
+function buildTips(r: PlanReport, picker: PickerDB | null, byMuscleId: Map<string, number>,
+                   goal?: string | null, level?: string | null): void {
   const warnings: string[] = [];
   const advice: string[] = [];
 
@@ -180,16 +206,28 @@ function buildTips(r: PlanReport, picker: PickerDB | null, byMuscleId: Map<strin
     warnings.push('Жим заметно отстаёт от тяги — добавьте упражнения на грудь');
   }
 
-  // 3. Объём по ключевым мышцам.
+  // 3. Объём по ключевым мышцам — по той же таблице норм, что в анализе
+  // тренировок: план не должен говорить «сбалансирован», а анализ после
+  // тренировки — «недобрал» (аудит 1.69, D-01).
   for (const m of muscleByIds(picker, byMuscleId)) {
     const v = byMuscleId.get(m.id);
     if (v === undefined) continue;
-    const rng = range(m.id);
+    const group = PICKER_TO_GROUP[m.id];
+    let rng: { lo: number; hi: number } | null = null;
+    if (group) {
+      rng = volumeNorm(group, goal, level);
+    } else {
+      const soft = range(m.id);
+      if (soft) rng = { lo: soft[0], hi: soft[1] };
+    }
     if (!rng) continue;
-    if (rng[0] > 0 && v < rng[0]) {
-      warnings.push(`${m.name}: ${v} подходов в неделю — мало (нужно от ${rng[0]})`);
-    } else if (rng[1] > 0 && v > rng[1]) {
-      warnings.push(`${m.name}: ${v} подходов в неделю — много (норма до ${rng[1]})`);
+    // Ниже 3 подходов группа не считается проработанной — тот же порог, что
+    // в анализе тренировок: иначе поясница с одним тяжёлым подходом получала
+    // бы «мало» вопреки замыслу программы.
+    if (rng.lo > 0 && v >= 3 && v < rng.lo) {
+      warnings.push(`${m.name}: ${v} подходов в неделю — мало (нужно от ${rng.lo})`);
+    } else if (rng.hi > 0 && v > rng.hi) {
+      warnings.push(`${m.name}: ${v} подходов в неделю — много (норма до ${rng.hi})`);
     }
   }
 

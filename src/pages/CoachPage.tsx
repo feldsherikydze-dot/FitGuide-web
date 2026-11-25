@@ -664,7 +664,10 @@ export function CoachPage() {
     now,
   );
   const planVolume = Object.keys(actualVolume).length === 0
-    ? analyzePhase(phase, { picker, groupNameById: groupNames, byName: exMap })
+    ? analyzePhase(phase, {
+        picker, groupNameById: groupNames, byName: exMap,
+        goal: profile?.goal, level: profile?.level,
+      })
     : null;
 
   // Сила.

@@ -179,10 +179,12 @@ check('все 8: день не удлиняется',
   <= Math.max(...base.phases[0].days.map(d => d.slots.length)),
   `(${Math.max(...all.phases[0].days.map(d => d.slots.length))} vs ${Math.max(...base.phases[0].days.map(d => d.slots.length))})`);
 
-// --- Согласованность слоёв объёма: программа обязана набирать хотя бы 80 %
-// собственной недельной цели по каждой мышце, которая в ней есть. Аудит 1.51
-// нашёл обратное: цель 12–13, факт 3–4, и «Анализ» ругал программу приложения.
-console.log('\n=== ОБЪЁМ: ЦЕЛЬ vs ФАКТ (муж/жен, новичок/средний/продвинутый) ===');
+// --- Согласованность слоёв объёма: факт недели обязан быть не ниже нормы
+// «Анализа» по каждой мышце (level-aware). Аудит 1.51 нашёл обратное: цель
+// 12–13, факт 3–4, и «Анализ» ругал программу приложения. Аудит 1.69 (D-01)
+// уточнил критерий: генератор может срезать свою недельную цель ради капа
+// дня, но не ниже нормы анализа; 80 % цели — уже не обязательство.
+console.log('\n=== ОБЪЁМ: ФАКТ vs НОРМА АНАЛИЗА (муж/жен, новичок/средний/продвинутый) ===');
 for (const [level, days, female] of [
   ['beginner', 3, false], ['beginner', 3, true],
   ['intermediate', 4, false], ['intermediate', 4, true],
@@ -198,9 +200,10 @@ for (const [level, days, female] of [
   for (const [group, sets] of fact) {
     if (!sets) continue;
     const target = gen.weeklyTargetFor(group, 'mass', level, '', female, false, 0, false);
+    const norm = wa.volumeNorm(group, 'mass', level);
     const ratio = target > 0 ? sets / target : 1;
-    check(`${tag}: ${group} ${sets}/${target} ≥ 80 %`, ratio >= 0.8,
-      `(${Math.round(ratio * 100)} %)`);
+    check(`${tag}: ${group} ${sets} ≥ нормы ${norm.lo}`, sets >= norm.lo,
+      `(${Math.round(ratio * 100)} % цели ${target})`);
   }
 }
 
