@@ -244,7 +244,8 @@ export function AnalysisTab() {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      // Safari/iOS отменяет загрузку, если освободить URL сразу.
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
       showToast(`Отчёт сохранён: ${name}`);
     } catch {
       showToast('Не удалось сохранить отчёт');

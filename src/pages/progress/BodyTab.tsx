@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useBodyLogStore, useProfileStore } from '../../core/store';
 import { getString, setString } from '../../core/storage';
+import { newId } from '../../core/ids';
 import type { BodyLogEntry } from '../../data/types';
 import {
   Card, Field, Hint, PrimaryButton, SectionTitle, Toast, formatFullDate, parseNum,
@@ -148,7 +149,7 @@ export function BodyTab() {
       return;
     }
     addLog({
-      id: crypto.randomUUID(),
+      id: newId(),
       date: Date.now(),
       weightKg: w,
       chestCm: parseNum(chest) || undefined,

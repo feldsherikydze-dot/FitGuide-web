@@ -127,7 +127,7 @@ export function MuscleGroupPage() {
   const subgroups = group?.subgroups || [];
 
   return (
-    <div className="max-w-2xl mx-auto w-full flex flex-col min-h-[calc(100vh-56px)]">
+    <div className="max-w-2xl mx-auto w-full flex flex-col fg-page-min">
       <PageHeader
         title={title}
         onBack={() => navigate(-1)}

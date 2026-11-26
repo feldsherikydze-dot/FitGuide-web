@@ -6,6 +6,7 @@ import { clsx } from 'clsx';
 import { Calendar, Plus, Trash2, NotebookPen, Ruler, TrendingUp, X, Check, ChevronLeft } from 'lucide-react';
 import { useCoachStore, useJournalStore, useBodyLogStore, useProfileStore } from '../core/store';
 import { finishedSessions, tonnage } from '../core/coach';
+import { newId } from '../core/ids';
 import type { JournalEntry, BodyLogEntry } from '../data/types';
 
 const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
@@ -150,7 +151,7 @@ function JournalView() {
   const add = () => {
     if (!title.trim() && !text.trim()) return;
     const e: JournalEntry = {
-      id: crypto.randomUUID(),
+      id: newId(),
       date: Date.now(),
       title: title.trim(),
       text: text.trim(),
@@ -243,7 +244,7 @@ function BodyView() {
 
   const add = () => {
     if (!form.weightKg) return;
-    const e: BodyLogEntry = { id: crypto.randomUUID(), date: Date.now(), ...form };
+    const e: BodyLogEntry = { id: newId(), date: Date.now(), ...form };
     addLog(e);
     setAdding(false);
   };

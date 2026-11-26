@@ -6,6 +6,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { clsx } from 'clsx';
+import { newId } from '../core/ids';
 import {
   Plus, Trash2, Copy, Dumbbell, Zap, ChevronRight, AlertTriangle,
   CheckCircle, Lightbulb, Layers, Settings2, X,
@@ -91,7 +92,7 @@ export function ProgramsPage() {
   };
 
   const duplicate = (p: Program) => {
-    add({ ...p, id: crypto.randomUUID(), name: p.name + ' (копия)', createdAt: Date.now() });
+    add({ ...p, id: newId(), name: p.name + ' (копия)', createdAt: Date.now() });
   };
 
   return (

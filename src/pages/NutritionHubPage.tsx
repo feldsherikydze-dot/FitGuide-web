@@ -43,7 +43,7 @@ export function NutritionHubPage() {
   const Comp = RENDER[tab] || KbjuTab;
 
   return (
-    <div className="max-w-2xl mx-auto pb-4 w-full flex flex-col min-h-[calc(100vh-56px)] max-w-full">
+    <div className="max-w-2xl mx-auto pb-4 w-full flex flex-col fg-page-min max-w-full">
       <PageHeader title="Питание" onBack={() => window.history.back()} />
 
       <div className="flex border-b" style={{ borderColor: 'var(--color-stroke)' }}>

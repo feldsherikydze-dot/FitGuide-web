@@ -412,7 +412,7 @@ export function MusicPage() {
 
   return (
     <div
-      className="w-full max-w-3xl mx-auto flex flex-col h-[100dvh]"
+      className="w-full max-w-3xl mx-auto flex flex-col fg-app-height"
       style={{ background: 'var(--color-bg)', paddingTop: 'env(safe-area-inset-top)' }}
     >
       <div className="shrink-0 z-30" style={{ background: 'var(--color-bg)' }}>

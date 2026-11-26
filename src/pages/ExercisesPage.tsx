@@ -69,7 +69,7 @@ export function ExercisesPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto w-full flex flex-col min-h-[calc(100vh-56px)]">
+    <div className="max-w-2xl mx-auto w-full flex flex-col fg-page-min">
       <PageHeader
         title="База упражнений"
         onBack={() => navigate(-1)}

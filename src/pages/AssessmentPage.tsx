@@ -12,6 +12,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { useProfileStore, useCoachStore, useProgramsStore, useAssessmentStore, useOneRmStore } from '../core/store';
+import { newId } from '../core/ids';
 import { useExercises } from '../hooks/useExercises';
 import { safeE1rm, startWeight, fillBodyComp, fillStartWeights, movementOf } from '../core/assessment';
 import { fillFromSessions } from '../core/checkpoint';
@@ -546,7 +547,7 @@ function makeAssessment(form: any, e1rms: number[]): Assessment {
     return form.testWeights[i] > 0 ? 8 : 0;
   };
   return {
-    id: crypto.randomUUID(),
+    id: newId(),
     timestamp: Date.now(),
     weightKg: form.weightKg,
     heightCm: form.heightCm,

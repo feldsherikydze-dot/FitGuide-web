@@ -18,6 +18,7 @@ import { GOALS, normalizeGoal, primaryGoal } from './goals';
 import { getEquipCategory, isBasicExercise } from './exercises';
 import { pregnancyAllows, pregnancyAdjustSets, pregnancyAdjustReps, pregnancyRestDelta } from './pregnancy';
 import { volumeNorm } from './volumeNorms';
+import { newId } from './ids';
 import {
   focusKeys, focusLabel, focusMaxWeeklySets, focusSpec, focusSpecMissing, focusSpecSecond, focusVolumeFactor,
   effectiveFocus, fitsDay, isFocus, missingInDay, normalizeFocus,
@@ -1385,7 +1386,7 @@ export function generateProgram(opts: GenerateOptions, db: ExercisesDB): Program
     db.exercises.filter(e => e.muscleGroup === groupId);
 
   const p: Program = {
-    id: crypto.randomUUID(),
+    id: newId(),
     name: opts.name,
     goal: opts.goal,
     level: opts.level,

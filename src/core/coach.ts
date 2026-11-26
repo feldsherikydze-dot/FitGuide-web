@@ -12,6 +12,7 @@
 import type { Program, Session, SessionItem, Checkin, CoachState, Phase, Day, Slot } from '../data/types';
 import { GOALS } from './goals';
 import { getString, setString } from './storage';
+import { newId } from './ids';
 
 // ---------------------------------------------------------------- утилиты
 
@@ -631,7 +632,7 @@ export function createSession(
     };
   });
   return {
-    id: crypto.randomUUID(),
+    id: newId(),
     programId,
     week,
     dayTitle,

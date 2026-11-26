@@ -125,6 +125,7 @@ img, svg, video, canvas {
 /* ---------- Баннер (bg_banner_translucent) ---------- */
 .fg-banner {
   background: rgba(255, 255, 255, 0.55);
+  -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
   border-radius: 16px;
   border: 1px solid var(--color-stroke);
@@ -356,5 +357,30 @@ img, svg, video, canvas {
   }
   :root:not([data-theme]) .fg-banner {
     background: rgba(255, 255, 255, 0.06);
+  }
+}
+
+/* ---------- Мобильные браузеры (iOS Safari и Android WebView) ---------- */
+
+/* Высота экрана без прыжка при скрытии адресной строки: 100vh — запасной
+   вариант для старых WebView, 100dvh — точная видимая высота в новых. */
+.fg-page-min {
+  min-height: calc(100vh - 56px);
+  min-height: calc(100dvh - 56px);
+}
+.fg-app-height {
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* iOS Safari зумит страницу, если у поля в фокусе font-size меньше 16px.
+   Поднимаем только мелкие поля; крупные (18px в экране тренировки) не трогаем. */
+@media (hover: none) and (pointer: coarse) {
+  .fg-input,
+  input.text-\[13px\], input.text-\[14px\], input.text-\[15px\], input.text-sm,
+  select.text-\[13px\], select.text-\[14px\], select.text-\[15px\], select.text-sm,
+  textarea.text-\[13px\], textarea.text-\[14px\], textarea.text-\[15px\], textarea.text-sm,
+  input[style*="font-size: 15px"], select[style*="font-size: 15px"] {
+    font-size: 16px !important;
   }
 }

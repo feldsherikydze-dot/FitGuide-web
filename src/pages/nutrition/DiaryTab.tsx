@@ -4,6 +4,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useBodyLogStore, useProfileStore } from '../../core/store';
 import { getJSON, setJSON, KEYS } from '../../core/storage';
+import { newId } from '../../core/ids';
 import { caloriesFor, proteinPerKg, proteinWeight } from '../../core/goals';
 import { adaptiveTdeeVerdict, effectiveTdee } from '../../core/adaptiveTdee';
 import { Dialog, DialogAction, Field, Toast, parseInt10, parseNum } from '../progress/common';
@@ -138,7 +139,7 @@ export function DiaryTab() {
   }, []);
 
   const addEntry = useCallback((e: Omit<DiaryEntry, 'id'>) => {
-    const entry: DiaryEntry = { ...e, id: crypto.randomUUID() };
+    const entry: DiaryEntry = { ...e, id: newId() };
     // Как DiaryStore.add: новые записи дописываются в конец списка.
     saveEntries([...entries, entry]);
     showToast(`Записал: ${entry.name} · ${entry.kcal} ккал`);

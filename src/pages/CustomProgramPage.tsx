@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import type React from 'react';
 import { useProfileStore, useProgramsStore } from '../core/store';
 import { GOALS, normalizeGoal } from '../core/goals';
+import { newId } from '../core/ids';
 import { useExercises } from '../hooks/useExercises';
 import { cardioDefaults, isCardioExercise, repsHasTime, workLabel } from '../core/cardio';
 import type { Exercise, Program } from '../data/types';
@@ -286,7 +287,7 @@ export function CustomProgramPage() {
     const maxDays = Math.max(1, ...blocks.map(b => b.days.length));
 
     const program: Program = {
-      id: crypto.randomUUID(), name: trimmed, goal: pGoal, level: pLevel,
+      id: newId(), name: trimmed, goal: pGoal, level: pLevel,
       daysPerWeek: maxDays, weeks: Math.max(1, totalWeeks), createdAt: Date.now(), phases,
     };
     add(program);

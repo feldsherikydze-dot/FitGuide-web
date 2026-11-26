@@ -43,7 +43,7 @@ export function SportPitDetailPage() {
   const name = additive?.name || 'Добавка';
 
   return (
-    <div className="max-w-2xl mx-auto w-full flex flex-col min-h-[calc(100vh-56px)]">
+    <div className="max-w-2xl mx-auto w-full flex flex-col fg-page-min">
       <PageHeader title={name} onBack={() => navigate(-1)} />
 
       <div className="px-4 pt-1 pb-8">
