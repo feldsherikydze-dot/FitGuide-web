@@ -43,3 +43,6 @@ lerna-debug.log*
 *.tsbuildinfo
 
 .tmp-audit/
+
+# Одноразовые диагностические пробы (volume/plan): держим локально, в репозиторий не кладём
+scripts/_*.mjs
