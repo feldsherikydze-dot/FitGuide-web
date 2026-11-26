@@ -32,6 +32,43 @@ const SKIP = new Set([
   SAFETY_KEY,
 ]);
 
+/**
+ * Данные пользователя: при импорте Android-файла заменяются всегда,
+ * даже если в файле их нет (иначе старые тренировки смешаются с новыми).
+ */
+const DATA_KEYS = new Set([
+  'user_profile',
+  'saved_programs',
+  'coach_state',
+  'journal_entries',
+  'assessments',
+  'one_rm_manual',
+  'pr_manual',
+  'body_log',
+  'kitchen_menu',
+  'diary_entries',
+]);
+
+/** Тема из Android-файла применяется, но настройки веба (боковая панель) целы. */
+function mergeWebSettings(incoming: string): string {
+  try {
+    const prevRaw = localStorage.getItem(PREFIX + 'settings');
+    if (!prevRaw) return incoming;
+    const prev = JSON.parse(prevRaw) as { state?: Record<string, unknown>; version?: number };
+    const next = JSON.parse(incoming) as { state?: Record<string, unknown>; version?: number };
+    if (!prev.state || !next.state) return incoming;
+    const state = { ...prev.state, ...next.state };
+    // sidebarOpen — состояние интерфейса веба, Android о нём не знает
+    if ('sidebarOpen' in prev.state) state.sidebarOpen = prev.state.sidebarOpen;
+    return JSON.stringify({
+      state,
+      version: Math.max(Number(prev.version) || 0, Number(next.version) || 0),
+    });
+  } catch {
+    return incoming;
+  }
+}
+
 export interface BackupInfo {
   platform: string;
   appVersion: string;
@@ -120,11 +157,23 @@ export function importData(text: string): ImportResult {
   // Импорт заменяет данные, как в Android: старые ключи, которых нет в файле,
   // иначе остались бы (например, старые замеры) и смешались бы с новыми.
   // Кэши и точка возврата — не данные пользователя, их не трогаем.
+  // Файл Android веб-настроек не содержит (палитра, заставка, часы, погода,
+  // плеер), поэтому при таком импорте локальные настройки веба остаются:
+  // иначе импорт Android-копии «перекрашивал» бы приложение и стирал свои фоны.
+  const fromAndroid = info.platform === 'android';
   try {
-    const ours = Object.keys(localStorage).filter(
-      k => k.startsWith(PREFIX) && !SKIP.has(k.slice(PREFIX.length)),
-    );
-    ours.forEach(k => localStorage.removeItem(k));
+    // localStorage перебираем через length/key: Object.keys по Storage
+    // работает не во всех браузерах (Safari), а пропустить старые данные нельзя.
+    const ours: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(PREFIX) && !SKIP.has(k.slice(PREFIX.length))) ours.push(k);
+    }
+    ours.forEach((k) => {
+      const name = k.slice(PREFIX.length);
+      if (fromAndroid && !DATA_KEYS.has(name)) return;
+      localStorage.removeItem(k);
+    });
   } catch {
     // Хранилище недоступно — ниже всё равно попробуем записать.
   }
@@ -132,7 +181,8 @@ export function importData(text: string): ImportResult {
   let written = 0;
   for (const [name, raw] of Object.entries(storage)) {
     if (SKIP.has(name) || typeof raw !== 'string') continue;
-    localStorage.setItem(PREFIX + name, raw);
+    const value = name === 'settings' && fromAndroid ? mergeWebSettings(raw) : raw;
+    localStorage.setItem(PREFIX + name, value);
     written++;
   }
   return { keys: written, report };

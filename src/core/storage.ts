@@ -39,6 +39,16 @@ export function setJSON<T>(name: string, value: T): void {
   }
 }
 
+/** setJSON с ответом: false — не влезло в квоту (нужно откатить состояние). */
+export function trySetJSON<T>(name: string, value: T): boolean {
+  try {
+    localStorage.setItem(key(name), JSON.stringify(value));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function remove(name: string): void {
   try {
     localStorage.removeItem(key(name));

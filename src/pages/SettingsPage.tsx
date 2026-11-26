@@ -15,7 +15,8 @@ import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/ui';
 import { useUIStore } from '../core/store';
 import { PaletteSettings } from '../components/PaletteSettings';
-import { getString, setString, getJSON, setJSON } from '../core/storage';
+import { getString, setString, getJSON, setJSON, trySetJSON } from '../core/storage';
+import { compressSplashImage, SPLASH_IMAGES_BUDGET } from '../core/images';
 import {
   exportDataJson,
   inspectBackup,
@@ -364,24 +365,56 @@ export function SettingsPage() {
     input.type = 'file';
     input.accept = 'image/*';
     input.multiple = true;
-    input.onchange = (e: Event) => {
+    // Держим в DOM: часть браузеров не открывает пикер для отвязанного input,
+    // а после выбора (или отмены) убираем, чтобы не копить мусор.
+    input.style.display = 'none';
+    input.setAttribute('data-fg', 'splash-input');
+    document.body.appendChild(input);
+    const dropInput = () => window.setTimeout(() => input.remove(), 500);
+    window.addEventListener('focus', dropInput, { once: true });
+
+    input.onchange = async (e: Event) => {
       const files = (e.target as HTMLInputElement).files;
+      dropInput();
       if (!files || files.length === 0) return;
-      const next = [...mySplashBgs];
-      let loaded = 0;
-      for (let i = 0; i < files.length; i++) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          next.push(reader.result as string);
-          loaded++;
-          if (loaded === files.length) {
-            setMySplashBgs(next);
-            setJSON('splash_my_bgs', next);
-            showToast(`Добавлено картинок: ${files.length}`);
-          }
-        };
-        reader.readAsDataURL(files[i]);
+
+      const prev = mySplashBgs;
+      const next = [...prev];
+      let added = 0;
+      let tooBig = 0;
+      let broken = 0;
+      for (const file of Array.from(files)) {
+        let url: string;
+        try {
+          url = await compressSplashImage(file);
+        } catch {
+          broken++;
+          continue;
+        }
+        const used = next.reduce((sum, u) => sum + u.length, 0);
+        if (used + url.length > SPLASH_IMAGES_BUDGET) {
+          tooBig++;
+          continue;
+        }
+        next.push(url);
+        added++;
       }
+
+      if (added === 0) {
+        showToast(tooBig
+          ? 'Не хватило места в браузере: удалите пару своих фонов и попробуйте снова.'
+          : 'Эти файлы не удалось прочитать как картинки.');
+        return;
+      }
+      if (!trySetJSON('splash_my_bgs', next)) {
+        setMySplashBgs(prev);
+        showToast('Не хватило места в браузере. Удалите лишние свои фоны и повторите.');
+        return;
+      }
+      setMySplashBgs(next);
+      const tail = [tooBig ? `не влезли: ${tooBig}` : '', broken ? `не прочитаны: ${broken}` : '']
+        .filter(Boolean).join(', ');
+      showToast(`Добавлено картинок: ${added}${tail ? ` (${tail})` : ''}`);
     };
     input.click();
   };
