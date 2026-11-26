@@ -761,8 +761,8 @@ export function SettingsPage() {
         {hasBackup && (
           <button
             onClick={() => setShowRestoreConfirm(true)}
-            className="w-full mt-1.5 text-[13px]"
-            style={{ height: 40, color: 'var(--p-outline)' }}
+            className="fg-btn fg-btn-ghost w-full mt-1.5"
+            style={{ height: 44, fontSize: 13 }}
           >
             Вернуть данные до импорта
           </button>
