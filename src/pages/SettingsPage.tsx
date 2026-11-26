@@ -24,6 +24,7 @@ import {
   hasSafetyBackup,
   restoreSafetyBackup,
   backupFileName,
+  MAX_BACKUP_BYTES,
 } from '../core/dataPort';
 import type { BackupInfo } from '../core/dataPort';
 import {
@@ -188,19 +189,22 @@ export function SettingsPage() {
     input.onchange = () => {
       const file = input.files && input.files[0];
       if (!file) return;
+      if (file.size > MAX_BACKUP_BYTES) {
+        showToast('Файл слишком большой — резервная копия не больше 20 МБ');
+        return;
+      }
       const reader = new FileReader();
+      reader.onerror = () => showToast('Не удалось прочитать файл');
       reader.onload = () => {
         const text = String(reader.result || '');
         try {
           const info = inspectBackup(text);
-          if (info.platform !== 'web' && info.platform !== 'android') {
-            showToast('Файл создан в неизвестной версии FitGuide');
-            return;
-          }
           setPendingImport({ text, name: file.name, info });
         } catch (e) {
           const msg = e instanceof Error ? e.message : '';
-          showToast(msg === 'platform' ? 'Файл от другой платформы' : 'Это не файл FitGuide');
+          showToast(msg === 'too-big' ? 'Файл слишком большой'
+            : msg === 'platform' ? 'Файл от другой платформы'
+              : 'Это не файл FitGuide');
         }
       };
       reader.readAsText(file);
@@ -217,7 +221,10 @@ export function SettingsPage() {
       setTransferReport({ keys: res.keys, lines: res.report });
     } catch (e) {
       setPendingImport(null);
-      showToast('Не удалось импортировать: ' + (e instanceof Error ? e.message : '?'));
+      const msg = e instanceof Error ? e.message : '';
+      showToast(msg === 'quota'
+        ? 'Не хватило места в браузере — данные возвращены к прежним'
+        : 'Не удалось импортировать: ' + (msg || '?'));
     }
   };
 

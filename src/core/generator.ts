@@ -57,7 +57,8 @@ function floorMod(a: number, b: number): number {
 
 function settingsSeed(...parts: string[]): number {
   const sb = parts.map(p => p + '|').join('');
-  return Math.abs(javaHash(sb));
+  // Java: Math.abs(int). Для Integer.MIN_VALUE abs остаётся отрицательным — повторяем.
+  return Math.abs(javaHash(sb)) | 0;
 }
 
 function roundHalf(v: number): number {
@@ -74,11 +75,14 @@ export function levelRank(level: string | null | undefined): number {
   return 3;
 }
 
+/** Сложность упражнения: 1 — для всех/новичкам, 2 — средний, 3 — продвинутый/элита. */
 function difficultyRank(difficulty: string | null | undefined): number {
-  const d = (difficulty || '').toLowerCase();
-  if (d.includes('средний–продвинутый') || d.includes('средний-продвинутый') || d.includes('продвинутый')) return 3;
-  if (d.includes('средний')) return 2;
-  return 1;
+  const d = (difficulty || '').trim().toLowerCase();
+  if (!d) return 3;
+  if (d === 'все' || d === 'новичок' || d === 'начинающий' || d === 'beginner') return 1;
+  if (d === 'средний' || d === 'средний–продвинутый' || d === 'средний-продвинутый'
+    || d === 'intermediate') return 2;
+  return 3;
 }
 
 /** Направление тренировок: пауэрлифтинг — только база, бодибилдинг — всё. */
@@ -1107,7 +1111,8 @@ function pick(groupExercises: Exercise[], spec: Spec, phaseIndex: number, seed: 
     if (!ordered.length) continue;
 
     const saltHash = salt ? javaHash(salt) : 0;
-    const base = floorMod(seed + saltHash + phaseIndex * 7, ordered.length);
+    // Java считает сумму в int: переполнение 32 бита — часть контракта паритета.
+    const base = floorMod((seed + saltHash + phaseIndex * 7) | 0, ordered.length);
     for (let k = 0; k < ordered.length; k++) {
       const chosen = ordered[(base + k) % ordered.length];
       if (!chosen.name || used.has(chosen.name)) continue;

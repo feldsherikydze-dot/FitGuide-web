@@ -25,6 +25,10 @@ const PREFIX = 'fitguide_web_';
 const APP = 'FitGuide';
 export const FORMAT = 1;
 const SAFETY_KEY = 'backup_before_import';
+/** Разумный потолок файла резервной копии: защита от зависания и мусора. */
+export const MAX_BACKUP_BYTES = 20 * 1024 * 1024;
+/** Имена, которые нельзя писать в localStorage даже с префиксом. */
+const BAD_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
 /** Восстановимые кэши: в файл не кладём. */
 const SKIP = new Set([
   'cache_exercises',
@@ -103,23 +107,29 @@ export function exportDataJson(): string {
 }
 
 export function inspectBackup(text: string): BackupInfo {
+  if (typeof text !== 'string' || !text) throw new Error('empty');
+  if (text.length > MAX_BACKUP_BYTES) throw new Error('too-big');
   const root = JSON.parse(text) as Record<string, unknown>;
+  if (!root || typeof root !== 'object' || Array.isArray(root)) throw new Error('not-fitguide');
   if (root.app !== APP) throw new Error('not-fitguide');
   const format = Number(root.format);
   if (!Number.isFinite(format) || format < 1 || format > FORMAT) throw new Error('format');
   const platform = typeof root.platform === 'string' ? root.platform : 'web';
+  if (platform !== 'web' && platform !== 'android') throw new Error('platform');
 
   let keys = 0;
   if (platform === 'android') {
     // Резервная копия Android: prefs-файлы → ключи хранилища. Для диалога
     // считаем по ключам prefs: ровно столько сущностей приедет после конвертера.
     const prefs = root.prefs;
-    if (!prefs || typeof prefs !== 'object') throw new Error('prefs');
+    if (!prefs || typeof prefs !== 'object' || Array.isArray(prefs)) throw new Error('prefs');
     keys = Object.keys(prefs as Record<string, unknown>).length;
   } else {
     const storage = root.storage;
-    if (!storage || typeof storage !== 'object') throw new Error('storage');
-    keys = Object.keys(storage as Record<string, unknown>).filter(k => !SKIP.has(k)).length;
+    if (!storage || typeof storage !== 'object' || Array.isArray(storage)) throw new Error('storage');
+    keys = Object.keys(storage as Record<string, unknown>)
+      .filter(k => !SKIP.has(k) && !BAD_KEYS.has(k)
+        && typeof (storage as Record<string, unknown>)[k] === 'string').length;
   }
   if (keys === 0) throw new Error('empty');
   return {
@@ -179,11 +189,17 @@ export function importData(text: string): ImportResult {
   }
 
   let written = 0;
-  for (const [name, raw] of Object.entries(storage)) {
-    if (SKIP.has(name) || typeof raw !== 'string') continue;
-    const value = name === 'settings' && fromAndroid ? mergeWebSettings(raw) : raw;
-    localStorage.setItem(PREFIX + name, value);
-    written++;
+  try {
+    for (const [name, raw] of Object.entries(storage)) {
+      if (SKIP.has(name) || BAD_KEYS.has(name) || typeof raw !== 'string') continue;
+      const value = name === 'settings' && fromAndroid ? mergeWebSettings(raw) : raw;
+      localStorage.setItem(PREFIX + name, value);
+      written++;
+    }
+  } catch {
+    // Не оставляем полуимпорт: возвращаем снимок, снятый до замены.
+    try { restoreSafetyBackup(); } catch { /* возврат недоступен */ }
+    throw new Error('quota');
   }
   return { keys: written, report };
 }
@@ -199,10 +215,25 @@ export function hasSafetyBackup(): boolean {
 export function restoreSafetyBackup(): number {
   const raw = localStorage.getItem(PREFIX + SAFETY_KEY);
   if (!raw) throw new Error('no-backup');
-  const root = JSON.parse(raw) as { storage: Record<string, string> };
+  const root = JSON.parse(raw) as { storage?: Record<string, string> };
+  if (!root || typeof root !== 'object' || !root.storage || typeof root.storage !== 'object') {
+    throw new Error('no-backup');
+  }
+  // Восстанавливаем снимок целиком: ключи, появившиеся после него, убираем,
+  // иначе откат оставит смесь старых и новых данных.
+  try {
+    const ours: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(PREFIX) && k.slice(PREFIX.length) !== SAFETY_KEY) ours.push(k);
+    }
+    ours.forEach(k => localStorage.removeItem(k));
+  } catch {
+    // Хранилище недоступно — ниже попробуем записать хотя бы снимок.
+  }
   let written = 0;
-  for (const [name, value] of Object.entries(root.storage || {})) {
-    if (name === SAFETY_KEY || typeof value !== 'string') continue;
+  for (const [name, value] of Object.entries(root.storage)) {
+    if (name === SAFETY_KEY || BAD_KEYS.has(name) || typeof value !== 'string') continue;
     localStorage.setItem(PREFIX + name, value);
     written++;
   }

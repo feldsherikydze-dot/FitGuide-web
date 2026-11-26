@@ -96,12 +96,13 @@ export function isPrimaryForGroup(ex: Exercise | null | undefined, groupId: stri
   return !!ex && !!groupId && ex.muscleGroup === groupId;
 }
 
-/** Ранг сложности: beginner/все/начинающий = 1, intermediate/средний = 2, остальное = 3. */
+/** Ранг сложности: beginner/новичок/все/начинающий = 1, intermediate/средний = 2, остальное = 3. */
 export function levelRank(level: string | null | undefined): number {
   const l = (level || '').trim().toLowerCase();
   if (!l) return 3;
-  if (l === 'beginner' || l === 'все' || l === 'начинающий') return 1;
-  if (l === 'intermediate' || l === 'средний' || l === 'средний–продвинутый') return 2;
+  if (l === 'beginner' || l === 'новичок' || l === 'все' || l === 'начинающий') return 1;
+  if (l === 'intermediate' || l === 'средний'
+    || l === 'средний–продвинутый' || l === 'средний-продвинутый') return 2;
   return 3;
 }
 
